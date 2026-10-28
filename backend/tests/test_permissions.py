@@ -14,6 +14,7 @@ USER_EMAIL = "user@example.test"
 
 # Routen, die ohne Anmeldung erreichbar sein dürfen.
 PUBLIC_ROUTES = {
+    ("/api/panel", "GET"),
     ("/api/health", "GET"),
     ("/api/auth/login", "POST"),
     ("/api/auth/login/2fa", "POST"),
