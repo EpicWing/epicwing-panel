@@ -56,6 +56,7 @@ const query = ref("");
 const progress = ref("");
 const selected = ref<string[]>([]);
 const menu = ref<string | null>(null);
+const menuPos = ref<{ x: number; y: number } | null>(null);
 const gutter = ref<HTMLElement | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
 const backdrop = ref<HTMLElement | null>(null);
@@ -314,12 +315,28 @@ function toggle(name: string): void {
     : [...selected.value, name];
 }
 
+function openContext(event: MouseEvent, name: string): void {
+  menuPos.value = {
+    x: Math.min(event.clientX, window.innerWidth - 190),
+    y: Math.min(event.clientY, window.innerHeight - 240),
+  };
+  menu.value = name;
+}
+
+function menuStyle(): Record<string, string> | undefined {
+  const pos = menuPos.value;
+  if (!pos) return undefined;
+  return { position: "fixed", left: `${pos.x}px`, top: `${pos.y}px`, right: "auto", marginTop: "0" };
+}
+
 function toggleMenu(name: string): void {
+  menuPos.value = null;
   menu.value = menu.value === name ? null : name;
 }
 
 function closeMenu(): void {
   menu.value = null;
+  menuPos.value = null;
 }
 
 function toggleAll(): void {
@@ -772,10 +789,12 @@ async function onDrop(event: DragEvent): Promise<void> {
 
 onMounted(() => {
   document.addEventListener("click", closeMenu);
+  window.addEventListener("scroll", closeMenu, true);
   if (!blocked.value) void load("");
 });
 
 onBeforeUnmount(() => document.removeEventListener("click", closeMenu));
+onBeforeUnmount(() => window.removeEventListener("scroll", closeMenu, true));
 
 watch(blocked, (value) => {
   if (!value) void load("");
@@ -877,6 +896,7 @@ watch(blocked, (value) => {
             class="group grid cursor-pointer grid-cols-[1.5rem_minmax(0,1fr)_2rem] items-center gap-3 rounded-lg px-3 py-2.5 text-sm sm:grid-cols-[1.5rem_minmax(0,1fr)_6rem_10rem_2rem]"
             :class="selected.includes(entry.name) ? 'bg-ink-800 ring-1 ring-inset ring-accent-500/50' : 'bg-ink-950 hover:bg-ink-800/70'"
             @click="activate(entry)"
+            @contextmenu.prevent="openContext($event, entry.name)"
           >
             <label class="flex items-center" @click.stop>
               <input type="checkbox" class="h-4 w-4 cursor-pointer accent-accent-500" :checked="selected.includes(entry.name)" @change="toggle(entry.name)" />
@@ -893,7 +913,7 @@ watch(blocked, (value) => {
               <button type="button" class="flex h-8 w-8 items-center justify-center rounded-md text-ink-400 hover:bg-ink-700 hover:text-ink-100 disabled:opacity-50" :class="menu === entry.name ? 'bg-ink-700 text-ink-100' : ''" :disabled="busy" aria-label="Actions" aria-haspopup="menu" :aria-expanded="menu === entry.name" @click="toggleMenu(entry.name)">
                 <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
               </button>
-              <div v-if="menu === entry.name" role="menu" class="absolute right-0 top-full z-30 mt-1 w-44 rounded-lg border border-ink-700 bg-ink-900 py-1 text-sm shadow-2xl">
+              <div v-if="menu === entry.name" role="menu" :style="menuStyle()" class="absolute right-0 top-full z-30 mt-1 w-44 rounded-lg border border-ink-700 bg-ink-900 py-1 text-sm shadow-2xl">
                 <button role="menuitem" class="block w-full px-3 py-2 text-left text-ink-100 hover:bg-ink-800" @click="closeMenu(); download([entry])">{{ entry.dir ? "Download ZIP" : "Download" }}</button>
                 <button role="menuitem" class="block w-full px-3 py-2 text-left text-ink-100 hover:bg-ink-800" @click="closeMenu(); openDialog('rename', [entry], entry.name)">Rename</button>
                 <button role="menuitem" class="block w-full px-3 py-2 text-left text-ink-100 hover:bg-ink-800" @click="closeMenu(); openDialog('move', [entry], entry.name)">Move</button>
