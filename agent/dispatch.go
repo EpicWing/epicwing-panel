@@ -201,6 +201,8 @@ func (d *commandDispatcher) run(ctx context.Context, conn *websocket.Conn, f pan
 		var err error
 		if strings.HasPrefix(f.Action, "file.") {
 			data, err = d.executeFile(f.Action, f.Params)
+		} else if strings.HasPrefix(f.Action, "backup.") {
+			data, err = d.executeBackup(f.Action, f.Params)
 		} else if lockFree(f.Action) {
 			data, err = d.execute(ctx, f.Action, f.Params)
 		} else {
