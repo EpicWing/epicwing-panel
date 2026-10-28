@@ -174,7 +174,7 @@ def test_csrf_token_is_required(client, env):
     "changes",
     [
         {"memory_mb": 1},
-        {"cpus": 0},
+        {"cpus": 0.05},
         {"disk_mb": 1},
         {"name": ""},
         {"image": "-rm"},

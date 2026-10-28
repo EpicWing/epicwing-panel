@@ -367,7 +367,7 @@ onUnmounted(() => window.clearInterval(timer));
           v-model.number="form.memoryMb"
           required
           type="number"
-          min="16"
+          min="0"
           max="65536"
           :class="inputClass"
         />
@@ -381,7 +381,7 @@ onUnmounted(() => window.clearInterval(timer));
             required
             type="number"
             step="0.1"
-            min="0.1"
+            min="0"
             max="64"
             :class="inputClass"
           />
@@ -393,7 +393,7 @@ onUnmounted(() => window.clearInterval(timer));
             v-model.number="form.diskMb"
             required
             type="number"
-            min="100"
+            min="0"
             :class="inputClass"
           />
         </div>

@@ -1,13 +1,21 @@
 import ipaddress
 import uuid
 from datetime import datetime
-from typing import Self
+from typing import Any, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.schemas.egg import ENV_RE, CleanedFields, clean_text, reject_nulls
 
 MAX_PORTS_PER_REQUEST = 500
+# 0 heißt unbegrenzt, sonst gilt mindestens dieser Wert.
+MINIMUMS = {"memory_mb": 16, "cpus": 0.1, "disk_mb": 100}
+
+
+def _zero_or_min(value: Any, field: str) -> Any:
+    if value is not None and 0 < value < MINIMUMS[field]:
+        raise ValueError(f"{field} must be 0 (unlimited) or at least {MINIMUMS[field]}.")
+    return value
 
 
 class AllocationCreate(BaseModel):
@@ -78,13 +86,18 @@ class ServerCreate(CleanedFields):
     egg_id: uuid.UUID
     allocation_id: uuid.UUID
     extra_allocation_ids: list[uuid.UUID] = Field(default_factory=list, max_length=15)
-    memory_mb: int = Field(default=1024, ge=16, le=65536)
-    cpus: float = Field(default=1.0, ge=0.1, le=64)
-    disk_mb: int = Field(default=5120, ge=100, le=10_000_000)
+    memory_mb: int = Field(default=1024, ge=0, le=65536)
+    cpus: float = Field(default=1.0, ge=0, le=64)
+    disk_mb: int = Field(default=5120, ge=0, le=10_000_000)
     # Ohne Angabe gelten Image und Startbefehl des Eggs.
     image: str | None = None
     startup: str | None = None
     variables: dict[str, str] = Field(default_factory=dict, max_length=64)
+
+    @field_validator("memory_mb", "cpus", "disk_mb")
+    @classmethod
+    def _limits(cls, value: Any, info: Any) -> Any:
+        return _zero_or_min(value, info.field_name)
 
     @field_validator("variables")
     @classmethod
@@ -104,12 +117,17 @@ class ServerUpdate(CleanedFields):
 
     name: str | None = None
     description: str | None = None
-    memory_mb: int | None = Field(default=None, ge=16, le=65536)
-    cpus: float | None = Field(default=None, ge=0.1, le=64)
-    disk_mb: int | None = Field(default=None, ge=100, le=10_000_000)
+    memory_mb: int | None = Field(default=None, ge=0, le=65536)
+    cpus: float | None = Field(default=None, ge=0, le=64)
+    disk_mb: int | None = Field(default=None, ge=0, le=10_000_000)
     image: str | None = None
     startup: str | None = None
     variables: dict[str, str] | None = Field(default=None, max_length=64)
+
+    @field_validator("memory_mb", "cpus", "disk_mb")
+    @classmethod
+    def _limits(cls, value: Any, info: Any) -> Any:
+        return _zero_or_min(value, info.field_name)
 
     @field_validator("variables")
     @classmethod

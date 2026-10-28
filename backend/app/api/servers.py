@@ -52,6 +52,7 @@ def _outs(db: Session, servers: list[Server]) -> list[ServerOut]:
     values: dict[uuid.UUID, dict[str, str]] = defaultdict(dict)
     for v in db.scalars(select(ServerVariable).where(ServerVariable.server_id.in_(ids))):
         values[v.server_id][v.env_variable] = v.value
+    host_ram = {n.id: getattr(n, "ram_total_mb", None) for n in db.scalars(select(Node))}
     outs = []
     for server in servers:
         out = ServerOut.model_validate(server)
@@ -68,6 +69,7 @@ def _outs(db: Session, servers: list[Server]) -> list[ServerOut]:
             server.memory_mb,
             main.ip if main else None,
             main.port if main else None,
+            host_memory_mb=host_ram.get(server.node_id),
         )
         outs.append(out)
     return outs

@@ -163,7 +163,8 @@ export default {
     memory: "Memory (MB)",
     cpus: "CPU limit (cores)",
     disk: "Disk (MB)",
-    limitsHint: "1024 MB are 1 GB.",
+    limitsHint:
+      "0 means unlimited. Memory in MB, CPU in cores (1 = one core), disk in MB. Otherwise at least 16 MB, 0.1 cores and 100 MB.",
     variables: "Variables",
     advanced: "Advanced",
     image: "Docker image",

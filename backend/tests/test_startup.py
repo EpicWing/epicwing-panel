@@ -25,3 +25,16 @@ def test_render_does_not_expand_values_again():
 def test_unknown_lists_missing_names():
     assert startup.unknown("x {{A}} {{SERVER_IP}} {{B}} {{env.A}}", ["A"]) == ["B"]
     assert startup.unknown("nginx -g 'daemon off;'", []) == []
+
+
+def test_render_uses_host_memory_for_unlimited_servers():
+    out = startup.render("-Xmx{{SERVER_MEMORY}}M", {}, 0, None, None, host_memory_mb=8192)
+    assert out == "-Xmx8192M"
+
+
+def test_render_keeps_placeholder_for_unlimited_without_host_memory():
+    assert startup.render("{{SERVER_MEMORY}}", {}, 0, None, None) == "{{SERVER_MEMORY}}"
+
+
+def test_render_ignores_variables_named_like_builtins():
+    assert startup.render("{{SERVER_MEMORY}}", {"SERVER_MEMORY": "1"}, 256, None, None) == "256"

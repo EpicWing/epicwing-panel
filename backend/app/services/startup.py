@@ -20,12 +20,22 @@ def unknown(startup: str, env_names: list[str]) -> list[str]:
 
 
 def render(
-    startup: str, variables: dict[str, str], memory_mb: int, ip: str | None, port: int | None
+    startup: str,
+    variables: dict[str, str],
+    memory_mb: int,
+    ip: str | None,
+    port: int | None,
+    host_memory_mb: int | None = None,
 ) -> str:
     """Setzt die Werte ein. Nur eine Vorschau: Der Agent darf diesen Text nie ungeprüft
     durch eine Shell schicken, denn die Werte stammen von Nutzern."""
     values = dict(variables)
-    values["SERVER_MEMORY"] = str(memory_mb)
+    values.pop("SERVER_MEMORY", None)
+    # Bei 0 (unbegrenzt) gilt der RAM der Node, sonst bliebe -Xmx0M übrig.
+    if memory_mb > 0:
+        values["SERVER_MEMORY"] = str(memory_mb)
+    elif host_memory_mb:
+        values["SERVER_MEMORY"] = str(host_memory_mb)
     if ip is not None:
         values["SERVER_IP"] = ip
     if port is not None:
