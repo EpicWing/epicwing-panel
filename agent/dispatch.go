@@ -36,6 +36,7 @@ type policyFile struct {
 	PortMax       int                 `json:"port_max"`
 	ImageCaps     map[string][]string `json:"image_caps"`
 	BindIP        string              `json:"bind_ip"`
+	DataDir       string              `json:"data_dir"`
 }
 
 // loadContainerPolicy reads policy.json next to the config file.
@@ -69,7 +70,21 @@ func loadPolicyFile(file string) ContainerPolicy {
 		log.Printf("invalid bind_ip in %s, creating containers is disabled", file)
 		return deny
 	}
-	return ContainerPolicy{AllowedImages: p.AllowedImages, PortMin: p.PortMin, PortMax: p.PortMax, ImageCaps: p.ImageCaps, BindIP: p.BindIP}
+	if p.DataDir == "" {
+		p.DataDir = defaultDataDir
+	}
+	if !validDataDir(p.DataDir) {
+		log.Printf("invalid data_dir in %s, creating containers is disabled", file)
+		return deny
+	}
+	return ContainerPolicy{
+		AllowedImages: p.AllowedImages,
+		PortMin:       p.PortMin,
+		PortMax:       p.PortMax,
+		ImageCaps:     p.ImageCaps,
+		BindIP:        p.BindIP,
+		DataDir:       p.DataDir,
+	}
 }
 
 type commandDispatcher struct {
@@ -109,7 +124,7 @@ func (d *commandDispatcher) execute(ctx context.Context, action string, params j
 			return nil, err
 		}
 		return map[string]any{"id": id}, nil
-	case "container.start", "container.stop", "container.remove":
+	case "container.start", "container.stop", "container.kill", "container.remove", "container.status":
 		var p struct {
 			Name string `json:"name"`
 		}
@@ -121,6 +136,14 @@ func (d *commandDispatcher) execute(ctx context.Context, action string, params j
 			return nil, d.containers.Start(ctx, p.Name)
 		case "container.stop":
 			return nil, d.containers.Stop(ctx, p.Name)
+		case "container.kill":
+			return nil, d.containers.Kill(ctx, p.Name)
+		case "container.status":
+			state, code, err := d.containers.Status(ctx, p.Name)
+			if err != nil {
+				return nil, err
+			}
+			return map[string]any{"state": state, "exit_code": code}, nil
 		default:
 			return nil, d.containers.Remove(ctx, p.Name)
 		}

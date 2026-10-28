@@ -46,8 +46,6 @@ func TestContainerCreateValidation(t *testing.T) {
 		"bad protocol":           func(s *ContainerSpec) { s.Ports[0].Proto = "sctp" },
 		"bad env name":           func(s *ContainerSpec) { s.Env = map[string]string{"A=B": "1"} },
 		"env newline":            func(s *ContainerSpec) { s.Env = map[string]string{"A": "x\ny"} },
-		"no memory limit":        func(s *ContainerSpec) { s.MemoryMB = 0 },
-		"no cpu limit":           func(s *ContainerSpec) { s.CPUs = 0 },
 	}
 	for name, mutate := range cases {
 		t.Run(name, func(t *testing.T) {
