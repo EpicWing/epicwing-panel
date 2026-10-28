@@ -143,6 +143,8 @@ class ScheduleOut(BaseModel):
     last_run_at: datetime | None
     next_run_at: datetime | None
     is_running: bool
+    last_result: str | None = None
+    last_detail: str | None = None
     tasks: list[TaskOut]
 
 
@@ -175,6 +177,8 @@ def _out(db: Session, row: Schedule) -> ScheduleOut:
         last_run_at=row.last_run_at,
         next_run_at=row.next_run_at,
         is_running=schedule_runner.is_running(row.id),
+        last_result=row.last_result,
+        last_detail=row.last_detail,
         tasks=[TaskOut.model_validate(task) for task in tasks],
     )
 

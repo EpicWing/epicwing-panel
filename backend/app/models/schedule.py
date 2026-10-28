@@ -37,6 +37,8 @@ class Schedule(Base):
     )
     enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
     last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_result: Mapped[str | None] = mapped_column(String(16))
+    last_detail: Mapped[str | None] = mapped_column(String(300))
     next_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
