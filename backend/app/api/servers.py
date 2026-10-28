@@ -31,7 +31,7 @@ from app.security.server_access import (
     visible_servers,
 )
 from app.security.sessions import AuthContext, CurrentAuth
-from app.services import audit, lifecycle, transfer
+from app.services import audit, lifecycle, server_databases, transfer
 from app.services import rules as rule_engine
 from app.services import startup as startup_service
 
@@ -343,6 +343,7 @@ async def delete_server(
     name = server.name
     if server.status != "new":
         await _remove_container(server, skip_offline=True)
+    await server_databases.drop_all(db, server.id)
     db.execute(
         update(Allocation)
         .where(Allocation.server_id == server.id)
