@@ -54,6 +54,8 @@ def _invalid() -> HTTPException:
 def get_server_auth(
     request: Request, db: Annotated[Session, Depends(get_db)]
 ) -> AuthContext | KeyContext:
+    # Der Vermerk gilt nur für diesen Request (die Session wird im Test mehrfach benutzt).
+    db.info.pop("api_key", None)
     token = _bearer_key(request)
     if token is None:
         # Ohne Key gilt wie bisher die Cookie-Session samt CSRF-Prüfung.
@@ -73,6 +75,8 @@ def get_server_auth(
     if key.last_used_at is None or now - _aware(key.last_used_at) > _LAST_USED_INTERVAL:
         key.last_used_at = now
         db.commit()
+    # audit.record liest das und vermerkt, dass die Aktion per Key kam.
+    db.info["api_key"] = {"id": str(key.id), "name": key.name}
     return KeyContext(user=user, session=None, key=key)
 
 
