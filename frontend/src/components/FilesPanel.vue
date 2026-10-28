@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
 
 import { ApiError, api } from "../api/client";
 
@@ -27,6 +27,7 @@ const props = defineProps<{ serverId: string; status: string }>();
 
 const CHUNK = 8 * 1024;
 const MAX_EDIT = 1024 * 1024;
+const MAX_LOAD = 5000;
 
 const path = ref("");
 const entries = ref<Entry[]>([]);
@@ -35,6 +36,8 @@ const next = ref(-1);
 const loading = ref(false);
 const busy = ref(false);
 const error = ref("");
+const query = ref("");
+const gutter = ref<HTMLElement | null>(null);
 
 const editor = ref<{ path: string; content: string; original: string } | null>(null);
 const saving = ref(false);
@@ -44,6 +47,28 @@ const dirty = computed(() => editor.value !== null && editor.value.content !== e
 const crumbs = computed(() => {
   const parts = path.value ? path.value.split("/") : [];
   return parts.map((name, index) => ({ name, path: parts.slice(0, index + 1).join("/") }));
+});
+const editorCrumbs = computed(() => {
+  const parts = editor.value ? editor.value.path.split("/") : [];
+  return parts.map((name, index) => ({
+    name,
+    path: parts.slice(0, index + 1).join("/"),
+    last: index === parts.length - 1,
+  }));
+});
+const lineNumbers = computed(() => {
+  const count = editor.value ? editor.value.content.split("\n").length : 0;
+  return Array.from({ length: count }, (_, index) => index + 1).join("\n");
+});
+const visible = computed(() => {
+  const needle = query.value.trim().toLowerCase();
+  const list = needle
+    ? entries.value.filter((entry) => entry.name.toLowerCase().includes(needle))
+    : entries.value;
+  return [...list].sort((a, b) => {
+    if (a.dir !== b.dir) return a.dir ? -1 : 1;
+    return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" });
+  });
 });
 
 function base(): string {
@@ -70,6 +95,29 @@ function formatBytes(value: number): string {
   return `${amount >= 10 || unit === 0 ? amount.toFixed(0) : amount.toFixed(1)} ${units[unit]}`;
 }
 
+function formatDate(seconds: number): string {
+  const diff = Math.max(0, Math.floor(Date.now() / 1000 - seconds));
+  if (diff < 60) return "just now";
+  if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
+  if (diff < 86400) {
+    const hours = Math.floor(diff / 3600);
+    return `${hours} ${hours === 1 ? "hour" : "hours"} ago`;
+  }
+  if (diff < 7 * 86400) {
+    const days = Math.floor(diff / 86400);
+    return `${days} ${days === 1 ? "day" : "days"} ago`;
+  }
+  return new Date(seconds * 1000).toLocaleDateString([], {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+function formatFull(seconds: number): string {
+  return new Date(seconds * 1000).toLocaleString();
+}
+
 function toBase64(bytes: Uint8Array): string {
   let binary = "";
   for (const byte of bytes) binary += String.fromCharCode(byte);
@@ -94,13 +142,25 @@ async function load(target: string, offset = 0): Promise<void> {
   loading.value = true;
   error.value = "";
   try {
-    const data = await api<Listing>(
-      `${base()}?path=${encodeURIComponent(target)}&offset=${offset}`,
-    );
-    if (token !== loadToken) return;
-    entries.value = offset > 0 ? [...entries.value, ...data.entries] : data.entries;
-    total.value = data.total;
-    next.value = data.next;
+    let all: Entry[] = offset > 0 ? [...entries.value] : [];
+    let cursor = offset;
+    let more = -1;
+    let count = 0;
+    for (;;) {
+      const data = await api<Listing>(
+        `${base()}?path=${encodeURIComponent(target)}&offset=${cursor}`,
+      );
+      if (token !== loadToken) return;
+      all = all.concat(data.entries);
+      count = data.total;
+      more = data.next;
+      if (more < 0 || all.length >= MAX_LOAD || data.entries.length === 0) break;
+      cursor = more;
+    }
+    entries.value = all;
+    total.value = count;
+    next.value = more;
+    if (target !== path.value) query.value = "";
     path.value = target;
   } catch (cause) {
     if (token === loadToken) fail(cause);
@@ -112,6 +172,14 @@ async function load(target: string, offset = 0): Promise<void> {
 function goUp(): void {
   const index = path.value.lastIndexOf("/");
   void load(index === -1 ? "" : path.value.slice(0, index));
+}
+
+function goTo(target: string): void {
+  if (editor.value) {
+    if (dirty.value && !window.confirm("Discard unsaved changes?")) return;
+    editor.value = null;
+  }
+  void load(target);
 }
 
 async function openFile(entry: Entry): Promise<void> {
@@ -201,6 +269,23 @@ function closeEditor(): void {
   void load(path.value);
 }
 
+function syncScroll(event: Event): void {
+  if (gutter.value) gutter.value.scrollTop = (event.target as HTMLTextAreaElement).scrollTop;
+}
+
+function indent(event: KeyboardEvent): void {
+  const area = event.target as HTMLTextAreaElement;
+  if (!editor.value) return;
+  const start = area.selectionStart;
+  const end = area.selectionEnd;
+  const value = editor.value.content;
+  editor.value.content = `${value.slice(0, start)}  ${value.slice(end)}`;
+  void nextTick(() => {
+    area.selectionStart = start + 2;
+    area.selectionEnd = start + 2;
+  });
+}
+
 function activate(entry: Entry): void {
   if (entry.dir) void load(join(path.value, entry.name));
   else void openFile(entry);
@@ -280,33 +365,6 @@ async function remove(entry: Entry): Promise<void> {
   );
 }
 
-const editorCrumbs = computed(() => {
-  const parts = editor.value ? editor.value.path.split("/") : [];
-  return parts.map((name, index) => ({
-    name,
-    path: parts.slice(0, index + 1).join("/"),
-    last: index === parts.length - 1,
-  }));
-});
-
-function goTo(target: string): void {
-  if (editor.value) {
-    if (dirty.value && !window.confirm("Discard unsaved changes?")) return;
-    editor.value = null;
-  }
-  void load(target);
-}
-
-function formatDate(seconds: number): string {
-  return new Date(seconds * 1000).toLocaleString([], {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 onMounted(() => {
   if (!blocked.value) void load("");
 });
@@ -318,12 +376,12 @@ watch(blocked, (value) => {
 
 <template>
   <div class="space-y-5">
-    <div class="flex items-start justify-between gap-4">
+    <div v-if="!editor" class="flex items-start justify-between gap-4">
       <div>
         <h2 class="text-4xl font-bold">Files</h2>
-        <p v-if="!editor" class="mt-2 text-sm text-ink-400">Browse and edit the files of your server.</p>
+        <p class="mt-2 text-sm text-ink-400">Browse and edit the files of your server.</p>
       </div>
-      <div v-if="!blocked && !editor" class="flex gap-2">
+      <div v-if="!blocked" class="flex gap-2">
         <button class="rounded-lg border border-ink-700 px-4 py-2 text-sm text-ink-200 hover:bg-ink-800 disabled:opacity-50" :disabled="busy" @click="newFolder">New Folder</button>
         <button class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950 disabled:opacity-50" :disabled="busy" @click="newFile">New File</button>
       </div>
@@ -350,13 +408,20 @@ watch(blocked, (value) => {
           <button class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950 disabled:opacity-50" :disabled="saving || !dirty" @click="save">{{ saving ? "Saving…" : "Save" }}</button>
         </div>
       </div>
-      <textarea
-        v-model="editor.content"
-        spellcheck="false"
-        class="w-full resize-none rounded-xl border border-ink-700 bg-ink-950 p-5 font-mono text-[13px] leading-6 text-ink-100 focus:border-accent-500 focus:outline-none"
-        style="height: calc(100vh - 15rem); min-height: 24rem"
-        @keydown.ctrl.s.prevent="save"
-      ></textarea>
+      <div class="flex overflow-hidden rounded-xl border border-ink-700 bg-ink-950 focus-within:border-accent-500" style="height: calc(100vh - 8.5rem); min-height: 24rem">
+        <div ref="gutter" aria-hidden="true" class="shrink-0 select-none overflow-hidden border-r border-ink-800 bg-ink-900/60 py-4 pl-4 pr-3 text-right text-[13px] leading-6 text-ink-500">
+          <pre class="m-0 pb-8 font-mono">{{ lineNumbers }}</pre>
+        </div>
+        <textarea
+          v-model="editor.content"
+          wrap="off"
+          spellcheck="false"
+          class="h-full min-w-0 flex-1 resize-none overflow-auto whitespace-pre bg-transparent px-4 py-4 font-mono text-[13px] leading-6 text-ink-100 focus:outline-none"
+          @scroll="syncScroll"
+          @keydown.ctrl.s.prevent="save"
+          @keydown.tab.prevent="indent"
+        ></textarea>
+      </div>
     </div>
 
     <div v-else class="space-y-3">
@@ -370,52 +435,42 @@ watch(blocked, (value) => {
         </template>
       </nav>
 
-      <div class="overflow-hidden rounded-xl border border-ink-700 bg-ink-900">
-        <table class="w-full text-left text-sm">
-          <thead class="bg-ink-950/40 text-xs uppercase tracking-wide text-ink-500">
-            <tr>
-              <th class="px-5 py-3 font-medium">Name</th>
-              <th class="px-5 py-3 font-medium">Size</th>
-              <th class="px-5 py-3 font-medium">Modified</th>
-              <th class="px-5 py-3"></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="path" class="cursor-pointer border-t border-ink-800 hover:bg-ink-800/60" @click="goUp">
-              <td class="px-5 py-3 text-ink-300" colspan="4">
-                <div class="flex items-center gap-3">
-                  <svg class="h-5 w-5 shrink-0 text-ink-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
-                  <span>Back</span>
-                </div>
-              </td>
-            </tr>
-            <tr v-for="entry in entries" :key="entry.name" class="group cursor-pointer border-t border-ink-800 hover:bg-ink-800/60" @click="activate(entry)">
-              <td class="px-5 py-3">
-                <div class="flex items-center gap-3">
-                  <svg v-if="entry.dir" class="h-5 w-5 shrink-0 text-accent-500" viewBox="0 0 24 24" fill="currentColor"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/></svg>
-                  <svg v-else class="h-5 w-5 shrink-0 text-ink-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>
-                  <span class="text-ink-100">{{ entry.name }}</span>
-                  <span v-if="entry.link" class="rounded bg-ink-800 px-1.5 py-0.5 text-xs text-ink-400">link</span>
-                </div>
-              </td>
-              <td class="px-5 py-3 text-ink-400">{{ entry.dir ? "—" : formatBytes(entry.size) }}</td>
-              <td class="px-5 py-3 text-ink-400">{{ formatDate(entry.mtime) }}</td>
-              <td class="px-5 py-3">
-                <div class="flex justify-end gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
-                  <button class="rounded px-2 py-1 text-ink-300 hover:bg-ink-700 hover:text-ink-100 disabled:opacity-50" :disabled="busy" @click.stop="rename(entry)">Rename</button>
-                  <button class="rounded px-2 py-1 text-bad hover:bg-ink-700 disabled:opacity-50" :disabled="busy" @click.stop="remove(entry)">Delete</button>
-                </div>
-              </td>
-            </tr>
-            <tr v-if="!loading && !error && entries.length === 0">
-              <td class="px-5 py-12 text-center text-ink-500" colspan="4">This folder is empty.</td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="relative">
+        <svg class="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input v-model="query" type="search" placeholder="Search…" class="w-full rounded-xl border border-ink-700 bg-ink-900 py-3 pl-11 pr-4 text-sm text-ink-100 placeholder:text-ink-500 focus:border-accent-500 focus:outline-none" />
+      </div>
+
+      <div class="space-y-2">
+        <div v-if="path" class="flex cursor-pointer items-center gap-3 rounded-xl border border-ink-800 bg-ink-900 px-4 py-3 text-sm text-ink-300 hover:border-ink-600 hover:bg-ink-800/60" @click="goUp">
+          <svg class="h-5 w-5 shrink-0 text-ink-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
+          <span>Back</span>
+        </div>
+
+        <div
+          v-for="entry in visible"
+          :key="entry.name"
+          class="group grid cursor-pointer grid-cols-[minmax(0,1fr)_7rem_9rem_auto] items-center gap-4 rounded-xl border border-ink-800 bg-ink-900 px-4 py-3 text-sm hover:border-ink-600 hover:bg-ink-800/60"
+          @click="activate(entry)"
+        >
+          <div class="flex min-w-0 items-center gap-3">
+            <svg v-if="entry.dir" class="h-5 w-5 shrink-0 text-accent-500" viewBox="0 0 24 24" fill="currentColor"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/></svg>
+            <svg v-else class="h-5 w-5 shrink-0 text-ink-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>
+            <span class="truncate font-medium text-ink-100">{{ entry.name }}</span>
+            <span v-if="entry.link" class="shrink-0 rounded bg-ink-800 px-1.5 py-0.5 text-xs text-ink-400">link</span>
+          </div>
+          <span class="text-right text-ink-400">{{ entry.dir ? "—" : formatBytes(entry.size) }}</span>
+          <span class="text-right text-ink-400" :title="formatFull(entry.mtime)">{{ formatDate(entry.mtime) }}</span>
+          <div class="flex justify-end gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+            <button class="rounded px-2 py-1 text-ink-300 hover:bg-ink-700 hover:text-ink-100 disabled:opacity-50" :disabled="busy" @click.stop="rename(entry)">Rename</button>
+            <button class="rounded px-2 py-1 text-bad hover:bg-ink-700 disabled:opacity-50" :disabled="busy" @click.stop="remove(entry)">Delete</button>
+          </div>
+        </div>
+
+        <p v-if="!loading && !error && visible.length === 0" class="py-12 text-center text-sm text-ink-500">{{ query ? "No matches." : "This folder is empty." }}</p>
       </div>
 
       <div class="flex items-center justify-between text-sm text-ink-400">
-        <span>{{ loading ? "Loading…" : `${entries.length} of ${total} entries` }}</span>
+        <span>{{ loading ? "Loading…" : query ? `${visible.length} matches` : `${entries.length} of ${total} entries` }}</span>
         <button v-if="next >= 0" class="rounded-lg border border-ink-700 px-4 py-2 text-ink-200 hover:bg-ink-800 disabled:opacity-50" :disabled="loading" @click="load(path, next)">Load more</button>
       </div>
     </div>
