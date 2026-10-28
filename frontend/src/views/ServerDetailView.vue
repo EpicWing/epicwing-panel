@@ -129,6 +129,13 @@ function chartPoints(key: string): string {
   return values.map((value, index) => `${(index / (values.length - 1)) * 300},${72 - (value / max) * 64}`).join(" ");
 }
 
+function networkAxisLabel(fraction: number): string {
+  const peak = isOnline() ? Math.max(...history.value.rx, ...history.value.tx, 1024) : 0;
+  const value = peak * fraction;
+  if (value > 0) return formatBytes(value);
+  return fraction === 0 ? formatBytes(0) : "";
+}
+
 function networkPoints(key: "rx" | "tx"): string {
   return chartPoints(key)
     .split(" ")
@@ -306,10 +313,10 @@ onMounted(async () => {
               <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full" style="background-color: #f778ba"></span>↑ Upload (outgoing)</span>
               <span class="text-ink-500">Both lines share one scale.</span>
             </div>
-            <svg viewBox="0 0 900 80" class="mt-3 h-16 w-full" preserveAspectRatio="none" aria-hidden="true">
-              <polyline :points="networkPoints('rx')" fill="none" stroke="#49c58a" stroke-width="2" vector-effect="non-scaling-stroke" />
-              <polyline :points="networkPoints('tx')" fill="none" stroke="#f778ba" stroke-width="2" vector-effect="non-scaling-stroke" />
-            </svg>
+            <div class="mt-3 flex gap-2"><div class="flex h-16 flex-col justify-between font-mono text-[10px] leading-none text-ink-500"><span>{{ networkAxisLabel(1) }}</span><span>{{ networkAxisLabel(0.5) }}</span><span>{{ networkAxisLabel(0) }}</span></div><div class="min-w-0 flex-1"><svg viewBox="0 0 900 80" class="h-16 w-full" preserveAspectRatio="none" aria-hidden="true">
+              <polygon :points="networkPoints('rx') + ' 900,72 0,72'" fill="#49c58a" fill-opacity="0.12" /><polyline :points="networkPoints('rx')" fill="none" stroke="#49c58a" stroke-width="2" vector-effect="non-scaling-stroke" />
+              <polygon :points="networkPoints('tx') + ' 900,72 0,72'" fill="#f778ba" fill-opacity="0.12" /><polyline :points="networkPoints('tx')" fill="none" stroke="#f778ba" stroke-width="2" vector-effect="non-scaling-stroke" />
+            </svg></div></div>
           </div>
         </section>
 
