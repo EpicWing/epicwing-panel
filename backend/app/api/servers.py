@@ -554,6 +554,18 @@ def _report_failure(
     )
 
 
+async def _recreate_container(db: Session, server: Server) -> None:
+    """Erzeugt den Container aus dem aktuellen Stand neu (Variablen, Ports, Image).
+    Das Datenverzeichnis bleibt, nur der Container wird ersetzt."""
+    out = _outs(db, [server])[0]
+    node = db.get(Node, server.node_id)
+    spec = lifecycle.build_spec(
+        server, out.allocations, out.variables, node.ram_total_mb if node else None
+    )
+    await _remove_container(server)
+    await _agent(server, "container.create", spec)
+
+
 async def perform_power(db: Session, server: Server, action: str) -> None:
     """Führt eine Power-Aktion aus. Endpunkt und Zeitpläne nutzen dieselbe Logik."""
     # Kill ist der Notausgang und darf auch laufen, während ein Stop noch wartet.
@@ -580,10 +592,13 @@ async def perform_power(db: Session, server: Server, action: str) -> None:
                 await _agent(server, "container.stop", stop_params)
                 await hub.publish_clear(lifecycle.container_name(server.id))
                 _set_status(db, server, "starting")
+                await _recreate_container(db, server)
                 await _agent(server, "container.start")
             elif action == "stop":
                 await _agent(server, "container.stop", stop_params)
             else:
+                if action == "start":
+                    await _recreate_container(db, server)
                 await _agent(server, f"container.{action}")
 
         await _transition(

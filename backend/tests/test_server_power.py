@@ -93,10 +93,15 @@ def test_start_stop_and_kill(client, server, broker):
     assert _power(client, server, "stop").json()["status"] == "offline"
     assert _power(client, server, "start").json()["status"] == "starting"
     assert _power(client, server, "kill").json()["status"] == "offline"
+    # Jeder Start erzeugt den Container aus dem aktuellen Stand neu.
     assert broker.actions() == [
+        "container.create",
+        "container.remove",
         "container.create",
         "container.start",
         "container.stop",
+        "container.remove",
+        "container.create",
         "container.start",
         "container.kill",
     ]
@@ -108,7 +113,7 @@ def test_actions_in_the_wrong_state_are_refused(client, server, broker):
     assert _power(client, server, "stop").status_code == 409
     assert _power(client, server, "start").status_code == 200
     assert _post(client, server, "/install").status_code == 409
-    assert len(broker.calls) == 2
+    assert len(broker.calls) == 4
 
 
 def test_unknown_power_action_is_rejected(client, server):
@@ -217,7 +222,12 @@ def test_restart_stops_then_starts(client, server, broker):
     response = _power(client, server, "restart")
     assert response.status_code == 200, response.text
     assert response.json()["status"] == "starting"
-    assert broker.actions() == ["container.stop", "container.start"]
+    assert broker.actions() == [
+        "container.stop",
+        "container.remove",
+        "container.create",
+        "container.start",
+    ]
 
 
 def test_restart_reports_stopping_while_the_container_stops(client, server, broker, db_session):
@@ -232,7 +242,12 @@ def test_restart_reports_stopping_while_the_container_stops(client, server, brok
 
     broker.send = spy
     assert _power(client, server, "restart").status_code == 200
-    assert seen == [("container.stop", "stopping"), ("container.start", "starting")]
+    assert seen == [
+        ("container.stop", "stopping"),
+        ("container.remove", "starting"),
+        ("container.create", "starting"),
+        ("container.start", "starting"),
+    ]
 
 
 def test_offline_node_keeps_the_status(client, server, broker):
@@ -294,10 +309,14 @@ def test_restart_sends_the_stop_command_then_starts(client, server, broker, db_s
     _set_stop_command(db_session, server, "EXIT")
     broker.calls.clear()
     assert _power(client, server, "restart").status_code == 200
-    assert broker.calls == [
-        ("container.stop", {"name": server.id, "command": "EXIT"}),
-        ("container.start", {"name": server.id}),
+    assert broker.actions() == [
+        "container.stop",
+        "container.remove",
+        "container.create",
+        "container.start",
     ]
+    assert broker.calls[0] == ("container.stop", {"name": server.id, "command": "EXIT"})
+    assert broker.calls[-1] == ("container.start", {"name": server.id})
 
 
 def test_kill_never_sends_the_stop_command(client, server, broker, db_session):
@@ -313,7 +332,8 @@ def test_start_never_sends_the_stop_command(client, server, broker, db_session):
     _set_stop_command(db_session, server, "EXIT")
     broker.calls.clear()
     assert _power(client, server, "start").status_code == 200
-    assert broker.calls == [("container.start", {"name": server.id})]
+    assert broker.actions() == ["container.remove", "container.create", "container.start"]
+    assert all("command" not in (params or {}) for _, params in broker.calls)
 
 
 def test_stop_command_is_trimmed(client, server, broker, db_session):
@@ -336,3 +356,13 @@ def test_rename_rejects_empty_and_null_names(client, server):
         response = client.patch(server.url, json={"name": bad}, headers=server.headers)
         assert response.status_code == 422, repr(bad)
     assert client.get(server.url).json()["name"] == "Game 1"
+
+
+def test_start_recreates_the_container_from_the_current_state(client, server, broker):
+    _post(client, server, "/install")
+    broker.calls.clear()
+    assert _power(client, server, "start").status_code == 200
+    action, params = broker.calls[1]
+    assert action == "container.create"
+    assert params["name"] == server.id
+    assert params["env"]["SERVER_PORT"] == "25001"
