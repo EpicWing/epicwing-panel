@@ -129,7 +129,7 @@ function meters(n: NodeLoad) {
       key: "cpu",
       label: t("admin.cpu"),
       percent: cpu === null ? null : Math.min(100, Math.round(cpu)),
-      text: cpu === null ? "–" : `${Math.round(cpu)} %${n.cpu_total ? ` of ${n.cpu_total} cores` : ""}`,
+      text: cpu === null ? "–" : n.cpu_total ? `${+((cpu / 100) * n.cpu_total).toFixed(1)} of ${n.cpu_total} cores` : `${Math.round(cpu)} %`,
     },
     { key: "ram", label: t("admin.ram"), percent: percent(n.ram_used_mb, n.ram_total_mb), text: ram },
     { key: "disk", label: t("admin.disk"), percent: percent(n.disk_used_mb, n.disk_total_mb), text: disk },
