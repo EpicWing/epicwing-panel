@@ -421,35 +421,136 @@ function exists(name: string): boolean {
   return entries.value.some((entry) => entry.name === name);
 }
 
-async function newFile(): Promise<void> {
-  const name = window.prompt("Name of the new file")?.trim();
-  if (name === undefined) return;
-  if (!validName(name)) {
-    error.value = "Invalid name.";
-    return;
-  }
-  if (exists(name)) {
-    error.value = "A file with this name already exists.";
-    return;
-  }
-  await action(() =>
-    api(`${base()}/content`, {
-      method: "PUT",
-      body: { path: join(path.value, name), offset: 0, data: "", create: true, truncate: false },
-    }),
-  );
+interface Dialog {
+  kind: "file" | "folder" | "rename" | "move" | "moveMany";
+  entries: Entry[];
+  value: string;
 }
 
-async function newFolder(): Promise<void> {
-  const name = window.prompt("Name of the new folder")?.trim();
-  if (name === undefined) return;
-  if (!validName(name)) {
-    error.value = "Invalid name.";
+const DIALOGS = {
+  file: { title: "New file", label: "File name", hint: "Enter the name of the new file.", submit: "Create file" },
+  folder: { title: "New folder", label: "Folder name", hint: "Enter the name of the new folder.", submit: "Create folder" },
+  rename: { title: "Rename", label: "New name or path", hint: "A path such as plugins/name.dll moves the item.", submit: "Rename" },
+  move: { title: "Move", label: "New name or path", hint: "Relative to the current folder, a leading / starts at the root.", submit: "Move" },
+  moveMany: { title: "Move items", label: "Destination folder", hint: "Relative to the current folder, a leading / starts at the root.", submit: "Move" },
+} as const;
+
+const dialog = ref<Dialog | null>(null);
+const dialogError = ref("");
+const dialogInput = ref<HTMLInputElement | null>(null);
+const dialogText = computed(() => (dialog.value ? DIALOGS[dialog.value.kind] : null));
+const dialogPreview = computed(() => {
+  const d = dialog.value;
+  if (!d || d.kind === "file" || d.kind === "folder") return "";
+  const target = resolveTarget(d.value.trim());
+  if (target === null) return "";
+  if (d.kind === "moveMany") return `/${target}`;
+  return target === "" ? "" : `/${target}`;
+});
+
+function openDialog(kind: Dialog["kind"], entries: Entry[] = [], value = ""): void {
+  if (busy.value) return;
+  if (kind !== "file" && kind !== "folder" && entries.length === 0) return;
+  dialogError.value = "";
+  dialog.value = { kind, entries, value };
+  void nextTick(() => {
+    dialogInput.value?.focus();
+    dialogInput.value?.select();
+  });
+}
+
+function closeDialog(): void {
+  dialog.value = null;
+}
+
+async function submitDialog(): Promise<void> {
+  const d = dialog.value;
+  if (!d || busy.value) return;
+  const value = d.value.trim();
+  dialogError.value = "";
+
+  if (d.kind === "file" || d.kind === "folder") {
+    if (!validName(value)) {
+      dialogError.value = "Enter a valid name without slashes.";
+      return;
+    }
+    if (exists(value)) {
+      dialogError.value = "An item with this name already exists.";
+      return;
+    }
+    closeDialog();
+    const target = join(path.value, value);
+    if (d.kind === "file") {
+      await action(() =>
+        api(`${base()}/content`, {
+          method: "PUT",
+          body: { path: target, offset: 0, data: "", create: true, truncate: false },
+        }),
+      );
+    } else {
+      await action(() => api(`${base()}/folder`, { method: "POST", body: { path: target } }));
+    }
     return;
   }
-  await action(() =>
-    api(`${base()}/folder`, { method: "POST", body: { path: join(path.value, name) } }),
-  );
+
+  if (d.kind === "moveMany") {
+    const dest = resolveTarget(value);
+    if (dest === null) {
+      dialogError.value = "Invalid folder.";
+      return;
+    }
+    if (dest === path.value) {
+      dialogError.value = "The items are already in this folder.";
+      return;
+    }
+    const targets = d.entries;
+    closeDialog();
+    selected.value = [];
+    await action(async () => {
+      const failed: string[] = [];
+      let reason = "";
+      for (const entry of targets) {
+        const from = join(path.value, entry.name);
+        if (entry.dir && (dest === from || dest.startsWith(`${from}/`))) {
+          failed.push(entry.name);
+          reason = reason || "A folder cannot be moved into itself.";
+          continue;
+        }
+        try {
+          await api(`${base()}/rename`, {
+            method: "POST",
+            body: { path: from, to: join(dest, entry.name) },
+          });
+        } catch (cause) {
+          failed.push(entry.name);
+          if (!reason && cause instanceof Error) reason = cause.message;
+        }
+      }
+      if (failed.length > 0) {
+        throw new LocalError(`Could not move ${failed.join(", ")}${reason ? `: ${reason}` : ""}`);
+      }
+    });
+    return;
+  }
+
+  const entry = d.entries[0];
+  if (!entry) return;
+  const from = join(path.value, entry.name);
+  const to = value === "" ? null : resolveTarget(value);
+  if (to === null || to === "") {
+    dialogError.value = "Enter a valid name or path.";
+    return;
+  }
+  if (to === from) {
+    dialogError.value = "That is the current name.";
+    return;
+  }
+  if (entry.dir && to.startsWith(`${from}/`)) {
+    dialogError.value = "A folder cannot be moved into itself.";
+    return;
+  }
+  closeDialog();
+  await action(() => api(`${base()}/rename`, { method: "POST", body: { path: from, to } }));
 }
 
 // Löst eine Eingabe relativ zum aktuellen Ordner auf, ein führendes "/" meint die Wurzel.
@@ -467,65 +568,6 @@ function resolveTarget(input: string): string | null {
     }
   }
   return parts.join("/");
-}
-
-async function rename(entry: Entry): Promise<void> {
-  const input = window
-    .prompt("New name, or a path to move it (e.g. plugins/name.dll)", entry.name)
-    ?.trim();
-  if (input === undefined || input === entry.name) return;
-  const from = join(path.value, entry.name);
-  const to = resolveTarget(input);
-  if (!to) {
-    error.value = "Invalid name.";
-    return;
-  }
-  if (to === from) return;
-  if (entry.dir && to.startsWith(`${from}/`)) {
-    error.value = "A folder cannot be moved into itself.";
-    return;
-  }
-  await action(() => api(`${base()}/rename`, { method: "POST", body: { path: from, to } }));
-}
-
-function moveSelected(): Promise<void> {
-  return moveEntries(selectedEntries.value);
-}
-
-async function moveEntries(targets: Entry[]): Promise<void> {
-  if (targets.length === 0) return;
-  const label = targets.length === 1 ? `"${targets[0]?.name}"` : `${targets.length} items`;
-  const input = window.prompt(
-    `Move ${label} to which folder? (relative to the current one, "/" is the root)`,
-    "",
-  );
-  if (input === null) return;
-  const dest = resolveTarget(input.trim());
-  if (dest === null) {
-    error.value = "Invalid folder.";
-    return;
-  }
-  if (dest === path.value) return;
-  selected.value = [];
-  await action(async () => {
-    const failed: string[] = [];
-    for (const entry of targets) {
-      const from = join(path.value, entry.name);
-      if (entry.dir && (dest === from || dest.startsWith(`${from}/`))) {
-        failed.push(entry.name);
-        continue;
-      }
-      try {
-        await api(`${base()}/rename`, {
-          method: "POST",
-          body: { path: from, to: join(dest, entry.name) },
-        });
-      } catch {
-        failed.push(entry.name);
-      }
-    }
-    if (failed.length > 0) throw new LocalError(`Could not move: ${failed.join(", ")}`);
-  });
 }
 
 async function remove(entry: Entry): Promise<void> {
@@ -666,8 +708,8 @@ watch(blocked, (value) => {
         <p class="mt-2 text-sm text-ink-400">Browse and edit the files of your server.</p>
       </div>
       <div v-if="!blocked" class="flex gap-2">
-        <button class="rounded-lg border border-ink-700 px-4 py-2 text-sm text-ink-200 hover:bg-ink-800 disabled:opacity-50" :disabled="busy" @click="newFolder">New Folder</button>
-        <button class="rounded-lg border border-ink-700 px-4 py-2 text-sm text-ink-200 hover:bg-ink-800 disabled:opacity-50" :disabled="busy" @click="newFile">New File</button>
+        <button class="rounded-lg border border-ink-700 px-4 py-2 text-sm text-ink-200 hover:bg-ink-800 disabled:opacity-50" :disabled="busy" @click="openDialog('folder')">New Folder</button>
+        <button class="rounded-lg border border-ink-700 px-4 py-2 text-sm text-ink-200 hover:bg-ink-800 disabled:opacity-50" :disabled="busy" @click="openDialog('file')">New File</button>
         <button class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950 disabled:opacity-50" :disabled="busy" @click="fileInput?.click()">Upload</button>
         <input ref="fileInput" type="file" multiple class="hidden" @change="upload" />
       </div>
@@ -769,8 +811,8 @@ watch(blocked, (value) => {
               </button>
               <div v-if="menu === entry.name" role="menu" class="absolute right-0 top-full z-30 mt-1 w-44 rounded-lg border border-ink-700 bg-ink-900 py-1 text-sm shadow-2xl">
                 <button role="menuitem" class="block w-full px-3 py-2 text-left text-ink-100 hover:bg-ink-800" @click="closeMenu(); download([entry])">{{ entry.dir ? "Download ZIP" : "Download" }}</button>
-                <button role="menuitem" class="block w-full px-3 py-2 text-left text-ink-100 hover:bg-ink-800" @click="closeMenu(); rename(entry)">Rename</button>
-                <button role="menuitem" class="block w-full px-3 py-2 text-left text-ink-100 hover:bg-ink-800" @click="closeMenu(); moveEntries([entry])">Move</button>
+                <button role="menuitem" class="block w-full px-3 py-2 text-left text-ink-100 hover:bg-ink-800" @click="closeMenu(); openDialog('rename', [entry], entry.name)">Rename</button>
+                <button role="menuitem" class="block w-full px-3 py-2 text-left text-ink-100 hover:bg-ink-800" @click="closeMenu(); openDialog('move', [entry], entry.name)">Move</button>
                 <button role="menuitem" class="block w-full px-3 py-2 text-left text-bad hover:bg-ink-800" @click="closeMenu(); remove(entry)">Delete</button>
               </div>
             </div>
@@ -791,11 +833,36 @@ watch(blocked, (value) => {
       <template v-else>
         <span class="text-ink-300">{{ selectedEntries.length }} selected</span>
         <button class="rounded-lg bg-accent-500 px-3 py-1.5 font-semibold text-ink-950 disabled:opacity-50" :disabled="busy" @click="download(selectedEntries)">{{ downloadLabel }}</button>
-        <button class="rounded-lg border border-ink-700 px-3 py-1.5 text-ink-200 hover:bg-ink-800 disabled:opacity-50" :disabled="busy" @click="moveSelected">Move</button>
+        <button class="rounded-lg border border-ink-700 px-3 py-1.5 text-ink-200 hover:bg-ink-800 disabled:opacity-50" :disabled="busy" @click="openDialog('moveMany', selectedEntries)">Move</button>
         <button class="rounded-lg border border-ink-700 px-3 py-1.5 text-bad hover:bg-ink-800 disabled:opacity-50" :disabled="busy" @click="removeSelected">Delete</button>
         <button class="px-2 py-1.5 text-ink-400 hover:text-ink-100" @click="selected = []">Clear</button>
       </template>
     </div>
+    <Teleport to="body">
+      <div v-if="dialog && dialogText" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" @mousedown.self="closeDialog">
+        <form role="dialog" aria-modal="true" :aria-label="dialogText.title" class="w-full max-w-lg rounded-2xl border border-ink-700 bg-ink-900 p-6 shadow-2xl" @submit.prevent="submitDialog" @keydown.esc="closeDialog">
+          <div class="flex items-start justify-between gap-4">
+            <h3 class="text-xl font-semibold text-ink-100">{{ dialogText.title }}</h3>
+            <button type="button" class="flex h-8 w-8 items-center justify-center rounded-md text-ink-400 hover:bg-ink-800 hover:text-ink-100" aria-label="Close" @click="closeDialog">
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+          </div>
+          <label class="mt-5 block text-sm text-ink-300">
+            {{ dialogText.label }}
+            <input ref="dialogInput" v-model="dialog.value" type="text" autocomplete="off" spellcheck="false" class="mt-2 w-full rounded-lg border border-transparent bg-ink-800 px-3 py-2.5 text-sm text-ink-100 focus:border-accent-500 focus:outline-none" />
+          </label>
+          <p class="mt-3 text-sm font-semibold text-ink-100">{{ dialogText.hint }}</p>
+          <p v-if="dialogPreview" class="mt-2 text-sm text-ink-300">
+            <span class="font-semibold text-ink-100">{{ dialog.kind === "moveMany" ? "Destination:" : "New location:" }}</span>
+            <code class="ml-2 rounded bg-ink-800 px-1.5 py-0.5 font-mono text-xs text-ink-100">{{ dialogPreview }}</code>
+          </p>
+          <p v-if="dialogError" class="mt-3 text-sm text-bad">{{ dialogError }}</p>
+          <div class="mt-6 flex justify-end">
+            <button type="submit" class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950 disabled:opacity-50" :disabled="busy">{{ dialogText.submit }}</button>
+          </div>
+        </form>
+      </div>
+    </Teleport>
   </div>
 </template>
 
