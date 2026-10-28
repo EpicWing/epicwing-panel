@@ -117,7 +117,7 @@ def test_csrf_token_is_required(client, user):
         {"name": ""},
         {"privileged": True},
         {"install_script": "echo\x00"},
-        {"variables": [{"name": "A", "env_variable": "lower"}]},
+        {"variables": [{"name": "A", "env_variable": "bad-name"}]},
         {"variables": [{"name": "A", "env_variable": "A"}, {"name": "B", "env_variable": "A"}]},
     ],
 )
