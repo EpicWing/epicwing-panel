@@ -4,6 +4,7 @@ import { useI18n } from "vue-i18n";
 
 import { ApiError, api } from "../api/client";
 import AppLayout from "../components/AppLayout.vue";
+import { ui } from "../stores/ui";
 
 interface NodeItem {
   id: string;
@@ -157,7 +158,7 @@ onMounted(load);
 </script>
 
 <template>
-  <AppLayout :title="t('nodes.title')" :subtitle="t('nodes.subtitle')">
+  <AppLayout area="admin" :title="t('nodes.title')" :subtitle="t('nodes.subtitle')">
     <template #actions>
       <button
         class="rounded-md bg-accent-500 px-3 py-1.5 text-sm font-semibold text-ink-950 transition hover:bg-accent-400"
@@ -166,6 +167,14 @@ onMounted(load);
         {{ showForm ? t("nodes.cancel") : t("nodes.add") }}
       </button>
     </template>
+
+    <div
+      v-if="ui.state.mode === 'simple'"
+      class="mb-6 rounded-lg border border-ink-700 bg-ink-900 p-4 text-sm text-ink-300"
+    >
+      <p class="font-medium text-ink-100">{{ t("nodes.helpTitle") }}</p>
+      <p class="mt-1">{{ t("nodes.helpBody") }}</p>
+    </div>
 
     <p
       v-if="error"
@@ -228,7 +237,10 @@ onMounted(load);
         />
       </div>
 
-      <details class="rounded-md border border-ink-700 bg-ink-950/40 px-4 py-3 sm:col-span-2">
+      <details
+        v-if="ui.state.mode === 'advanced'"
+        class="rounded-md border border-ink-700 bg-ink-950/40 px-4 py-3 sm:col-span-2"
+      >
         <summary class="cursor-pointer select-none text-sm text-ink-300">
           {{ t("nodes.advanced") }}
         </summary>
@@ -284,7 +296,9 @@ onMounted(load);
             <th class="px-4 py-3 font-medium">{{ t("nodes.colName") }}</th>
             <th class="px-4 py-3 font-medium">{{ t("nodes.colLocation") }}</th>
             <th class="px-4 py-3 font-medium">{{ t("nodes.colStatus") }}</th>
-            <th class="px-4 py-3 font-medium">{{ t("nodes.colPorts") }}</th>
+            <th v-if="ui.state.mode === 'advanced'" class="px-4 py-3 font-medium">
+              {{ t("nodes.colPorts") }}
+            </th>
             <th class="px-4 py-3 font-medium">{{ t("nodes.colResources") }}</th>
             <th class="px-4 py-3"></th>
           </tr>
@@ -308,7 +322,10 @@ onMounted(load);
                 {{ statusLabel(node.status) }}
               </span>
             </td>
-            <td class="px-4 py-3 font-mono text-xs text-ink-300">
+            <td
+              v-if="ui.state.mode === 'advanced'"
+              class="px-4 py-3 font-mono text-xs text-ink-300"
+            >
               {{ node.port_range_start }}–{{ node.port_range_end }}
             </td>
             <td class="px-4 py-3 font-mono text-xs text-ink-300">{{ resources(node) }}</td>

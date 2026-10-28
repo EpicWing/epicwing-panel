@@ -6,44 +6,73 @@ import { useRouter } from "vue-router";
 import { auth } from "../stores/auth";
 import LogoMark from "./LogoMark.vue";
 
-defineProps<{ title: string; subtitle?: string }>();
+const props = withDefaults(
+  defineProps<{ title: string; subtitle?: string; area?: "user" | "admin" }>(),
+  { area: "user" },
+);
 
 interface NavItem {
   label: string;
   to: string | null;
 }
 
+interface NavSection {
+  heading: string;
+  items: NavItem[];
+}
+
 const { t } = useI18n();
 const router = useRouter();
 
-const sections = computed(() => {
-  const list: { heading: string; items: NavItem[] }[] = [
+const sections = computed<NavSection[]>(() => {
+  if (props.area === "admin") {
+    return [
+      {
+        heading: t("nav.administration"),
+        items: [{ label: t("nav.overview"), to: "/admin" }],
+      },
+      {
+        heading: t("nav.management"),
+        items: [
+          { label: t("nav.nodes"), to: "/admin/nodes" },
+          { label: t("nav.allServers"), to: null },
+          { label: t("nav.users"), to: null },
+        ],
+      },
+    ];
+  }
+  return [
     {
       heading: t("nav.account"),
       items: [
         { label: t("nav.servers"), to: "/" },
         { label: t("nav.apiKeys"), to: null },
         { label: t("nav.sshKeys"), to: null },
-        { label: t("nav.settings"), to: null },
+        { label: t("nav.settings"), to: "/settings" },
       ],
     },
   ];
-  if (auth.state.user?.is_admin) {
-    list.push({
-      heading: t("nav.administration"),
-      items: [
-        { label: t("nav.nodes"), to: "/nodes" },
-        { label: t("nav.allServers"), to: null },
-        { label: t("nav.users"), to: null },
-      ],
-    });
-  }
-  return list;
 });
 
-const mobileLinks = computed(() =>
-  sections.value.flatMap((s) => s.items).filter((i): i is NavItem & { to: string } => !!i.to),
-);
+const switchLink = computed<{ label: string; to: string; badge?: string } | null>(() => {
+  if (props.area === "admin") {
+    return { label: t("nav.backToPanel"), to: "/" };
+  }
+  if (auth.state.user?.is_admin) {
+    return { label: t("nav.adminPanel"), to: "/admin", badge: t("nav.adminBadge") };
+  }
+  return null;
+});
+
+const mobileLinks = computed(() => {
+  const links = sections.value
+    .flatMap((s) => s.items)
+    .filter((i): i is NavItem & { to: string } => !!i.to);
+  if (switchLink.value) {
+    links.push({ label: switchLink.value.label, to: switchLink.value.to });
+  }
+  return links;
+});
 
 async function logout() {
   try {
@@ -62,6 +91,12 @@ async function logout() {
       <div class="flex items-center gap-2.5 px-5 py-5">
         <LogoMark class="h-6 w-6 text-accent-500" />
         <span class="text-base font-semibold tracking-tight">EpicWing</span>
+        <span
+          v-if="area === 'admin'"
+          class="ml-auto rounded bg-accent-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent-400"
+        >
+          {{ t("nav.adminBadge") }}
+        </span>
       </div>
 
       <nav class="flex-1 overflow-y-auto px-3 pb-4">
@@ -89,11 +124,21 @@ async function logout() {
         </div>
       </nav>
 
-      <div class="border-t border-ink-700 p-4">
-        <button
-          class="text-sm text-ink-300 transition hover:text-accent-400"
-          @click="logout"
+      <div class="space-y-3 border-t border-ink-700 p-4">
+        <RouterLink
+          v-if="switchLink"
+          :to="switchLink.to"
+          class="flex items-center justify-between text-sm text-ink-300 transition hover:text-accent-400"
         >
+          <span>{{ switchLink.label }}</span>
+          <span
+            v-if="switchLink.badge"
+            class="rounded bg-accent-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent-400"
+          >
+            {{ switchLink.badge }}
+          </span>
+        </RouterLink>
+        <button class="text-sm text-ink-300 transition hover:text-accent-400" @click="logout">
           {{ t("common.signOut") }}
         </button>
       </div>
@@ -122,7 +167,7 @@ async function logout() {
       </header>
 
       <main class="min-w-0 flex-1">
-        <div class="mx-auto w-full max-w-5xl px-6 py-10">
+        <div class="mx-auto w-full max-w-6xl px-6 py-10">
           <div class="mb-8 flex items-end justify-between gap-4">
             <div>
               <h1 class="text-3xl font-semibold tracking-tight">{{ title }}</h1>

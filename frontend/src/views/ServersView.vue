@@ -18,10 +18,10 @@ const layout = ref<"grid" | "list">("grid");
 const demoAllowed = import.meta.env.DEV;
 const showDemo = ref(false);
 const demoServers: ServerItem[] = [
-  { id: "d1", name: "Survival", address: "203.0.113.10:25565", status: "running", cpu: "8.8%", ram: "2 GiB", storage: "4 GiB" },
-  { id: "d2", name: "Creative", address: "203.0.113.10:25566", status: "running", cpu: "3.1%", ram: "1 GiB", storage: "2 GiB" },
-  { id: "d3", name: "Discord Bot", address: "203.0.113.10:6000", status: "starting", cpu: "0.2%", ram: "299 MiB", storage: "57 MiB" },
-  { id: "d4", name: "Test World", address: "203.0.113.10:27015", status: "offline", cpu: "0%", ram: "0 B", storage: "3 GiB" },
+  { id: "d1", name: "Survival", address: "203.0.113.10:25565", status: "running", cpu: "8.8%", ram: "2 GiB", storage: "4 GiB", cpuPct: 9, ramPct: 48, diskPct: 22 },
+  { id: "d2", name: "Creative", address: "203.0.113.10:25566", status: "running", cpu: "3.1%", ram: "1 GiB", storage: "2 GiB", cpuPct: 3, ramPct: 30, diskPct: 12 },
+  { id: "d3", name: "Discord Bot", address: "203.0.113.10:6000", status: "starting", cpu: "0.2%", ram: "299 MiB", storage: "57 MiB", cpuPct: 1, ramPct: 15, diskPct: 2 },
+  { id: "d4", name: "Test World", address: "203.0.113.10:27015", status: "offline", cpu: "0%", ram: "0 B", storage: "3 GiB", cpuPct: 0, ramPct: 0, diskPct: 35 },
 ];
 
 function toggleClass(active: boolean): string {
