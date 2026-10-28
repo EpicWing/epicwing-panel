@@ -5,7 +5,7 @@ from typing import Any
 
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
-from app.agentlink.protocol import WS_POLICY_VIOLATION, WS_REPLACED
+from app.agentlink.protocol import WS_POLICY_VIOLATION, WS_REPLACED, WS_REPLACED_REASON
 
 HISTORY_POINTS = 60  # bei 10 s Abstand 10 Minuten
 
@@ -32,7 +32,7 @@ class AgentRegistry:
         if previous is not None:
             # Pro Node gibt es nur eine Verbindung, die neuere ersetzt die ältere.
             with contextlib.suppress(RuntimeError, WebSocketDisconnect):
-                await previous.close(code=WS_REPLACED)
+                await previous.close(code=WS_REPLACED, reason=WS_REPLACED_REASON)
 
     def unregister(self, node_id: uuid.UUID, websocket: WebSocket) -> bool:
         """True, wenn es die aktuelle Verbindung war (nicht eine bereits ersetzte)."""

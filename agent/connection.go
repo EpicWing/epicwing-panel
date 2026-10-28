@@ -23,8 +23,13 @@ const (
 
 var errAuthRejected = errors.New("the panel rejected the login")
 
+// replacedReason separates "a newer connection took over" from a restart of the panel,
+// which also closes with 1012 but without a reason.
+const replacedReason = "replaced"
+
 func isReplaced(err error) bool {
-	return websocket.CloseStatus(err) == statusReplaced
+	var ce websocket.CloseError
+	return errors.As(err, &ce) && ce.Code == statusReplaced && ce.Reason == replacedReason
 }
 
 func readJSON(ctx context.Context, c *websocket.Conn, timeout time.Duration, v any) error {

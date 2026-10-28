@@ -141,16 +141,20 @@ func (d *commandDispatcher) execute(ctx context.Context, action string, params j
 		return data, err
 	case "container.start", "container.stop", "container.kill", "container.remove", "container.status":
 		var p struct {
-			Name string `json:"name"`
+			Name    string `json:"name"`
+			Command string `json:"command"`
 		}
 		if err := decodeParams(params, &p); err != nil {
 			return nil, err
+		}
+		if p.Command != "" && action != "container.stop" {
+			return nil, errors.New("command is only valid for container.stop")
 		}
 		switch action {
 		case "container.start":
 			return nil, d.containers.Start(ctx, p.Name)
 		case "container.stop":
-			return nil, d.containers.Stop(ctx, p.Name)
+			return nil, d.containers.StopWithCommand(ctx, p.Name, p.Command)
 		case "container.kill":
 			return nil, d.containers.Kill(ctx, p.Name)
 		case "container.status":
@@ -165,6 +169,12 @@ func (d *commandDispatcher) execute(ctx context.Context, action string, params j
 	default:
 		return nil, fmt.Errorf("unknown action %q", action)
 	}
+}
+
+// lockFree lists the actions that must not wait for other commands: a stop can take
+// up to 40 seconds and kill is the way out when it hangs.
+func lockFree(action string) bool {
+	return action == "container.stop" || action == "container.kill"
 }
 
 func resultFrame(id string, data map[string]any, err error) map[string]any {
@@ -190,6 +200,8 @@ func (d *commandDispatcher) run(ctx context.Context, conn *websocket.Conn, f pan
 		var err error
 		if strings.HasPrefix(f.Action, "file.") {
 			data, err = d.executeFile(f.Action, f.Params)
+		} else if lockFree(f.Action) {
+			data, err = d.execute(ctx, f.Action, f.Params)
 		} else {
 			d.mu.Lock()
 			data, err = d.execute(ctx, f.Action, f.Params)

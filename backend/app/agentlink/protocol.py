@@ -38,6 +38,8 @@ WS_UNSUPPORTED = 1003
 WS_POLICY_VIOLATION = 1008
 WS_TOO_BIG = 1009
 WS_REPLACED = 1012
+# Der Agent wartet nur bei diesem Grund länger. Ein Reload von uvicorn sendet 1012 ohne Grund.
+WS_REPLACED_REASON = "replaced"
 
 
 class AuthMessage(BaseModel):
