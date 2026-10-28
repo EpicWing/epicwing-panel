@@ -2,12 +2,14 @@
 import { computed, onMounted, reactive, ref } from "vue";
 
 import { ApiError, api } from "../api/client";
+import UserAvatar from "./UserAvatar.vue";
 
 interface Item {
   id: string;
   created_at: string;
   action: string;
   actor: string | null;
+  actor_id?: string | null;
   ip: string | null;
   details: Record<string, unknown> | null;
 }
@@ -258,7 +260,7 @@ onMounted(load);
     <p v-else-if="items.length === 0" class="px-5 py-10 text-center text-sm text-ink-500">{{ filterCount ? "No events match the filters." : "No activity events found." }}</p>
     <ul v-else class="divide-y divide-ink-800">
       <li v-for="item in items" :key="item.id" class="flex items-start gap-3 px-5 py-3">
-        <div class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink-700 text-xs font-semibold uppercase text-ink-100">{{ name(item).charAt(0) }}</div>
+        <UserAvatar class="mt-0.5" :user-id="item.actor_id" :label="name(item)" :size="32" />
         <div class="min-w-0">
           <p class="flex flex-wrap items-center gap-2 text-sm">
             <span class="font-semibold text-ink-100" :title="item.actor ?? ''">{{ name(item) }}</span>
