@@ -7,7 +7,7 @@ import { auth } from "../stores/auth";
 import LogoMark from "./LogoMark.vue";
 
 const props = withDefaults(
-  defineProps<{ title: string; subtitle?: string; area?: "user" | "admin" }>(),
+  defineProps<{ title: string; subtitle?: string; area?: "user" | "admin"; wide?: boolean }>(),
   { area: "user" },
 );
 
@@ -167,7 +167,7 @@ async function logout() {
       </header>
 
       <main class="min-w-0 flex-1">
-        <div class="mx-auto w-full max-w-6xl px-6 py-10">
+        <div class="mx-auto w-full px-6 py-10" :class="wide ? 'max-w-[1600px]' : 'max-w-6xl'">
           <div class="mb-8 flex items-end justify-between gap-4">
             <div>
               <h1 class="text-3xl font-semibold tracking-tight">{{ title }}</h1>

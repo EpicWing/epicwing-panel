@@ -5,6 +5,7 @@ import { useRoute, useRouter } from "vue-router";
 
 import { ApiError, api } from "../api/client";
 import AppLayout from "../components/AppLayout.vue";
+import UsageChart from "../components/UsageChart.vue";
 
 interface NodeDetail {
   id: string;
@@ -48,6 +49,30 @@ const busy = ref(false);
 const issued = ref<Enrollment | null>(null);
 const copied = ref("");
 
+const MAX_POINTS = 60;
+const history = ref<{ cpu: number[]; ram: number[]; disk: number[] }>({
+  cpu: [],
+  ram: [],
+  disk: [],
+});
+
+function series(key: string): number[] {
+  return history.value[key as keyof typeof history.value] ?? [];
+}
+
+function pushHistory(n: NodeDetail) {
+  const add = (list: number[], value: number) => {
+    list.push(value);
+    if (list.length > MAX_POINTS) {
+      list.shift();
+    }
+  };
+  const live = n.connected;
+  add(history.value.cpu, live && n.cpu_percent !== null ? n.cpu_percent : 0);
+  add(history.value.ram, live ? percent(n.ram_used_mb, n.ram_total_mb) : 0);
+  add(history.value.disk, live ? percent(n.disk_used_mb, n.disk_total_mb) : 0);
+}
+
 const form = ref({ name: "", location: "", fqdn: "", portStart: 25000, portEnd: 25999 });
 
 const inputClass =
@@ -89,6 +114,7 @@ async function load(first: boolean) {
   try {
     const result = await api<NodeDetail>(`/nodes/${nodeId}`);
     node.value = result;
+    pushHistory(result);
     if (first) {
       fillForm(result);
     }
@@ -237,11 +263,20 @@ onUnmounted(() => window.clearInterval(timer));
 <template>
   <AppLayout
     area="admin"
+    wide
     :title="node?.name ?? t('nodeDetail.loading')"
     :subtitle="node?.location || ''"
   >
     <template #actions>
-      <RouterLink to="/admin/nodes" :class="buttonClass">{{ t("nodeDetail.back") }}</RouterLink>
+      <div class="flex items-center gap-3">
+        <span
+          class="inline-flex items-center gap-2 rounded-full border border-ink-700 bg-ink-900 px-3 py-1 text-xs"
+        >
+          <span class="h-2 w-2 rounded-full" :class="dots[node?.status ?? ''] ?? 'bg-ink-600'"></span>
+          {{ node ? statusLabel(node.status) : "…" }}
+        </span>
+        <RouterLink to="/admin/nodes" :class="buttonClass">{{ t("nodeDetail.back") }}</RouterLink>
+      </div>
     </template>
 
     <p
@@ -276,14 +311,27 @@ onUnmounted(() => window.clearInterval(timer));
       </nav>
 
       <section v-if="tab === 'overview'" class="space-y-6">
-        <div class="grid gap-4 rounded-lg border border-ink-700 bg-ink-900 p-5 sm:grid-cols-2">
-          <div>
-            <p class="text-xs uppercase tracking-wider text-ink-400">{{ t("nodeDetail.status") }}</p>
-            <p class="mt-1 inline-flex items-center gap-2 text-sm">
-              <span class="h-2 w-2 rounded-full" :class="dots[node.status] ?? 'bg-ink-600'"></span>
-              {{ statusLabel(node.status) }}
-            </p>
-          </div>
+        <p
+          v-if="!node.connected"
+          class="rounded-lg border border-ink-700 bg-ink-900 px-4 py-3 text-sm text-ink-400"
+        >
+          {{ t("nodeDetail.notConnected") }}
+        </p>
+
+        <div class="grid gap-4 lg:grid-cols-3">
+          <UsageChart
+            v-for="row in usage"
+            :key="row.key"
+            :label="row.label"
+            :value="node.connected ? `${Math.round(row.percent)} %` : '–'"
+            :detail="row.text"
+            :points="series(row.key)"
+          />
+        </div>
+
+        <div
+          class="grid gap-x-6 gap-y-5 rounded-lg border border-ink-700 bg-ink-900 p-5 sm:grid-cols-2 xl:grid-cols-4"
+        >
           <div>
             <p class="text-xs uppercase tracking-wider text-ink-400">
               {{ t("nodeDetail.agentVersion") }}
@@ -302,29 +350,15 @@ onUnmounted(() => window.clearInterval(timer));
             </p>
             <p class="mt-1 text-sm">{{ formatDate(node.registered_at) }}</p>
           </div>
-          <div class="sm:col-span-2">
+          <div>
             <p class="text-xs uppercase tracking-wider text-ink-400">
               {{ t("nodeDetail.address") }}
             </p>
             <p class="mt-1 font-mono text-sm">{{ node.fqdn ?? "–" }}</p>
           </div>
-        </div>
-
-        <div class="space-y-4 rounded-lg border border-ink-700 bg-ink-900 p-5">
-          <p v-if="!node.connected" class="text-sm text-ink-400">
-            {{ t("nodeDetail.notConnected") }}
-          </p>
-          <div v-for="row in usage" :key="row.key">
-            <div class="mb-1.5 flex items-baseline justify-between text-sm">
-              <span class="text-ink-300">{{ row.label }}</span>
-              <span class="font-mono text-xs text-ink-300">{{ row.text }}</span>
-            </div>
-            <div class="h-1.5 w-full rounded bg-ink-700">
-              <div
-                class="h-1.5 rounded bg-accent-500 transition-all"
-                :style="{ width: `${row.percent}%` }"
-              ></div>
-            </div>
+          <div class="sm:col-span-2 xl:col-span-4">
+            <p class="text-xs uppercase tracking-wider text-ink-400">{{ t("nodeDetail.nodeId") }}</p>
+            <p class="mt-1 break-all font-mono text-xs text-ink-300">{{ node.id }}</p>
           </div>
         </div>
       </section>
