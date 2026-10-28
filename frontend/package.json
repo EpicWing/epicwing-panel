@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "cronstrue": "^3.37.0",
     "vue": "^3.5.43",
     "vue-i18n": "^11.4.2",
     "vue-router": "^4.6.4"
