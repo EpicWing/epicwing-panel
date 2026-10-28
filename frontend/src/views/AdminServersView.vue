@@ -2,6 +2,8 @@
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 
+import { useRouter } from "vue-router";
+
 import { ApiError, api } from "../api/client";
 import AppLayout from "../components/AppLayout.vue";
 import ServerConsole from "../components/ServerConsole.vue";
@@ -235,6 +237,7 @@ async function openForm() {
 }
 
 const autoInstall = ref(true);
+const router = useRouter();
 
 async function create() {
   const user = auth.state.user;
@@ -269,6 +272,7 @@ async function create() {
     await loadServers(false);
     if (autoInstall.value) {
       void act(created, "install");
+      void router.push(`/servers/${created.id}`);
     }
   } catch (e) {
     error.value = message(e);
