@@ -4,8 +4,8 @@ EpicWing is a game server management panel. Every server runs in its own
 isolated Docker container on a node. The panel talks to a small Go agent on
 each node.
 
-**Status: beta.** EpicWing is usable for small setups but is not production-ready
-for large or multi-tenant hosting. See [Limitations](#limitations).
+**Status: beta.** Fine for small setups, not ready for large or multi-tenant hosting.
+See [Limitations](#limitations).
 
 ## Components
 
@@ -26,8 +26,8 @@ for large or multi-tenant hosting. See [Limitations](#limitations).
 
 ## Limitations
 
-- **DDoS:** EpicWing detects and reports unusual traffic. It does **not** block or
-  mitigate attacks. Use your provider's or firewall's protection for that.
+- **DDoS:** EpicWing only detects and reports unusual traffic. It blocks nothing, so use
+  your provider's protection or a firewall for that.
 - Tested on Debian 13 (x86_64) with systemd and Docker only.
 - The panel runs as a single process. Schedules, rate limits and action locks
   are kept in memory, so do not run several workers.
@@ -65,16 +65,17 @@ The backend reads `.env` from its working directory. Fill in at least:
 
 Without `EPICWING_PUBLIC_URL`, logins are rejected with "Origin not allowed." in production.
 
-Create the tables and the first administrator. Migrations do not run
-automatically, run the first command again after every update:
+Create the tables and the first administrator:
 
 ```bash
 .venv/bin/alembic upgrade head
 .venv/bin/python -m app.cli create-admin --email you@example.com
 ```
 
-The second command asks for the password twice. After an update, run
-`.venv/bin/pip install .` and `.venv/bin/alembic upgrade head` again.
+The second command asks for the password twice.
+
+After an update, run `.venv/bin/pip install .` and `.venv/bin/alembic upgrade head`
+again. Migrations don't run on their own.
 
 ### 3. Frontend
 
@@ -155,9 +156,9 @@ Add a node in the admin area. `scripts/install-node.sh` installs the agent on th
 
 ## Production notes
 
-- Set `EPICWING_ENV=production` (this disables `/docs` and `/openapi.json`).
-- Set `EPICWING_PUBLIC_URL` to the public address of your panel, e.g. `https://panel.example.com`. Logins from any other origin are rejected in production. `EPICWING_ALLOWED_ORIGINS` is optional and only for additional origins.
-- Serve the panel over HTTPS only.
+- `EPICWING_ENV=production` also turns off `/docs` and `/openapi.json`.
+- `EPICWING_ALLOWED_ORIGINS` is only needed if the panel is reachable under more than one address.
+- Use HTTPS only.
 
 ## Development
 
@@ -166,8 +167,6 @@ See `scripts/dev.sh` for local work. Checks that CI runs:
 - Backend: `ruff check .`, `ruff format --check .`, `python -m pytest -q`
 - Agent: `go vet ./...`, `go test ./...`
 - Frontend: `npx vue-tsc --noEmit`, `npm run build`
-
-Copy `.env.example` to `.env` and adjust it.
 
 ## Security
 
