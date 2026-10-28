@@ -87,6 +87,8 @@ DENIED_FOR_VIEWERS = [
     ("POST", "/files/rename", {}),
     ("POST", "/files/delete", {}),
     ("POST", "/files/decompress", {}),
+    ("POST", "/files/upload-ticket", {}),
+    ("POST", "/files/download-ticket", {}),
     ("GET", "/allocations", None),
     ("GET", "/allocations/free", None),
     ("POST", "/allocations", {}),
@@ -279,12 +281,16 @@ def test_file_rights_split_read_and_write(client, db_session, world):
     member = _grant(db_session, world, world.member, P.FILES_READ)
     headers = _login(client, world.member)
     assert _reached_the_endpoint(client, "GET", world.url + "/files?path=/", headers=headers)
+    assert _reached_the_endpoint(
+        client, "POST", world.url + "/files/download-ticket", json={"path": "/x"}, headers=headers
+    )
     for path in (
         "/files/content",
         "/files/folder",
         "/files/rename",
         "/files/delete",
         "/files/decompress",
+        "/files/upload-ticket",
     ):
         method = "PUT" if path.endswith("content") else "POST"
         response = client.request(method, world.url + path, json={}, headers=headers)
@@ -295,6 +301,13 @@ def test_file_rights_split_read_and_write(client, db_session, world):
     db_session.commit()
     _add(db_session, member, P.FILES_WRITE)
     assert client.get(world.url + "/files?path=/", headers=headers).status_code == 403
+    denied = client.post(
+        world.url + "/files/download-ticket", json={"path": "/x"}, headers=headers
+    )
+    assert denied.status_code == 403
+    assert _reached_the_endpoint(
+        client, "POST", world.url + "/files/upload-ticket", json={"path": "/x"}, headers=headers
+    )
 
 
 def test_console_ticket_needs_console_view(client, db_session, world):

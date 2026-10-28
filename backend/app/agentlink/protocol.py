@@ -36,6 +36,7 @@ COMMAND_ACTIONS = (
     "file.rename",
     "file.decompress",
     "file.delete",
+    "transfer.ticket",
     "backup.create",
     "backup.restore",
     "backup.delete",

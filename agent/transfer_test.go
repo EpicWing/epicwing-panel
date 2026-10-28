@@ -385,3 +385,26 @@ func TestTransferTicketAction(t *testing.T) {
 		t.Fatalf("unexpected ticket %+v", ticket)
 	}
 }
+
+func TestTransferUploadReplacesASymlinkInsteadOfFollowingIt(t *testing.T) {
+	srv, store, dir := transferTestSetup(t)
+	victim := filepath.Join(filepath.Dir(dir), "victim.txt")
+	if err := os.WriteFile(victim, []byte("keep"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(victim, filepath.Join(dir, "link.txt")); err != nil {
+		t.Fatal(err)
+	}
+	token := transferIssue(t, store, transferUpload, "link.txt")
+	resp, _ := transferDo(t, http.MethodPut, transferURL(srv, token), transferTestOrigin, "", strings.NewReader("new"))
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("status %d", resp.StatusCode)
+	}
+	if got, _ := os.ReadFile(victim); string(got) != "keep" {
+		t.Fatalf("the upload wrote through the symlink: %q", got)
+	}
+	st, err := os.Lstat(filepath.Join(dir, "link.txt"))
+	if err != nil || !st.Mode().IsRegular() {
+		t.Fatalf("the link must be replaced by a regular file: %v", err)
+	}
+}

@@ -305,12 +305,7 @@ func (s *transferServer) upload(w http.ResponseWriter, r *http.Request, token st
 		}
 		return
 	}
-	err = fileRename(root, part, t.rel)
-	if err != nil && (errors.Is(err, fs.ErrExist) || strings.Contains(strings.ToLower(err.Error()), "exist")) {
-		if rmErr := root.Remove(t.rel); rmErr == nil {
-			err = fileRename(root, part, t.rel)
-		}
-	}
+	err = transferReplace(root, part, t.rel)
 	if err != nil {
 		_ = root.Remove(part)
 		transferFail(w, err)
@@ -499,4 +494,20 @@ func (d *commandDispatcher) executeTransfer(action string, raw json.RawMessage) 
 		return nil, err
 	}
 	return map[string]any{"token": token, "port": port, "expires_in": int(transferTicketTTL.Seconds())}, nil
+}
+
+// transferReplace renames from over to in one step, so an existing file is never missing
+// in between. A symlink as target is replaced and not followed.
+func transferReplace(root *os.Root, from, to string) error {
+	fa, err := root.Open(path.Dir(from))
+	if err != nil {
+		return err
+	}
+	defer fa.Close()
+	fb, err := root.Open(path.Dir(to))
+	if err != nil {
+		return err
+	}
+	defer fb.Close()
+	return syscall.Renameat(int(fa.Fd()), path.Base(from), int(fb.Fd()), path.Base(to))
 }
