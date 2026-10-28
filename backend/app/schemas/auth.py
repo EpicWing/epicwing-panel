@@ -25,3 +25,13 @@ class AuthResponse(BaseModel):
 class PasswordChangeRequest(BaseModel):
     current_password: str = Field(max_length=1024)
     new_password: str = Field(min_length=12, max_length=1024)
+
+
+class TwoFactorChallenge(BaseModel):
+    two_factor_required: bool = True
+    challenge: str
+
+
+class TwoFactorLoginRequest(BaseModel):
+    challenge: str = Field(max_length=512)
+    code: str = Field(min_length=6, max_length=32)

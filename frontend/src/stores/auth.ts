@@ -13,6 +13,11 @@ interface AuthResponse {
   csrf_token: string;
 }
 
+interface TwoFactorChallenge {
+  two_factor_required: true;
+  challenge: string;
+}
+
 const state = reactive<{ user: User | null; ready: boolean }>({
   user: null,
   ready: false,
@@ -40,8 +45,23 @@ export const auth = {
     }
   },
 
-  async login(email: string, password: string): Promise<void> {
-    apply(await api<AuthResponse>("/auth/login", { method: "POST", body: { email, password } }));
+  // Returns a challenge token when the account needs a second factor, otherwise null.
+  async login(email: string, password: string): Promise<string | null> {
+    const data = await api<AuthResponse | TwoFactorChallenge>("/auth/login", {
+      method: "POST",
+      body: { email, password },
+    });
+    if ("two_factor_required" in data) {
+      return data.challenge;
+    }
+    apply(data);
+    return null;
+  },
+
+  async loginSecondFactor(challenge: string, code: string): Promise<void> {
+    apply(
+      await api<AuthResponse>("/auth/login/2fa", { method: "POST", body: { challenge, code } }),
+    );
   },
 
   async logout(): Promise<void> {
