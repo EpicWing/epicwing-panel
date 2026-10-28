@@ -17,6 +17,7 @@ const ServerDetailView = () => import("../views/ServerDetailView.vue");
 const AdminDatabasesView = () => import("../views/AdminDatabasesView.vue");
 
 const ApiKeysView = () => import("../views/ApiKeysView.vue");
+const SshKeysView = () => import("../views/SshKeysView.vue");
 
 const router = createRouter({
   history: createWebHistory(),
@@ -25,6 +26,7 @@ const router = createRouter({
     { path: "/servers/:id", name: "server-detail", component: ServerDetailView, meta: { requiresAuth: true } },
     { path: "/settings", name: "settings", component: SettingsView, meta: { requiresAuth: true } },
     { path: "/api-keys", name: "api-keys", component: ApiKeysView, meta: { requiresAuth: true } },
+    { path: "/ssh-keys", name: "ssh-keys", component: SshKeysView, meta: { requiresAuth: true } },
     {
       path: "/admin",
       name: "admin",
