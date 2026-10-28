@@ -27,3 +27,6 @@ agent/bin/
 *.egg-info/
 build/
 dist/
+
+# Lokale Dev-Prozesse (Logs)
+.dev/
