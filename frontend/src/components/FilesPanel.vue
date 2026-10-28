@@ -42,6 +42,7 @@ const MAX_EDIT = 1024 * 1024;
 const MAX_LOAD = 5000;
 const MAX_FILES = 5000;
 const MAX_TRANSFER = 100 * 1024 * 1024;
+const PARALLEL = 6;
 
 const path = ref("");
 const entries = ref<Entry[]>([]);
@@ -59,6 +60,8 @@ const menu = ref<string | null>(null);
 const menuPos = ref<{ x: number; y: number } | null>(null);
 const gutter = ref<HTMLElement | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
+const folderInput = ref<HTMLInputElement | null>(null);
+const root = ref<HTMLElement | null>(null);
 const backdrop = ref<HTMLElement | null>(null);
 const language = ref<Lang>("plain");
 
@@ -214,9 +217,8 @@ async function writeFile(
     await api(url, { method: "PUT", body: { path: target, offset: 0, data: "", create: true, truncate: true } });
     return;
   }
-  for (let offset = 0; offset < bytes.length; offset += CHUNK) {
-    report?.(offset);
-    await api(url, {
+  const put = (offset: number) =>
+    api(url, {
       method: "PUT",
       body: {
         path: target,
@@ -226,7 +228,25 @@ async function writeFile(
         truncate: offset === 0,
       },
     });
-  }
+  // Der erste Block legt die Datei an, die übrigen schreiben parallel an ihre Position.
+  report?.(0);
+  await put(0);
+  let cursor = CHUNK;
+  let failure: unknown = null;
+  const worker = async (): Promise<void> => {
+    while (failure === null && cursor < bytes.length) {
+      const offset = cursor;
+      cursor += CHUNK;
+      report?.(offset);
+      try {
+        await put(offset);
+      } catch (cause) {
+        failure = cause;
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: PARALLEL }, () => worker()));
+  if (failure !== null) throw failure;
 }
 
 async function listAll(dir: string): Promise<Entry[]> {
@@ -714,25 +734,66 @@ async function upload(event: Event): Promise<void> {
   await uploadFiles(files);
 }
 
+interface Upload {
+  file: File;
+  rel: string;
+}
+
+function toUploads(files: File[]): { uploads: Upload[]; dirs: string[] } {
+  const dirs = new Set<string>();
+  const uploads = files.map((file) => {
+    const rel = file.webkitRelativePath || file.name;
+    const parts = rel.split("/");
+    for (let i = 1; i < parts.length; i += 1) dirs.add(parts.slice(0, i).join("/"));
+    return { file, rel };
+  });
+  return { uploads, dirs: [...dirs] };
+}
+
 async function uploadFiles(files: File[]): Promise<void> {
-  if (files.length === 0 || busy.value) return;
-  const clashes = files.filter((file) => exists(file.name)).map((file) => file.name);
-  if (clashes.length > 0 && !window.confirm(`Overwrite ${clashes.join(", ")}?`)) return;
+  const { uploads, dirs } = toUploads(files);
+  await uploadItems(uploads, dirs);
+}
+
+async function uploadFolder(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement;
+  const files = input.files ? Array.from(input.files) : [];
+  input.value = "";
+  await uploadFiles(files);
+}
+
+async function uploadItems(uploads: Upload[], dirs: string[]): Promise<void> {
+  if ((uploads.length === 0 && dirs.length === 0) || busy.value) return;
+  const top = new Set([...uploads.map((u) => u.rel), ...dirs].map((rel) => rel.split("/")[0] ?? ""));
+  const clashes = [...top].filter((name) => exists(name));
+  if (clashes.length > 0 && !window.confirm(`Overwrite or merge ${clashes.join(", ")}?`)) return;
   busy.value = true;
   error.value = "";
   let failure: unknown = null;
   try {
+    for (const dir of dirs) {
+      if (!dir.split("/").every((part) => validName(part))) {
+        throw new LocalError(`Invalid folder name: ${dir}`);
+      }
+      try {
+        await api(`${base()}/folder`, { method: "POST", body: { path: join(path.value, dir) } });
+      } catch {
+        // Existiert der Ordner schon, ist das in Ordnung. Echte Fehler zeigt der Upload danach.
+      }
+    }
     let number = 0;
-    for (const file of files) {
+    for (const { file, rel } of uploads) {
       number += 1;
-      if (!validName(file.name)) throw new LocalError(`Invalid file name: ${file.name}`);
+      if (!rel.split("/").every((part) => validName(part))) {
+        throw new LocalError(`Invalid file name: ${rel}`);
+      }
       if (file.size > MAX_TRANSFER) {
-        throw new LocalError(`"${file.name}" is larger than ${formatBytes(MAX_TRANSFER)}.`);
+        throw new LocalError(`"${rel}" is larger than ${formatBytes(MAX_TRANSFER)}.`);
       }
       const bytes = new Uint8Array(await file.arrayBuffer());
-      await writeFile(join(path.value, file.name), bytes, (done) => {
+      await writeFile(join(path.value, rel), bytes, (done) => {
         const percent = Math.floor((done / bytes.length) * 100);
-        progress.value = `Uploading ${file.name} (${number}/${files.length}) ${percent}%`;
+        progress.value = `Uploading ${rel} (${number}/${uploads.length}) ${percent}%`;
       });
     }
   } catch (cause) {
@@ -744,43 +805,111 @@ async function uploadFiles(files: File[]): Promise<void> {
   busy.value = false;
 }
 
+function readBatch(reader: FileSystemDirectoryReader): Promise<FileSystemEntry[]> {
+  return new Promise((resolve, reject) => reader.readEntries(resolve, reject));
+}
+
+async function collect(
+  entry: FileSystemEntry,
+  prefix: string,
+  uploads: Upload[],
+  dirs: Set<string>,
+): Promise<void> {
+  if (uploads.length > MAX_FILES) throw new LocalError(`More than ${MAX_FILES} files dropped.`);
+  const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+  if (entry.isFile) {
+    const file = await new Promise<File>((resolve, reject) =>
+      (entry as FileSystemFileEntry).file(resolve, reject),
+    );
+    uploads.push({ file, rel });
+    return;
+  }
+  dirs.add(rel);
+  const reader = (entry as FileSystemDirectoryEntry).createReader();
+  for (;;) {
+    const batch = await readBatch(reader);
+    if (batch.length === 0) return;
+    for (const child of batch) await collect(child, rel, uploads, dirs);
+  }
+}
+
+let dragDepth = 0;
+
+function active(): boolean {
+  return root.value !== null && root.value.offsetParent !== null;
+}
+
 function hasFiles(event: DragEvent): boolean {
   return Array.from(event.dataTransfer?.types ?? []).includes("Files");
 }
 
-function onDragOver(event: DragEvent): void {
-  if (!hasFiles(event)) return;
+function onWindowDragEnter(event: DragEvent): void {
+  if (!hasFiles(event) || !active()) return;
   event.preventDefault();
+  dragDepth += 1;
   dragging.value = !blocked.value && !editor.value;
 }
 
-function onDragLeave(event: DragEvent): void {
-  const next = event.relatedTarget as Node | null;
-  if (next && (event.currentTarget as HTMLElement | null)?.contains(next)) return;
-  dragging.value = false;
+function onWindowDragOver(event: DragEvent): void {
+  if (!hasFiles(event) || !active()) return;
+  event.preventDefault();
+  if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
 }
 
-async function onDrop(event: DragEvent): Promise<void> {
-  if (!hasFiles(event)) return;
+function onWindowDragLeave(event: DragEvent): void {
+  if (!hasFiles(event) || !active()) return;
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (dragDepth === 0) dragging.value = false;
+}
+
+async function onWindowDrop(event: DragEvent): Promise<void> {
+  if (!hasFiles(event) || !active()) return;
   event.preventDefault();
+  dragDepth = 0;
   dragging.value = false;
   if (blocked.value || editor.value) return;
-  const items = Array.from(event.dataTransfer?.items ?? []);
-  if (items.some((item) => item.webkitGetAsEntry?.()?.isDirectory)) {
-    error.value = "Folders cannot be dropped. Upload single files or zip the folder first.";
+  // Die Einträge müssen synchron gelesen werden, nach dem ersten await sind sie ungültig.
+  const entries = Array.from(event.dataTransfer?.items ?? [])
+    .filter((item) => item.kind === "file")
+    .map((item) => item.webkitGetAsEntry?.() ?? null);
+  const plain = Array.from(event.dataTransfer?.files ?? []);
+  if (entries.length === 0 || entries.some((entry) => entry === null)) {
+    await uploadFiles(plain);
     return;
   }
-  await uploadFiles(Array.from(event.dataTransfer?.files ?? []));
+  try {
+    progress.value = "Reading dropped items…";
+    const uploads: Upload[] = [];
+    const dirs = new Set<string>();
+    for (const entry of entries) {
+      if (entry) await collect(entry, "", uploads, dirs);
+    }
+    progress.value = "";
+    await uploadItems(uploads, [...dirs]);
+  } catch (cause) {
+    progress.value = "";
+    fail(cause);
+  }
 }
 
 onMounted(() => {
   document.addEventListener("click", closeMenu);
   window.addEventListener("scroll", closeMenu, true);
+  window.addEventListener("dragenter", onWindowDragEnter);
+  window.addEventListener("dragover", onWindowDragOver);
+  window.addEventListener("dragleave", onWindowDragLeave);
+  window.addEventListener("drop", onWindowDrop);
   if (!blocked.value) void load("");
 });
 
-onBeforeUnmount(() => document.removeEventListener("click", closeMenu));
-onBeforeUnmount(() => window.removeEventListener("scroll", closeMenu, true));
+onBeforeUnmount(() => {
+  document.removeEventListener("click", closeMenu);
+  window.removeEventListener("scroll", closeMenu, true);
+  window.removeEventListener("dragenter", onWindowDragEnter);
+  window.removeEventListener("dragover", onWindowDragOver);
+  window.removeEventListener("dragleave", onWindowDragLeave);
+  window.removeEventListener("drop", onWindowDrop);
+});
 
 watch(blocked, (value) => {
   if (!value) void load("");
@@ -788,8 +917,8 @@ watch(blocked, (value) => {
 </script>
 
 <template>
-  <div class="relative min-w-0 space-y-4" @dragover="onDragOver" @dragleave="onDragLeave" @drop="onDrop">
-    <div v-if="dragging" class="pointer-events-none absolute inset-0 z-10 flex items-start justify-center rounded-xl border-2 border-dashed border-accent-500 bg-ink-950/70 pt-24 text-lg font-semibold text-accent-300">Drop files to upload</div>
+  <div ref="root" class="relative min-w-0 space-y-4">
+    <div v-if="dragging" class="pointer-events-none fixed inset-0 z-50 flex items-center justify-center border-4 border-dashed border-accent-500 bg-ink-950/70 text-lg font-semibold text-accent-300">Drop files or folders to upload</div>
     <div v-if="!editor" class="flex flex-wrap items-start justify-between gap-4">
       <div>
         <h2 class="text-4xl font-bold">Files</h2>
@@ -800,6 +929,8 @@ watch(blocked, (value) => {
         <button class="rounded-lg border border-ink-700 px-4 py-2 text-sm text-ink-200 hover:bg-ink-800 disabled:opacity-50" :disabled="busy" @click="openDialog('file')">New File</button>
         <button class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950 disabled:opacity-50" :disabled="busy" @click="fileInput?.click()">Upload</button>
         <input ref="fileInput" type="file" multiple class="hidden" @change="upload" />
+        <button class="rounded-lg border border-ink-700 px-4 py-2 text-sm text-ink-200 hover:bg-ink-800 disabled:opacity-50" :disabled="busy" @click="folderInput?.click()">Upload Folder</button>
+        <input ref="folderInput" type="file" webkitdirectory multiple class="hidden" @change="uploadFolder" />
       </div>
     </div>
 

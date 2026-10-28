@@ -157,7 +157,7 @@ onMounted(load);
     <p v-if="notice" class="rounded-md border border-accent-500/40 bg-accent-500/10 px-3 py-2 text-sm text-accent-400">{{ notice }}</p>
     <p v-if="error" class="rounded-md border border-bad/50 bg-bad/10 px-3 py-2 text-sm text-bad">{{ error }}</p>
 
-    <p v-if="loading" class="text-sm text-ink-400">Loading…</p>
+    <div v-if="loading" class="space-y-3" aria-busy="true"><div class="skeleton h-12"></div><div class="skeleton h-12"></div><div class="skeleton h-12"></div></div>
 
     <div v-else-if="!rows.length" class="flex min-h-[24rem] items-center justify-center rounded-xl border border-ink-700 bg-ink-900 text-center">
       <div>

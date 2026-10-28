@@ -298,3 +298,15 @@ body:has(.server-detail-shell) {
   .route-bar::after,
   .skeleton::after { animation: none; }
 }
+
+/* Inhalt eines Reiters blendet beim Wechsel ein */
+@keyframes tab-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.tab-in {
+  animation: tab-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tab-in { animation: none; }
+}

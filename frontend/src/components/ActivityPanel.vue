@@ -256,7 +256,7 @@ onMounted(load);
 
     <p v-if="!canView" class="px-5 py-10 text-center text-sm text-ink-500">You do not have access to the activity of this server.</p>
     <p v-else-if="error" class="px-5 py-4 text-sm text-bad">{{ error }}</p>
-    <p v-else-if="loading" class="px-5 py-10 text-center text-sm text-ink-500">Loading…</p>
+    <div v-else-if="loading" class="space-y-3 px-5 py-5" aria-busy="true"><div class="skeleton h-10"></div><div class="skeleton h-10"></div><div class="skeleton h-10"></div><div class="skeleton h-10"></div></div>
     <p v-else-if="items.length === 0" class="px-5 py-10 text-center text-sm text-ink-500">{{ filterCount ? "No events match the filters." : "No activity events found." }}</p>
     <ul v-else class="divide-y divide-ink-800">
       <li v-for="item in items" :key="item.id" class="flex items-start gap-3 px-5 py-3">

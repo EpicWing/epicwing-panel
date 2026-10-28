@@ -562,7 +562,7 @@ onUnmounted(() => window.clearInterval(timer));
         </thead>
         <tbody class="divide-y divide-ink-700">
           <tr v-if="loading">
-            <td colspan="7" class="px-4 py-8 text-center text-ink-400">{{ t("nodes.loading") }}</td>
+            <td colspan="7" class="px-4 py-4"><div class="space-y-3" aria-busy="true"><div class="skeleton h-8"></div><div class="skeleton h-8"></div><div class="skeleton h-8"></div></div></td>
           </tr>
           <tr v-else-if="servers.length === 0">
             <td colspan="7" class="px-4 py-10 text-center">

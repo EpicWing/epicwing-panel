@@ -363,7 +363,7 @@ onBeforeUnmount(() => {
       </div>
     </form>
 
-    <p v-if="loading" class="text-sm text-ink-400">Loading...</p>
+    <div v-if="loading" class="space-y-3" aria-busy="true"><div class="skeleton h-12"></div><div class="skeleton h-12"></div><div class="skeleton h-12"></div></div>
     <div
       v-else-if="rows.length === 0"
       class="flex min-h-[16rem] items-center justify-center rounded-xl border border-ink-700 bg-ink-900 text-center"

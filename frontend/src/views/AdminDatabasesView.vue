@@ -178,7 +178,7 @@ onMounted(() => void load());
     <p v-if="notice" role="status" class="mb-6 rounded-md border border-ink-700 bg-ink-900 px-3 py-2 text-sm">
       {{ notice }}
     </p>
-    <p v-if="loading" class="text-sm text-ink-400">…</p>
+    <div v-if="loading" class="space-y-3" aria-busy="true"><div class="skeleton h-12"></div><div class="skeleton h-12"></div><div class="skeleton h-12"></div></div>
 
     <div v-else class="space-y-6">
       <form v-if="editing" class="max-w-3xl space-y-5 rounded-xl border border-ink-700 bg-ink-900 p-6" @submit.prevent="save">
