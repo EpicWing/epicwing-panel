@@ -1,15 +1,26 @@
 import ipaddress
 import uuid
+from collections.abc import Callable
 from datetime import datetime
-from typing import Any, Self
+from typing import Any, ClassVar, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.schemas.egg import ENV_RE, CleanedFields, clean_text, reject_nulls
+from app.schemas.egg import CLEANERS, ENV_RE, CleanedFields, clean_text, reject_nulls
 
 MAX_PORTS_PER_REQUEST = 500
 # 0 heißt unbegrenzt, sonst gilt mindestens dieser Wert.
 MINIMUMS = {"memory_mb": 16, "cpus": 0.1, "disk_mb": 100}
+
+
+def clean_server_name(value: str) -> str:
+    value = value.strip()
+    if not 1 <= len(value) <= 64 or any(ord(c) < 32 or ord(c) == 127 for c in value):
+        raise ValueError("The name must be 1 to 64 characters without control characters.")
+    return value
+
+
+SERVER_CLEANERS = {**CLEANERS, "name": clean_server_name}
 
 
 def _zero_or_min(value: Any, field: str) -> Any:
@@ -77,6 +88,7 @@ def _clean_variables(value: dict[str, str] | None) -> dict[str, str] | None:
 
 
 class ServerCreate(CleanedFields):
+    cleaners: ClassVar[dict[str, Callable[[str], str]]] = SERVER_CLEANERS
     model_config = ConfigDict(extra="forbid")
 
     name: str
@@ -113,6 +125,7 @@ class ServerCreate(CleanedFields):
 
 
 class ServerUpdate(CleanedFields):
+    cleaners: ClassVar[dict[str, Callable[[str], str]]] = SERVER_CLEANERS
     model_config = ConfigDict(extra="forbid")
 
     name: str | None = None
