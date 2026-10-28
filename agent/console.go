@@ -275,6 +275,9 @@ func runEvents(ctx context.Context, send func(map[string]any)) {
 	for scanner.Scan() {
 		if frame, ok := parseDockerEvent(scanner.Bytes()); ok {
 			send(frame)
+			if msg, ok := daemonStateMessage(frame); ok {
+				send(daemonFrame(frame["name"].(string), msg))
+			}
 		}
 	}
 	_ = cmd.Wait()
