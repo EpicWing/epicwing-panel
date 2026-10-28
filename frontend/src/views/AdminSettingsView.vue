@@ -21,12 +21,6 @@ const busy = ref(false);
 const error = ref("");
 const saved = ref(false);
 
-const fields = [
-  { key: "discord_url", label: "panel.discord" },
-  { key: "docs_url", label: "panel.docs" },
-  { key: "github_url", label: "panel.github" },
-  { key: "support_url", label: "panel.support" },
-] as const;
 
 const inputClass =
   "w-full rounded-md border border-ink-700 bg-ink-950 px-3 py-2 text-sm outline-none transition focus:border-accent-500";
@@ -80,23 +74,6 @@ onMounted(load);
         </div>
       </section>
 
-      <section class="rounded-xl border border-ink-700 bg-ink-900 p-5">
-        <h2 class="text-lg font-semibold">{{ t("panel.linksTitle") }}</h2>
-        <p class="mt-1 text-sm text-ink-400">{{ t("panel.linksHint") }}</p>
-        <div class="mt-4 space-y-4">
-          <div v-for="field in fields" :key="field.key">
-            <label :for="field.key" class="mb-1.5 block text-sm text-ink-300">{{ t(field.label) }}</label>
-            <input
-              :id="field.key"
-              v-model="form[field.key]"
-              type="url"
-              maxlength="300"
-              :placeholder="t('panel.urlPlaceholder')"
-              :class="inputClass"
-            />
-          </div>
-        </div>
-      </section>
 
       <div class="flex items-center gap-4">
         <button

@@ -39,8 +39,19 @@ interface HelpLink {
   url: string;
 }
 
-const links = ref<HelpLink[]>([]);
-const linksLoaded = ref(false);
+// Fest im Code, nicht im Panel einstellbar.
+const HELP_URLS = {
+  discord: "https://discord.gg/tc7xtNPsmh",
+  docs: "",
+  github: "",
+  support: "",
+};
+const links: HelpLink[] = [
+  { key: "discord", label: t("admin.linkDiscord"), url: HELP_URLS.discord },
+  { key: "docs", label: t("admin.linkDocs"), url: HELP_URLS.docs },
+  { key: "github", label: t("admin.linkGithub"), url: HELP_URLS.github },
+  { key: "support", label: t("admin.linkSupport"), url: HELP_URLS.support },
+].filter((link) => link.url);
 const linkClass: Record<string, string> = {
   discord: "bg-amber-500 hover:bg-amber-400",
   docs: "bg-blue-600 hover:bg-blue-500",
@@ -54,21 +65,6 @@ async function load() {
     failed.value = false;
   } catch {
     failed.value = true;
-  }
-}
-
-async function loadLinks() {
-  try {
-    const s = await api<Record<string, string>>("/admin/settings");
-    links.value = [
-      { key: "discord", label: t("admin.linkDiscord"), url: s.discord_url },
-      { key: "docs", label: t("admin.linkDocs"), url: s.docs_url },
-      { key: "github", label: t("admin.linkGithub"), url: s.github_url },
-      { key: "support", label: t("admin.linkSupport"), url: s.support_url },
-    ].filter((link) => link.url);
-    linksLoaded.value = true;
-  } catch {
-    // The quick links are optional.
   }
 }
 
@@ -134,7 +130,6 @@ function meters(n: NodeLoad) {
 
 onMounted(() => {
   void load();
-  void loadLinks();
   timer = window.setInterval(() => void load(), 10000);
 });
 onUnmounted(() => window.clearInterval(timer));
@@ -146,7 +141,7 @@ onUnmounted(() => window.clearInterval(timer));
       {{ t("admin.loadFailed") }}
     </p>
 
-    <section v-if="linksLoaded" class="mb-6">
+    <section class="mb-6">
       <div v-if="links.length" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <a
           v-for="link in links"
