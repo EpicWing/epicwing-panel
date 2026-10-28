@@ -18,7 +18,15 @@ from app.db import get_db
 from app.models import Allocation, Egg, EggVariable, Node, Server, ServerVariable, User
 from app.schemas.server import AllocationRef, ServerCreate, ServerOut, ServerUpdate
 from app.security.permissions import Permission, require
-from app.security.sessions import AuthContext
+from app.security.server_access import (
+    ServerAccess,
+    ServerPermission,
+    effective_permissions,
+    is_server_admin,
+    server_access,
+    visible_servers,
+)
+from app.security.sessions import AuthContext, CurrentAuth
 from app.services import audit, lifecycle
 from app.services import rules as rule_engine
 from app.services import startup as startup_service
@@ -27,6 +35,13 @@ router = APIRouter(prefix="/servers", tags=["servers"])
 
 ManageServers = Annotated[AuthContext, Depends(require(Permission.PROJECTS_MANAGE))]
 DbSession = Annotated[Session, Depends(get_db)]
+ServerView = Annotated[ServerAccess, Depends(server_access(ServerPermission.VIEW))]
+ServerReinstall = Annotated[
+    ServerAccess, Depends(server_access(ServerPermission.SETTINGS_REINSTALL))
+]
+FilesRead = Annotated[ServerAccess, Depends(server_access(ServerPermission.FILES_READ))]
+FilesWrite = Annotated[ServerAccess, Depends(server_access(ServerPermission.FILES_WRITE))]
+StartupView = Annotated[ServerAccess, Depends(server_access(ServerPermission.STARTUP_VIEW))]
 
 # Nur in diesen Zuständen läuft nichts auf der Node, das beim Löschen übrig bliebe.
 DELETABLE = {"new", "offline", "error"}
@@ -71,7 +86,9 @@ def _get(db: Session, server_id: uuid.UUID) -> Server:
     return server
 
 
-def _outs(db: Session, servers: list[Server]) -> list[ServerOut]:
+def _outs(
+    db: Session, servers: list[Server], viewer: User | None = None
+) -> list[ServerOut]:
     if not servers:
         return []
     ids = [s.id for s in servers]
@@ -84,6 +101,19 @@ def _outs(db: Session, servers: list[Server]) -> list[ServerOut]:
     for v in db.scalars(select(ServerVariable).where(ServerVariable.server_id.in_(ids))):
         values[v.server_id][v.env_variable] = v.value
     host_ram = {n.id: getattr(n, "ram_total_mb", None) for n in db.scalars(select(Node))}
+    # Mit viewer werden die eigenen Rechte eingetragen. Für Nicht-Admins fehlen dann die
+    # Variablen, die der Egg-Autor als nicht sichtbar markiert hat.
+    permissions: dict[uuid.UUID, set[str]] = {}
+    hidden: set[tuple[uuid.UUID, str]] = set()
+    if viewer is not None:
+        permissions = effective_permissions(db, viewer, servers)
+        if not is_server_admin(db, viewer):
+            hidden = {
+                (v.egg_id, v.env_variable)
+                for v in db.scalars(
+                    select(EggVariable).where(EggVariable.user_viewable.is_(False))
+                )
+            }
     outs = []
     for server in servers:
         out = ServerOut.model_validate(server)
@@ -92,7 +122,12 @@ def _outs(db: Session, servers: list[Server]) -> list[ServerOut]:
         out.allocations = sorted(
             allocations.get(server.id, []), key=lambda a: (not a.is_primary, a.port)
         )
-        out.variables = dict(values.get(server.id, {}))
+        out.variables = {
+            key: value
+            for key, value in values.get(server.id, {}).items()
+            if (server.egg_id, key) not in hidden
+        }
+        out.permissions = sorted(permissions.get(server.id, ()))
         main = out.allocations[0] if out.allocations else None
         out.startup_command = startup_service.render(
             server.startup,
@@ -135,13 +170,14 @@ def _check_values(
 
 
 @router.get("")
-def list_servers(_auth: ManageServers, db: DbSession) -> list[ServerOut]:
-    return _outs(db, list(db.scalars(select(Server).order_by(Server.created_at))))
+def list_servers(auth: CurrentAuth, db: DbSession) -> list[ServerOut]:
+    servers = db.scalars(visible_servers(db, auth.user).order_by(Server.created_at))
+    return _outs(db, list(servers), auth.user)
 
 
 @router.get("/{server_id}")
-def get_server(server_id: uuid.UUID, _auth: ManageServers, db: DbSession) -> ServerOut:
-    return _outs(db, [_get(db, server_id)])[0]
+def get_server(server_id: uuid.UUID, auth: ServerView, db: DbSession) -> ServerOut:
+    return _outs(db, [_get(db, server_id)], auth.user)[0]
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -212,7 +248,27 @@ def create_server(
         ip=audit.client_ip(request),
         details={"name": server.name, "node": node.name, "egg": egg.name},
     )
-    return _outs(db, [server])[0]
+    return _outs(db, [server], auth.user)[0]
+
+
+# Wer darf welches Feld ändern? Felder ohne Eintrag (Image, Startbefehl, Ressourcen) darf
+# nur ein Administrator ändern, denn sie bestimmen, was auf der Node läuft.
+UPDATE_RIGHTS = {
+    "name": ServerPermission.SETTINGS_UPDATE,
+    "description": ServerPermission.SETTINGS_UPDATE,
+    "variables": ServerPermission.STARTUP_UPDATE,
+}
+
+
+def _check_update_rights(auth: ServerAccess, fields: set[str]) -> None:
+    for field in sorted(fields):
+        right = UPDATE_RIGHTS.get(field)
+        if right is not None:
+            auth.require(right)
+        elif not auth.is_admin:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN, f"Only administrators can change {field}."
+            )
 
 
 @router.patch("/{server_id}")
@@ -220,11 +276,12 @@ def update_server(
     server_id: uuid.UUID,
     body: ServerUpdate,
     request: Request,
-    auth: ManageServers,
+    auth: ServerView,
     db: DbSession,
 ) -> ServerOut:
     server = _get(db, server_id)
     data = body.model_dump(exclude_unset=True)
+    _check_update_rights(auth, set(data))
     variables = data.pop("variables", None)
     if variables is not None:
         _check_values(_egg_variables(db, server.egg_id), variables)
@@ -234,6 +291,24 @@ def update_server(
                 select(ServerVariable).where(ServerVariable.server_id == server.id)
             )
         }
+        if not auth.is_admin:
+            # Gesperrte und nicht sichtbare Variablen dürfen nur Administratoren ändern.
+            locked = {
+                v.env_variable: v
+                for v in _egg_variables(db, server.egg_id)
+                if not v.user_editable or not v.user_viewable
+            }
+            changed = sorted(
+                key
+                for key, value in variables.items()
+                if key in locked
+                and value != (rows[key].value if key in rows else locked[key].default_value)
+            )
+            if changed:
+                raise HTTPException(
+                    status.HTTP_403_FORBIDDEN,
+                    f"These variables are locked: {', '.join(changed)}.",
+                )
         for key, value in variables.items():
             if key in rows:
                 rows[key].value = value
@@ -251,7 +326,7 @@ def update_server(
         ip=audit.client_ip(request),
         details={"name": server.name, "fields": sorted(body.model_fields_set)},
     )
-    return _outs(db, [server])[0]
+    return _outs(db, [server], auth.user)[0]
 
 
 @router.delete("/{server_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -300,6 +375,12 @@ POWER_BUSY = {"start": "starting", "restart": "stopping", "stop": "stopping", "k
 # Nach dem Start meldet der Agent selbst "running", sobald der Container wirklich läuft.
 POWER_DONE = {"start": None, "restart": None, "stop": "offline", "kill": "offline"}
 INSTALL_FROM = {"new", "offline", "error"}
+POWER_PERMISSION = {
+    "start": ServerPermission.POWER_START,
+    "restart": ServerPermission.POWER_RESTART,
+    "stop": ServerPermission.POWER_STOP,
+    "kill": ServerPermission.POWER_STOP,
+}
 
 
 def _set_status(db: Session, server: Server, value: str, error: str | None = None) -> None:
@@ -371,7 +452,7 @@ async def _transition(
 
 @router.post("/{server_id}/install")
 async def install_server(
-    server_id: uuid.UUID, request: Request, auth: ManageServers, db: DbSession
+    server_id: uuid.UUID, request: Request, auth: ServerReinstall, db: DbSession
 ) -> ServerOut:
     """Legt Datenverzeichnis und Container an. Das Install-Script läuft noch nicht."""
     server = _get(db, server_id)
@@ -412,7 +493,7 @@ async def install_server(
         ip=audit.client_ip(request),
         details={"name": server.name, "reinstall": reinstall},
     )
-    return _outs(db, [server])[0]
+    return _outs(db, [server], auth.user)[0]
 
 
 @router.post("/{server_id}/power")
@@ -420,10 +501,11 @@ async def power_server(
     server_id: uuid.UUID,
     body: PowerRequest,
     request: Request,
-    auth: ManageServers,
+    auth: ServerView,
     db: DbSession,
 ) -> ServerOut:
     server = _get(db, server_id)
+    auth.require(POWER_PERMISSION[body.action])
     # Kill ist der Notausgang und darf auch laufen, während ein Stop noch wartet.
     guard = contextlib.nullcontext() if body.action == "kill" else _exclusive(server.id)
     async with guard:
@@ -470,7 +552,7 @@ async def power_server(
         ip=audit.client_ip(request),
         details={"name": server.name, "action": body.action},
     )
-    return _outs(db, [server])[0]
+    return _outs(db, [server], auth.user)[0]
 
 
 # --- Dateien im Datenverzeichnis des Servers ---------------------------------------------------
@@ -588,7 +670,7 @@ def _audit_file(
 @router.get("/{server_id}/files")
 async def list_files(
     server_id: uuid.UUID,
-    _auth: ManageServers,
+    _auth: FilesRead,
     db: DbSession,
     path: Annotated[str, Query(max_length=1024)] = "",
     offset: Annotated[int, Query(ge=0, le=1_000_000)] = 0,
@@ -600,7 +682,7 @@ async def list_files(
 @router.get("/{server_id}/files/content")
 async def read_file(
     server_id: uuid.UUID,
-    _auth: ManageServers,
+    _auth: FilesRead,
     db: DbSession,
     path: Annotated[str, Query(max_length=1024)],
     offset: Annotated[int, Query(ge=0, le=FILE_MAX_OFFSET)] = 0,
@@ -614,7 +696,7 @@ async def read_file(
 
 @router.put("/{server_id}/files/content", status_code=status.HTTP_204_NO_CONTENT)
 async def write_file(
-    server_id: uuid.UUID, body: FileWrite, request: Request, auth: ManageServers, db: DbSession
+    server_id: uuid.UUID, body: FileWrite, request: Request, auth: FilesWrite, db: DbSession
 ) -> None:
     server, _ = await _files(
         db,
@@ -632,7 +714,7 @@ async def write_file(
 
 @router.post("/{server_id}/files/folder", status_code=status.HTTP_204_NO_CONTENT)
 async def create_folder(
-    server_id: uuid.UUID, body: FileFolder, request: Request, auth: ManageServers, db: DbSession
+    server_id: uuid.UUID, body: FileFolder, request: Request, auth: FilesWrite, db: DbSession
 ) -> None:
     server, _ = await _files(db, server_id, "file.mkdir", path=body.path)
     _audit_file(db, request, auth, server, "mkdir", {"path": body.path})
@@ -640,7 +722,7 @@ async def create_folder(
 
 @router.post("/{server_id}/files/rename", status_code=status.HTTP_204_NO_CONTENT)
 async def rename_file(
-    server_id: uuid.UUID, body: FileRename, request: Request, auth: ManageServers, db: DbSession
+    server_id: uuid.UUID, body: FileRename, request: Request, auth: FilesWrite, db: DbSession
 ) -> None:
     server, _ = await _files(db, server_id, "file.rename", path=body.path, to=body.to)
     _audit_file(db, request, auth, server, "rename", {"path": body.path, "to": body.to})
@@ -648,7 +730,7 @@ async def rename_file(
 
 @router.post("/{server_id}/files/delete", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_file(
-    server_id: uuid.UUID, body: FileDelete, request: Request, auth: ManageServers, db: DbSession
+    server_id: uuid.UUID, body: FileDelete, request: Request, auth: FilesWrite, db: DbSession
 ) -> None:
     server, _ = await _files(
         db, server_id, "file.delete", path=body.path, recursive=body.recursive
@@ -679,9 +761,9 @@ class StartupOut(BaseModel):
 
 
 @router.get("/{server_id}/startup")
-def get_startup(server_id: uuid.UUID, _auth: ManageServers, db: DbSession) -> StartupOut:
+def get_startup(server_id: uuid.UUID, auth: StartupView, db: DbSession) -> StartupOut:
     server = _get(db, server_id)
-    out = _outs(db, [server])[0]
+    out = _outs(db, [server], auth.user)[0]
     egg = db.get(Egg, server.egg_id)
     variables = [
         StartupVariableOut(
@@ -695,6 +777,7 @@ def get_startup(server_id: uuid.UUID, _auth: ManageServers, db: DbSession) -> St
             user_viewable=v.user_viewable,
         )
         for v in sorted(_egg_variables(db, server.egg_id), key=lambda v: v.name.lower())
+        if auth.is_admin or v.user_viewable
     ]
     return StartupOut(
         startup=server.startup,
