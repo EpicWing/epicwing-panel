@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 import { ApiError, api } from "../api/client";
 import { buildZip, type ZipItem } from "../lib/zip";
@@ -53,6 +53,7 @@ const error = ref("");
 const query = ref("");
 const progress = ref("");
 const selected = ref<string[]>([]);
+const menu = ref<string | null>(null);
 const gutter = ref<HTMLElement | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
 const backdrop = ref<HTMLElement | null>(null);
@@ -311,6 +312,14 @@ function toggle(name: string): void {
     : [...selected.value, name];
 }
 
+function toggleMenu(name: string): void {
+  menu.value = menu.value === name ? null : name;
+}
+
+function closeMenu(): void {
+  menu.value = null;
+}
+
 function toggleAll(): void {
   selected.value = allSelected.value ? [] : visible.value.map((entry) => entry.name);
 }
@@ -479,11 +488,15 @@ async function rename(entry: Entry): Promise<void> {
   await action(() => api(`${base()}/rename`, { method: "POST", body: { path: from, to } }));
 }
 
-async function moveSelected(): Promise<void> {
-  const targets = selectedEntries.value;
+function moveSelected(): Promise<void> {
+  return moveEntries(selectedEntries.value);
+}
+
+async function moveEntries(targets: Entry[]): Promise<void> {
   if (targets.length === 0) return;
+  const label = targets.length === 1 ? `"${targets[0]?.name}"` : `${targets.length} items`;
   const input = window.prompt(
-    `Move ${targets.length} selected items to this folder (relative to the current one, "/" is the root)`,
+    `Move ${label} to which folder? (relative to the current one, "/" is the root)`,
     "",
   );
   if (input === null) return;
@@ -634,8 +647,11 @@ async function upload(event: Event): Promise<void> {
 }
 
 onMounted(() => {
+  document.addEventListener("click", closeMenu);
   if (!blocked.value) void load("");
 });
+
+onBeforeUnmount(() => document.removeEventListener("click", closeMenu));
 
 watch(blocked, (value) => {
   if (!value) void load("");
@@ -643,8 +659,8 @@ watch(blocked, (value) => {
 </script>
 
 <template>
-  <div class="space-y-4">
-    <div v-if="!editor" class="flex items-start justify-between gap-4">
+  <div class="min-w-0 space-y-4">
+    <div v-if="!editor" class="flex flex-wrap items-start justify-between gap-4">
       <div>
         <h2 class="text-4xl font-bold">Files</h2>
         <p class="mt-2 text-sm text-ink-400">Browse and edit the files of your server.</p>
@@ -703,57 +719,65 @@ watch(blocked, (value) => {
       </div>
     </div>
 
-    <div v-else class="space-y-2">
-      <div class="flex items-center gap-3 rounded-lg border border-ink-700 bg-ink-900 px-3 py-2">
+    <div v-else class="space-y-3">
+      <div class="flex items-center gap-3 px-3">
         <input type="checkbox" class="h-4 w-4 shrink-0 cursor-pointer accent-accent-500" title="Select all" :checked="allSelected" :disabled="visible.length === 0" @change="toggleAll" />
-        <nav class="flex flex-wrap items-center gap-1 font-mono text-sm text-ink-300">
-          <button v-if="path" class="rounded px-1.5 py-0.5 hover:bg-ink-800 hover:text-accent-300" @click="goTo('')">root</button>
-          <span v-else class="px-1.5 text-ink-100">root</span>
+        <nav class="flex min-w-0 flex-wrap items-center gap-1 text-sm text-ink-300">
+          <button v-if="path" class="rounded px-1.5 py-0.5 hover:bg-ink-800 hover:text-accent-400" @click="goTo('')">root</button>
+          <span v-else class="px-1.5 font-medium text-ink-100">root</span>
           <template v-for="(crumb, index) in crumbs" :key="crumb.path">
-            <span class="text-ink-500">›</span>
-            <span v-if="index === crumbs.length - 1" class="px-1.5 text-ink-100">{{ crumb.name }}</span>
-            <button v-else class="rounded px-1.5 py-0.5 hover:bg-ink-800 hover:text-accent-300" @click="goTo(crumb.path)">{{ crumb.name }}</button>
+            <span class="text-ink-400">›</span>
+            <span v-if="index === crumbs.length - 1" class="px-1.5 font-medium text-ink-100">{{ crumb.name }}</span>
+            <button v-else class="rounded px-1.5 py-0.5 hover:bg-ink-800 hover:text-accent-400" @click="goTo(crumb.path)">{{ crumb.name }}</button>
           </template>
         </nav>
       </div>
 
-      <div class="relative">
-        <svg class="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-        <input v-model="query" type="search" placeholder="Search…" class="w-full rounded-lg border border-ink-700 bg-ink-900 py-2.5 pl-11 pr-4 text-sm text-ink-100 placeholder:text-ink-500 focus:border-accent-500 focus:outline-none" />
-      </div>
-
-      <div class="space-y-1">
-        <div v-if="path" class="flex cursor-pointer items-center gap-3 rounded-lg border border-ink-800 bg-ink-900 px-3 py-2 text-sm text-ink-300 hover:border-ink-600 hover:bg-ink-800/60" @click="goUp">
-          <svg class="h-5 w-5 shrink-0 text-ink-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
-          <span>Back</span>
+      <div class="rounded-xl border border-ink-800 bg-ink-900/60 p-1.5">
+        <div class="relative">
+          <svg class="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <input v-model="query" type="search" placeholder="Search…" class="w-full rounded-lg border border-transparent bg-ink-950 py-3 pl-11 pr-4 text-sm font-medium text-ink-100 placeholder:text-ink-400 focus:border-accent-500 focus:outline-none" />
         </div>
 
-        <div
-          v-for="entry in visible"
-          :key="entry.name"
-          class="group grid cursor-pointer grid-cols-[1.5rem_minmax(0,1fr)_6rem_8rem_auto] items-center gap-3 rounded-lg border bg-ink-900 px-3 py-2 text-sm hover:border-ink-600 hover:bg-ink-800/60"
-          :class="selected.includes(entry.name) ? 'border-accent-500/60' : 'border-ink-800'"
-          @click="activate(entry)"
-        >
-          <label class="flex items-center" @click.stop>
-            <input type="checkbox" class="h-4 w-4 cursor-pointer accent-accent-500" :checked="selected.includes(entry.name)" @change="toggle(entry.name)" />
-          </label>
-          <div class="flex min-w-0 items-center gap-3">
-            <svg v-if="entry.dir" class="h-5 w-5 shrink-0 text-accent-500" viewBox="0 0 24 24" fill="currentColor"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/></svg>
-            <svg v-else class="h-5 w-5 shrink-0 text-ink-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>
-            <span class="truncate font-medium text-ink-100">{{ entry.name }}</span>
-            <span v-if="entry.link" class="shrink-0 rounded bg-ink-800 px-1.5 py-0.5 text-xs text-ink-400">link</span>
+        <div class="mt-1.5 space-y-1">
+          <div v-if="path" class="grid cursor-pointer grid-cols-[1.5rem_minmax(0,1fr)] items-center gap-3 rounded-lg bg-ink-950 px-3 py-2.5 text-sm text-ink-300 hover:bg-ink-800/70" @click="goUp">
+            <svg class="h-5 w-5 text-ink-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
+            <span>Back</span>
           </div>
-          <span class="text-right text-ink-400">{{ entry.dir ? "—" : formatBytes(entry.size) }}</span>
-          <span class="text-right text-ink-400" :title="formatFull(entry.mtime)">{{ formatDate(entry.mtime) }}</span>
-          <div class="flex justify-end gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
-            <button class="rounded px-2 py-0.5 text-ink-300 hover:bg-ink-700 hover:text-ink-100 disabled:opacity-50" :disabled="busy" @click.stop="download([entry])">Download</button>
-            <button class="rounded px-2 py-0.5 text-ink-300 hover:bg-ink-700 hover:text-ink-100 disabled:opacity-50" :disabled="busy" @click.stop="rename(entry)">Rename</button>
-            <button class="rounded px-2 py-0.5 text-bad hover:bg-ink-700 disabled:opacity-50" :disabled="busy" @click.stop="remove(entry)">Delete</button>
-          </div>
-        </div>
 
-        <p v-if="!loading && !error && visible.length === 0" class="py-12 text-center text-sm text-ink-500">{{ query ? "No matches." : "This folder is empty." }}</p>
+          <div
+            v-for="entry in visible"
+            :key="entry.name"
+            class="group grid cursor-pointer grid-cols-[1.5rem_minmax(0,1fr)_2rem] items-center gap-3 rounded-lg px-3 py-2.5 text-sm sm:grid-cols-[1.5rem_minmax(0,1fr)_6rem_10rem_2rem]"
+            :class="selected.includes(entry.name) ? 'bg-ink-800 ring-1 ring-inset ring-accent-500/50' : 'bg-ink-950 hover:bg-ink-800/70'"
+            @click="activate(entry)"
+          >
+            <label class="flex items-center" @click.stop>
+              <input type="checkbox" class="h-4 w-4 cursor-pointer accent-accent-500" :checked="selected.includes(entry.name)" @change="toggle(entry.name)" />
+            </label>
+            <div class="flex min-w-0 items-center gap-3">
+              <svg v-if="entry.dir" class="h-5 w-5 shrink-0 text-accent-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
+              <svg v-else class="h-5 w-5 shrink-0 text-ink-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>
+              <span class="truncate font-semibold text-ink-100">{{ entry.name }}</span>
+              <span v-if="entry.link" class="shrink-0 rounded bg-ink-700 px-1.5 py-0.5 text-xs text-ink-300">link</span>
+            </div>
+            <span class="hidden text-right text-ink-400 sm:block">{{ entry.dir ? "—" : formatBytes(entry.size) }}</span>
+            <span class="hidden text-right text-ink-400 sm:block" :title="formatFull(entry.mtime)">{{ formatDate(entry.mtime) }}</span>
+            <div class="relative flex justify-end" @click.stop>
+              <button type="button" class="flex h-8 w-8 items-center justify-center rounded-md text-ink-400 hover:bg-ink-700 hover:text-ink-100 disabled:opacity-50" :class="menu === entry.name ? 'bg-ink-700 text-ink-100' : ''" :disabled="busy" aria-label="Actions" aria-haspopup="menu" :aria-expanded="menu === entry.name" @click="toggleMenu(entry.name)">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
+              </button>
+              <div v-if="menu === entry.name" role="menu" class="absolute right-0 top-full z-30 mt-1 w-44 rounded-lg border border-ink-700 bg-ink-900 py-1 text-sm shadow-2xl">
+                <button role="menuitem" class="block w-full px-3 py-2 text-left text-ink-100 hover:bg-ink-800" @click="closeMenu(); download([entry])">{{ entry.dir ? "Download ZIP" : "Download" }}</button>
+                <button role="menuitem" class="block w-full px-3 py-2 text-left text-ink-100 hover:bg-ink-800" @click="closeMenu(); rename(entry)">Rename</button>
+                <button role="menuitem" class="block w-full px-3 py-2 text-left text-ink-100 hover:bg-ink-800" @click="closeMenu(); moveEntries([entry])">Move</button>
+                <button role="menuitem" class="block w-full px-3 py-2 text-left text-bad hover:bg-ink-800" @click="closeMenu(); remove(entry)">Delete</button>
+              </div>
+            </div>
+          </div>
+
+          <p v-if="!loading && !error && visible.length === 0" class="py-12 text-center text-sm text-ink-400">{{ query ? "No matches." : "This folder is empty." }}</p>
+        </div>
       </div>
 
       <div class="flex items-center justify-between pt-1 text-sm text-ink-400">
