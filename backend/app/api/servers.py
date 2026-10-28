@@ -787,3 +787,187 @@ def get_startup(server_id: uuid.UUID, auth: StartupView, db: DbSession) -> Start
         egg_image=egg.docker_image if egg else "",
         variables=variables,
     )
+
+
+# --- Allocations eines Servers ------------------------------------------------------------------
+
+# Der Agent veröffentlicht höchstens 32 Ports, jede Allocation belegt TCP und UDP.
+MAX_ALLOCATIONS = 16
+# Nur hier läuft nichts im Container. Die neuen Ports gelten durch ein neues Erzeugen.
+ALLOCATIONS_EDIT_FROM = {"new", "offline", "error"}
+
+AllocationsView = Annotated[
+    ServerAccess, Depends(server_access(ServerPermission.ALLOCATIONS_VIEW))
+]
+AllocationsManage = Annotated[
+    ServerAccess, Depends(server_access(ServerPermission.ALLOCATIONS_MANAGE))
+]
+
+
+class AllocationAdd(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    allocation_id: uuid.UUID
+
+
+def _server_allocations(db: Session, server_id: uuid.UUID) -> list[Allocation]:
+    rows = db.scalars(select(Allocation).where(Allocation.server_id == server_id))
+    return sorted(rows, key=lambda a: (not a.is_primary, a.port, a.ip))
+
+
+def _spec_for(db: Session, server: Server) -> dict[str, Any]:
+    out = _outs(db, [server])[0]
+    node = db.get(Node, server.node_id)
+    return lifecycle.build_spec(
+        server, out.allocations, out.variables, node.ram_total_mb if node else None
+    )
+
+
+async def _change_allocations(
+    db: Session, server: Server, mutate: Callable[[], bool]
+) -> None:
+    """Ändert die Allocations und erzeugt den Container mit den neuen Ports neu.
+
+    Das Datenverzeichnis bleibt, das Install-Script läuft nicht. Scheitert etwas, bleibt die
+    Datenbank unverändert und der alte Container wird wiederhergestellt. mutate gibt zurück,
+    ob sich etwas geändert hat."""
+    async with _exclusive(server.id):
+        db.refresh(server)
+        if server.status not in ALLOCATIONS_EDIT_FROM:
+            raise _conflict(f"Not possible while the server is {server.status}.")
+        has_container = server.status != "new"
+        old_spec = _spec_for(db, server) if has_container else None
+        try:
+            changed = mutate()
+        except HTTPException:
+            db.rollback()
+            raise
+        if not changed:
+            return
+        if has_container:
+            db.expire_all()
+            new_spec = _spec_for(db, server)
+            removed = False
+            try:
+                await _remove_container(server)
+                removed = True
+                await _agent(server, "container.create", new_spec)
+            except HTTPException:
+                db.rollback()
+                if removed:
+                    try:
+                        await _agent(server, "container.create", old_spec)
+                    except HTTPException:
+                        _set_status(
+                            db, server, "error", "The container is missing. Reinstall the server."
+                        )
+                raise
+        db.commit()
+
+
+def _audit_allocation(
+    db: Session, request: Request, auth: ServerAccess, action: str, details: dict[str, Any]
+) -> None:
+    audit.record(
+        db,
+        f"server.allocation.{action}",
+        actor_id=auth.user.id,
+        target_type="server",
+        target_id=str(auth.server.id),
+        ip=audit.client_ip(request),
+        details={"name": auth.server.name, **details},
+    )
+
+
+@router.get("/{server_id}/allocations")
+def list_server_allocations(auth: AllocationsView, db: DbSession) -> list[AllocationRef]:
+    return [AllocationRef.model_validate(a) for a in _server_allocations(db, auth.server.id)]
+
+
+@router.get("/{server_id}/allocations/free")
+def list_free_allocations(auth: AllocationsManage, db: DbSession) -> list[AllocationRef]:
+    rows = db.scalars(
+        select(Allocation)
+        .where(Allocation.node_id == auth.server.node_id, Allocation.server_id.is_(None))
+        .order_by(Allocation.port, Allocation.ip)
+        .limit(200)
+    )
+    return [AllocationRef.model_validate(a) for a in rows]
+
+
+@router.post("/{server_id}/allocations", status_code=status.HTTP_201_CREATED)
+async def add_allocation(
+    body: AllocationAdd, request: Request, auth: AllocationsManage, db: DbSession
+) -> list[AllocationRef]:
+    server = auth.server
+
+    def mutate() -> bool:
+        if len(_server_allocations(db, server.id)) >= MAX_ALLOCATIONS:
+            raise _conflict(f"A server can have at most {MAX_ALLOCATIONS} allocations.")
+        allocation = db.get(Allocation, body.allocation_id)
+        if allocation is None or allocation.node_id != server.node_id:
+            raise HTTPException(422, "The allocation does not exist on this node.")
+        # Bedingtes Update, damit zwei gleichzeitige Anfragen nicht dieselbe Allocation belegen.
+        claimed = db.execute(
+            update(Allocation)
+            .where(Allocation.id == allocation.id, Allocation.server_id.is_(None))
+            .values(server_id=server.id, is_primary=False)
+        )
+        if claimed.rowcount != 1:
+            raise _conflict("The allocation is already in use.")
+        return True
+
+    await _change_allocations(db, server, mutate)
+    _audit_allocation(db, request, auth, "add", {"allocation": str(body.allocation_id)})
+    return [AllocationRef.model_validate(a) for a in _server_allocations(db, server.id)]
+
+
+@router.delete("/{server_id}/allocations/{allocation_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_allocation(
+    allocation_id: uuid.UUID, request: Request, auth: AllocationsManage, db: DbSession
+) -> None:
+    server = auth.server
+    details: dict[str, Any] = {}
+
+    def mutate() -> bool:
+        allocation = db.get(Allocation, allocation_id)
+        if allocation is None or allocation.server_id != server.id:
+            raise _not_found("Allocation not found.")
+        if allocation.is_primary:
+            raise _conflict("The primary allocation cannot be removed. Make another one primary.")
+        details.update(ip=allocation.ip, port=allocation.port)
+        db.execute(
+            update(Allocation)
+            .where(Allocation.id == allocation.id, Allocation.server_id == server.id)
+            .values(server_id=None, is_primary=False)
+        )
+        return True
+
+    await _change_allocations(db, server, mutate)
+    _audit_allocation(db, request, auth, "remove", details)
+
+
+@router.put("/{server_id}/allocations/{allocation_id}/primary")
+async def set_primary_allocation(
+    allocation_id: uuid.UUID, request: Request, auth: AllocationsManage, db: DbSession
+) -> list[AllocationRef]:
+    server = auth.server
+    details: dict[str, Any] = {}
+
+    def mutate() -> bool:
+        allocation = db.get(Allocation, allocation_id)
+        if allocation is None or allocation.server_id != server.id:
+            raise _not_found("Allocation not found.")
+        if allocation.is_primary:
+            return False
+        details.update(ip=allocation.ip, port=allocation.port)
+        db.execute(
+            update(Allocation).where(Allocation.server_id == server.id).values(is_primary=False)
+        )
+        db.execute(update(Allocation).where(Allocation.id == allocation.id).values(is_primary=True))
+        return True
+
+    await _change_allocations(db, server, mutate)
+    if details:
+        _audit_allocation(db, request, auth, "primary", details)
+    return [AllocationRef.model_validate(a) for a in _server_allocations(db, server.id)]

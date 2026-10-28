@@ -33,7 +33,7 @@ def build_spec(
         env["SERVER_IP"] = allocations[0].ip
         env["SERVER_PORT"] = str(allocations[0].port)
     ports = [
-        {"host": a.port, "container": a.port, "proto": proto}
+        {"host": a.port, "container": a.port, "proto": proto, "ip": a.ip}
         for a in allocations
         for proto in ("tcp", "udp")
     ]
