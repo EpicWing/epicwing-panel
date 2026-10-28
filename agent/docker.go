@@ -37,6 +37,7 @@ type PortMapping struct {
 	Host      int    `json:"host"`
 	Container int    `json:"container"`
 	Proto     string `json:"proto"`
+	IP        string `json:"ip"`
 }
 
 // ContainerSpec describes a container. MemoryMB and CPUs of 0 mean unlimited.
@@ -266,6 +267,9 @@ func (m *containerManager) validate(spec ContainerSpec) error {
 		if p.Host < m.policy.PortMin || p.Host > m.policy.PortMax {
 			return fmt.Errorf("host port %d is outside the node's port range", p.Host)
 		}
+		if err := m.checkPortIP(p.IP); err != nil {
+			return err
+		}
 		if p.Container < 1 || p.Container > 65535 {
 			return fmt.Errorf("invalid container port %d", p.Container)
 		}
@@ -324,7 +328,7 @@ func (m *containerManager) createArgs(spec ContainerSpec) []string {
 		args = append(args, "--cap-add", c)
 	}
 	for _, p := range spec.Ports {
-		args = append(args, "-p", fmt.Sprintf("%s:%d:%d/%s", m.bindAddr(), p.Host, p.Container, p.Proto))
+		args = append(args, "-p", fmt.Sprintf("%s:%d:%d/%s", m.portAddr(p), p.Host, p.Container, p.Proto))
 	}
 	keys := make([]string, 0, len(spec.Env))
 	for k := range spec.Env {
