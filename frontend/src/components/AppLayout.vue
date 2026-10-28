@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 
+import { loadPanel, panelState } from "../lib/panel";
 import { auth } from "../stores/auth";
 import LogoMark from "./LogoMark.vue";
 import CopyrightFooter from "./CopyrightFooter.vue";
@@ -26,12 +27,17 @@ interface NavSection {
 const { t } = useI18n();
 const router = useRouter();
 
+onMounted(() => void loadPanel());
+
 const sections = computed<NavSection[]>(() => {
   if (props.area === "admin") {
     return [
       {
         heading: t("nav.administration"),
-        items: [{ label: t("nav.overview"), to: "/admin" }],
+        items: [
+          { label: t("nav.overview"), to: "/admin" },
+          { label: t("nav.panelSettings"), to: "/admin/settings" },
+        ],
       },
       {
         heading: t("nav.management"),
@@ -98,7 +104,7 @@ async function logout() {
       <div class="flex items-center gap-2.5 py-5" :class="props.minimal ? 'justify-center px-3' : 'px-5'">
         <RouterLink to="/" class="flex items-center gap-2.5 rounded outline-offset-4">
           <LogoMark class="h-6 w-6 text-accent-500" />
-          <span class="text-base font-semibold tracking-tight">EpicWing</span>
+          <span class="text-base font-semibold tracking-tight">{{ panelState.name }}</span>
         </RouterLink>
         <span
           v-if="area === 'admin'"
@@ -180,7 +186,7 @@ async function logout() {
           <div class="flex items-center gap-2">
             <RouterLink to="/" class="flex items-center gap-2">
               <LogoMark class="h-5 w-5 text-accent-500" />
-              <span class="text-sm font-semibold">EpicWing</span>
+              <span class="text-sm font-semibold">{{ panelState.name }}</span>
             </RouterLink>
           </div>
           <button class="text-sm text-ink-300" @click="logout">{{ t("common.signOut") }}</button>
