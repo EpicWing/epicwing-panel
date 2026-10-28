@@ -171,9 +171,6 @@ async function logout() {
           {{ t("common.signOut") }}
         </button>
       </div>
-      <div class="px-5 pb-4" :class="props.minimal ? 'border-t border-ink-700 pt-3' : ''">
-        <CopyrightFooter />
-      </div>
     </aside>
 
     <div class="flex min-w-0 flex-1 flex-col">
@@ -212,6 +209,7 @@ async function logout() {
           <slot />
         </div>
       </main>
+      <CopyrightFooter />
     </div>
   </div>
 </template>

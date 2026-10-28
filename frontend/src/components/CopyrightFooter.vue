@@ -3,5 +3,5 @@ const year = new Date().getFullYear();
 </script>
 
 <template>
-  <p class="text-xs text-ink-500">&copy; {{ year }} EpicWing</p>
+  <footer class="shrink-0 px-4 py-4 text-xs text-ink-400 lg:px-8">Copyright &copy; {{ year }} EpicWing.</footer>
 </template>
