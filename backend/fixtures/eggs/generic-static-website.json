@@ -1,0 +1,30 @@
+{
+  "_comment": "Exported by EpicWing in the Pterodactyl egg format.",
+  "meta": {
+    "version": "PTDL_v2"
+  },
+  "exported_at": "2026-10-23T10:44:08.792980+00:00",
+  "name": "Static Website",
+  "author": "noreply@epicwing.invalid",
+  "description": "Serves the files in the www folder over HTTP.",
+  "features": null,
+  "docker_images": {
+    "ghcr.io/ptero-eggs/yolks:python_3.12": "ghcr.io/ptero-eggs/yolks:python_3.12"
+  },
+  "file_denylist": [],
+  "startup": "mkdir -p www; [ -f www/index.html ] || printf '<!doctype html><title>EpicWing</title><h1>It works</h1><p>Upload your files to the www folder.</p>' > www/index.html; python -m http.server {{SERVER_PORT}} --bind 0.0.0.0 --directory www",
+  "config": {
+    "files": "{}",
+    "startup": "{}",
+    "logs": "{}",
+    "stop": "^C"
+  },
+  "scripts": {
+    "installation": {
+      "script": "",
+      "container": "ghcr.io/pterodactyl/installers:alpine",
+      "entrypoint": "ash"
+    }
+  },
+  "variables": []
+}
