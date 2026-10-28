@@ -318,3 +318,17 @@ def test_stop_command_is_trimmed(client, server, broker, db_session):
     broker.calls.clear()
     assert _power(client, server, "stop").status_code == 200
     assert broker.calls[0][1]["command"] == "EXIT"
+
+
+def test_server_can_be_renamed(client, server):
+    response = client.patch(server.url, json={"name": "Renamed Game"}, headers=server.headers)
+    assert response.status_code == 200
+    assert response.json()["name"] == "Renamed Game"
+    assert client.get(server.url).json()["name"] == "Renamed Game"
+
+
+def test_rename_rejects_empty_and_null_names(client, server):
+    for bad in ("", "   ", None):
+        response = client.patch(server.url, json={"name": bad}, headers=server.headers)
+        assert response.status_code == 422, repr(bad)
+    assert client.get(server.url).json()["name"] == "Game 1"
