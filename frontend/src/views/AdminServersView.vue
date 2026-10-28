@@ -124,6 +124,24 @@ const selectedEgg = computed(() => eggs.value.find((e) => e.id === form.value.eg
 const extraOptions = computed(() =>
   free.value.filter((a) => a.id !== form.value.allocationId),
 );
+const extraPick = ref("");
+const extraAvailable = computed(() =>
+  extraOptions.value.filter((a) => !form.value.extraIds.includes(a.id)),
+);
+const extraChosen = computed(() =>
+  extraOptions.value.filter((a) => form.value.extraIds.includes(a.id)),
+);
+
+function addExtra() {
+  if (extraPick.value && !form.value.extraIds.includes(extraPick.value)) {
+    form.value.extraIds.push(extraPick.value);
+  }
+  extraPick.value = "";
+}
+
+function removeExtra(id: string) {
+  form.value.extraIds = form.value.extraIds.filter((x) => x !== id);
+}
 
 function message(e: unknown): string {
   return e instanceof ApiError ? e.message : t("common.unreachable");
@@ -402,10 +420,24 @@ onUnmounted(() => window.clearInterval(timer));
         <label class="mb-1.5 block text-sm text-ink-300">
           {{ t("adminServers.extraAllocations") }}
         </label>
-        <div v-if="extraOptions.length > 0" class="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-ink-700 p-3">
-          <label v-for="a in extraOptions" :key="a.id" class="flex items-center gap-2 text-sm text-ink-200">
-            <input v-model="form.extraIds" type="checkbox" :value="a.id" class="accent-accent-500" />{{ a.ip }}:{{ a.port }}
-          </label>
+        <select v-if="extraAvailable.length > 0" v-model="extraPick" :class="inputClass" @change="addExtra">
+          <option value="">{{ t("adminServers.extraAdd") }}</option>
+          <option v-for="a in extraAvailable" :key="a.id" :value="a.id">{{ a.ip }}:{{ a.port }}</option>
+        </select>
+        <div v-if="extraChosen.length > 0" class="mt-2 flex flex-wrap gap-2">
+          <span
+            v-for="a in extraChosen"
+            :key="a.id"
+            class="inline-flex items-center gap-1.5 rounded-md border border-ink-700 bg-ink-950 px-2.5 py-1 font-mono text-xs text-ink-100"
+          >
+            {{ a.ip }}:{{ a.port }}
+            <button
+              type="button"
+              class="text-ink-400 hover:text-bad"
+              :aria-label="t('adminServers.extraRemove')"
+              @click="removeExtra(a.id)"
+            >✕</button>
+          </span>
         </div>
         <p class="mt-1.5 text-xs text-ink-400">{{ t("adminServers.extraHint") }}</p>
       </div>
