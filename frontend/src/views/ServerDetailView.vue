@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref } from "vue";
-import { stripAnsi } from "../utils/ansi";
+import { onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 
 import { ApiError, api } from "../api/client";
 import AppLayout from "../components/AppLayout.vue";
+import ConsoleOutput from "../components/ConsoleOutput.vue";
 import FilesPanel from "../components/FilesPanel.vue";
 import StartupPanel from "../components/StartupPanel.vue";
+import { type ConsoleFrame, useServerConsole } from "../composables/useServerConsole";
 
 interface Allocation {
   ip: string;
@@ -36,15 +37,11 @@ const router = useRouter();
 const { t } = useI18n();
 const server = ref<ServerData | null>(null);
 const active = ref("home");
-const output = ref("");
 const command = ref("");
-const connection = ref("connecting");
 const error = ref("");
-const terminal = ref<HTMLElement | null>(null);
 const metrics = ref({ cpu: 0, ram: 0, disk: 0, rx: 0, tx: 0 });
 const history = ref({ cpu: [] as number[], ram: [] as number[], disk: [] as number[], rx: [] as number[], tx: [] as number[] });
 let previousNetwork: { rx: number; tx: number; at: number } | null = null;
-let socket: WebSocket | null = null;
 
 const groups = [
   { title: "Overview", items: [["home", "Home"], ["activity", "Timeline"]] },
@@ -55,13 +52,6 @@ const groups = [
 
 function message(cause: unknown): string {
   return cause instanceof ApiError ? cause.message : t("common.unreachable");
-}
-
-function append(value: string): void {
-  output.value += stripAnsi(value);
-  void nextTick(() => {
-    if (terminal.value) terminal.value.scrollTop = terminal.value.scrollHeight;
-  });
 }
 
 function formatBytes(value: number): string {
@@ -99,73 +89,44 @@ function networkPoints(key: "rx" | "tx"): string {
     .join(" ");
 }
 
-async function connectConsole(): Promise<void> {
-  if (!server.value) return;
-  try {
-    const { ticket } = await api<{ ticket: string }>(`/servers/${server.value.id}/console/ticket`, {
-      method: "POST",
-      body: {},
-    });
-    const scheme = window.location.protocol === "https:" ? "wss" : "ws";
-    socket = new WebSocket(
-      `${scheme}://${window.location.host}/api/servers/${server.value.id}/console?ticket=${encodeURIComponent(ticket)}`,
-    );
-    socket.onopen = () => {
-      connection.value = "connected";
-      error.value = "";
+function handleFrame(frame: ConsoleFrame): void {
+  if (frame.type === "stats") {
+    const stats = frame as ConsoleFrame & {
+      cpu_percent: number;
+      memory_used_bytes: number;
+      disk_used_bytes: number;
+      network_rx_bytes: number;
+      network_tx_bytes: number;
     };
-    socket.onmessage = (event) => {
-      try {
-        const frame = JSON.parse(event.data) as { type?: string; data?: string; status?: string; message?: string };
-        if (frame.type === "output" && frame.data) append(frame.data);
-        if (frame.type === "stats") {
-          const stats = frame as typeof frame & {
-            cpu_percent: number; memory_used_bytes: number; disk_used_bytes: number;
-            network_rx_bytes: number; network_tx_bytes: number;
-          };
-          const now = Date.now();
-          let rxRate = 0;
-          let txRate = 0;
-          if (previousNetwork) {
-            const seconds = Math.max(0.1, (now - previousNetwork.at) / 1000);
-            rxRate = Math.max(0, (stats.network_rx_bytes - previousNetwork.rx) / seconds);
-            txRate = Math.max(0, (stats.network_tx_bytes - previousNetwork.tx) / seconds);
-          }
-          previousNetwork = { rx: stats.network_rx_bytes, tx: stats.network_tx_bytes, at: now };
-          metrics.value = { cpu: stats.cpu_percent, ram: stats.memory_used_bytes, disk: stats.disk_used_bytes, rx: rxRate, tx: txRate };
-          pushHistory("cpu", stats.cpu_percent);
-          pushHistory("ram", stats.memory_used_bytes);
-          pushHistory("disk", stats.disk_used_bytes);
-          pushHistory("rx", rxRate);
-          pushHistory("tx", txRate);
-        }
-        if (frame.type === "status" && frame.status) {
-          connection.value = frame.status;
-          if (server.value) server.value.status = frame.status;
-        }
-        if (frame.type === "error") error.value = frame.message ?? t("console.connectionError");
-      } catch {
-        append(event.data);
-      }
-    };
-    socket.onerror = () => {
-      connection.value = "error";
-      error.value = t("console.connectionError");
-    };
-    socket.onclose = () => {
-      if (connection.value !== "error") connection.value = "closed";
-    };
-  } catch (cause) {
-    connection.value = "error";
-    error.value = message(cause);
+    const now = Date.now();
+    let rxRate = 0;
+    let txRate = 0;
+    if (previousNetwork) {
+      const seconds = Math.max(0.1, (now - previousNetwork.at) / 1000);
+      rxRate = Math.max(0, (stats.network_rx_bytes - previousNetwork.rx) / seconds);
+      txRate = Math.max(0, (stats.network_tx_bytes - previousNetwork.tx) / seconds);
+    }
+    previousNetwork = { rx: stats.network_rx_bytes, tx: stats.network_tx_bytes, at: now };
+    metrics.value = { cpu: stats.cpu_percent, ram: stats.memory_used_bytes, disk: stats.disk_used_bytes, rx: rxRate, tx: txRate };
+    pushHistory("cpu", stats.cpu_percent);
+    pushHistory("ram", stats.memory_used_bytes);
+    pushHistory("disk", stats.disk_used_bytes);
+    pushHistory("rx", rxRate);
+    pushHistory("tx", txRate);
   }
+  if (frame.type === "status" && frame.status && server.value) server.value.status = frame.status;
 }
 
+const {
+  lines,
+  status: connection,
+  error: consoleError,
+  connect: connectConsole,
+  send,
+} = useServerConsole({ onFrame: handleFrame });
+
 function sendCommand(): void {
-  const value = command.value.trim();
-  if (!value || socket?.readyState !== WebSocket.OPEN) return;
-  socket.send(JSON.stringify({ type: "input", data: value }));
-  command.value = "";
+  if (send(command.value)) command.value = "";
 }
 
 let statusTimer: number | undefined;
@@ -201,13 +162,12 @@ async function power(action: "start" | "restart" | "stop" | "kill"): Promise<voi
 onMounted(async () => {
   try {
     server.value = await api<ServerData>(`/servers/${String(route.params.id)}`);
-    await connectConsole();
+    await connectConsole(String(route.params.id));
   } catch (cause) {
     error.value = message(cause);
   }
 });
 
-onBeforeUnmount(() => socket?.close());
 </script>
 
 <template>
@@ -266,8 +226,8 @@ onBeforeUnmount(() => socket?.close());
         </div>
 
         <section v-if="active === 'home'" class="overflow-hidden rounded-xl border border-ink-700 bg-ink-900">
-          <div ref="terminal" class="h-[min(34vh,28rem)] min-h-[17rem] overflow-auto bg-[#090a0c] p-4 font-mono text-xs leading-5 text-ink-200"><pre class="whitespace-pre-wrap break-words">{{ output || "Waiting for console output…" }}</pre></div>
-          <p v-if="error" class="border-t border-bad/30 bg-bad/10 px-4 py-2 text-xs text-bad">{{ error }}</p>
+          <ConsoleOutput :lines="lines" :placeholder="t('console.waiting')" class="h-[min(34vh,28rem)] min-h-[17rem]" />
+          <p v-if="error || consoleError" class="border-t border-bad/30 bg-bad/10 px-4 py-2 text-xs text-bad">{{ error || consoleError }}</p>
           <form class="flex gap-2 border-t border-ink-700 p-3" @submit.prevent="sendCommand">
             <input v-model="command" class="min-w-0 flex-1 rounded-md border border-ink-700 bg-ink-950 px-3 py-2 font-mono text-sm outline-none focus:border-accent-500" placeholder="Enter a command…" :disabled="connection !== 'connected' && connection !== 'running'" autocomplete="off" />
             <button class="rounded-md bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950 disabled:opacity-50" :disabled="!command.trim() || (connection !== 'connected' && connection !== 'running')">Send</button>
