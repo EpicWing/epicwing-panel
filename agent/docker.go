@@ -45,6 +45,7 @@ type ContainerPolicy struct {
 	AllowedImages []string
 	PortMin       int
 	PortMax       int
+	ImageCaps     map[string][]string
 }
 
 type dockerRunner func(ctx context.Context, args ...string) (string, error)
@@ -129,6 +130,9 @@ func (m *containerManager) createArgs(spec ContainerSpec) []string {
 		"--pids-limit", "512",
 		"--memory", strconv.Itoa(spec.MemoryMB) + "m",
 		"--cpus", strconv.FormatFloat(spec.CPUs, 'f', -1, 64),
+	}
+	for _, c := range m.policy.ImageCaps[spec.Image] {
+		args = append(args, "--cap-add", c)
 	}
 	for _, p := range spec.Ports {
 		args = append(args, "-p", fmt.Sprintf("%d:%d/%s", p.Host, p.Container, p.Proto))

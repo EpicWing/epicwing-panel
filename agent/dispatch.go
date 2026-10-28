@@ -31,9 +31,10 @@ type panelFrame struct {
 }
 
 type policyFile struct {
-	AllowedImages []string `json:"allowed_images"`
-	PortMin       int      `json:"port_min"`
-	PortMax       int      `json:"port_max"`
+	AllowedImages []string            `json:"allowed_images"`
+	PortMin       int                 `json:"port_min"`
+	PortMax       int                 `json:"port_max"`
+	ImageCaps     map[string][]string `json:"image_caps"`
 }
 
 // loadContainerPolicy reads policy.json next to the config file.
@@ -59,7 +60,11 @@ func loadPolicyFile(file string) ContainerPolicy {
 		log.Printf("invalid port range in %s, creating containers is disabled", file)
 		return ContainerPolicy{AllowedImages: p.AllowedImages, PortMin: 1, PortMax: 0}
 	}
-	return ContainerPolicy{AllowedImages: p.AllowedImages, PortMin: p.PortMin, PortMax: p.PortMax}
+	if !validImageCaps(p.ImageCaps, p.AllowedImages) {
+		log.Printf("invalid image_caps in %s, creating containers is disabled", file)
+		return deny
+	}
+	return ContainerPolicy{AllowedImages: p.AllowedImages, PortMin: p.PortMin, PortMax: p.PortMax, ImageCaps: p.ImageCaps}
 }
 
 type commandDispatcher struct {
