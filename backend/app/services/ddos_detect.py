@@ -115,6 +115,8 @@ def _delta(now: dict[str, int], before: dict[str, int], key: str) -> int:
 class Detector:
     def __init__(self) -> None:
         self._states: dict[str, _State] = {}
+        # Aus der DB geladene Punkte, bis der erste echte Frame nach dem Start eintrifft.
+        self._seed: dict[str, list[tuple[float, float, float]]] = {}
 
     def forget(self, name: str) -> None:
         self._states.pop(name, None)
@@ -131,14 +133,38 @@ class Detector:
             "age": now - state.at,
         }
 
+    def export_buckets(
+        self, now_mono: float, now_wall: float, after: int
+    ) -> list[tuple[str, int, int, int]]:
+        """Abgeschlossene Buckets (Name, Start in Unix-Sekunden, rx, tx), neuer als `after`."""
+        out: dict[tuple[str, int], tuple[int, int]] = {}
+        for name, state in self._states.items():
+            for at, rx_rate, tx_rate in state.points:
+                wall = now_wall - (now_mono - at)
+                bucket = int(wall // BUCKET_SECONDS) * BUCKET_SECONDS
+                if bucket <= after or bucket + BUCKET_SECONDS > now_wall:
+                    continue
+                old_rx, old_tx = out.get((name, bucket), (0, 0))
+                out[(name, bucket)] = (max(old_rx, round(rx_rate)), max(old_tx, round(tx_rate)))
+        return [(name, bucket, rx, tx) for (name, bucket), (rx, tx) in out.items()]
+
+    def restore(
+        self, rows: list[tuple[str, int, int, int]], now_mono: float, now_wall: float
+    ) -> None:
+        """Übernimmt gespeicherte Buckets. Wanduhrzeit wird auf die monotone Uhr umgerechnet."""
+        for name, bucket, rx, tx in sorted(rows, key=lambda row: row[1]):
+            at = now_mono - (now_wall - (bucket + BUCKET_SECONDS / 2))
+            self._seed.setdefault(name, []).append((at, float(rx), float(tx)))
+
     def history(self, name: str, now: float) -> tuple[list[int], list[int]]:
         """rx/tx der letzten Stunde in Buckets, ältester zuerst. Lücken sind 0."""
         count = HISTORY_SECONDS // BUCKET_SECONDS
         rx, tx = [0] * count, [0] * count
         state = self._states.get(name)
-        if state is None:
-            return rx, tx
-        for at, rx_rate, tx_rate in state.points:
+        points = list(self._seed.get(name, ()))
+        if state is not None:
+            points.extend(state.points)
+        for at, rx_rate, tx_rate in points:
             age = now - at
             if 0 <= age < HISTORY_SECONDS:
                 i = count - 1 - int(age // BUCKET_SECONDS)
@@ -158,9 +184,16 @@ class Detector:
         net = net or {}
         state = self._states.get(name)
         if state is None:
-            self._states[name] = _State(
+            state = _State(
                 at=now, rx_bytes=rx_bytes, counters=dict(net), tx_bytes=tx_bytes or 0
             )
+            self._states[name] = state
+            seeded = self._seed.pop(name, None)
+            if seeded:
+                state.points.extend(seeded)
+                # Baseline aus der gespeicherten Stunde, damit nichts neu gelernt werden muss.
+                for _, rx_rate, _ in seeded:
+                    state.bytes.history.append(rx_rate)
             return Verdict("learning", (), False)
         dt = now - state.at
         if dt < MIN_INTERVAL:

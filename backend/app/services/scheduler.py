@@ -14,6 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Schedule
+from app.services import ddos_store
 from app.services.schedule_runner import open_session, run_in_background
 from app.services.schedules import build_expression, next_run
 
@@ -72,13 +73,14 @@ async def scheduler_loop() -> None:
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-    task = None
+    tasks: list[asyncio.Task[None]] = []
     if os.environ.get("EPICWING_SCHEDULER", "1") == "1":
-        task = asyncio.create_task(scheduler_loop())
+        tasks.append(asyncio.create_task(scheduler_loop()))
+        tasks.append(asyncio.create_task(ddos_store.store_loop(ddos_store.load())))
     try:
         yield
     finally:
-        if task is not None:
+        for task in tasks:
             task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await task
