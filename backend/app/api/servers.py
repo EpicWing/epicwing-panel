@@ -492,6 +492,11 @@ async def install_server(
     reinstall = server.status != "new"
 
     async def work() -> None:
+        if egg and egg.install_script.strip():
+            # Die Konsole soll schon vor dem ersten Agent-Frame etwas anzeigen.
+            container = lifecycle.container_name(server.id)
+            hub.start_install(container)
+            await hub.publish_install(container, "[EpicWing] Preparing installation ...\n")
         if reinstall:
             await _remove_container(server)
         await _agent(server, "container.create", spec)
