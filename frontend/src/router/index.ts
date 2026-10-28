@@ -1,19 +1,20 @@
 import { createRouter, createWebHistory } from "vue-router";
 
 import { auth } from "../stores/auth";
-import AdminOverviewView from "../views/AdminOverviewView.vue";
-import AdminServersView from "../views/AdminServersView.vue";
-import UsersView from "../views/UsersView.vue";
-import EggsView from "../views/EggsView.vue";
-import AdminLocationsView from "../views/AdminLocationsView.vue";
-import AdminNotificationsView from "../views/AdminNotificationsView.vue";
 import LoginView from "../views/LoginView.vue";
-import NodeDetailView from "../views/NodeDetailView.vue";
-import NodesView from "../views/NodesView.vue";
 import ServersView from "../views/ServersView.vue";
-import SettingsView from "../views/SettingsView.vue";
-import ServerDetailView from "../views/ServerDetailView.vue";
-import AdminDatabasesView from "../views/AdminDatabasesView.vue";
+
+const AdminOverviewView = () => import("../views/AdminOverviewView.vue");
+const AdminServersView = () => import("../views/AdminServersView.vue");
+const UsersView = () => import("../views/UsersView.vue");
+const EggsView = () => import("../views/EggsView.vue");
+const AdminLocationsView = () => import("../views/AdminLocationsView.vue");
+const AdminNotificationsView = () => import("../views/AdminNotificationsView.vue");
+const NodeDetailView = () => import("../views/NodeDetailView.vue");
+const NodesView = () => import("../views/NodesView.vue");
+const SettingsView = () => import("../views/SettingsView.vue");
+const ServerDetailView = () => import("../views/ServerDetailView.vue");
+const AdminDatabasesView = () => import("../views/AdminDatabasesView.vue");
 
 const router = createRouter({
   history: createWebHistory(),

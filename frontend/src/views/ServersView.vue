@@ -74,14 +74,17 @@ function toggleClass(active: boolean): string {
   return active ? "bg-ink-800 text-accent-400" : "text-ink-400 hover:text-ink-100";
 }
 
-async function loadServers(): Promise<void> {
-  if (auth.state.user?.is_admin) {
-    try {
-      nodeCount.value = (await api<unknown[]>("/nodes")).length;
-    } catch {
-      // Without permission or on an error the hint is simply not shown.
-    }
+// Only once when the page opens, the count does not change every 5 seconds.
+async function loadNodeCount(): Promise<void> {
+  if (!auth.state.user?.is_admin) return;
+  try {
+    nodeCount.value = (await api<unknown[]>("/nodes")).length;
+  } catch {
+    // Without permission or on an error the hint is simply not shown.
   }
+}
+
+async function loadServers(): Promise<void> {
   try {
     servers.value = (await api<ApiServer[]>("/servers")).map(toCard);
     loadError.value = "";
@@ -96,6 +99,7 @@ async function loadServers(): Promise<void> {
 }
 
 onMounted(async () => {
+  void loadNodeCount();
   await loadServers();
   loaded.value = true;
   refreshTimer = window.setInterval(loadServers, 5000);
@@ -152,6 +156,13 @@ onBeforeUnmount(() => {
     <div v-if="loadError" class="mb-4 rounded-lg border border-red-900/70 bg-red-950/30 px-4 py-3 text-sm text-red-200">
       <p class="font-medium">Could not load the server list.</p>
       <p class="mt-1 text-red-300/80">{{ loadError }}</p>
+    </div>
+
+    <div
+      v-if="!loaded && !showDemo"
+      :class="layout === 'grid' ? 'grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4' : 'flex flex-col gap-3'"
+    >
+      <div v-for="n in 4" :key="n" class="skeleton" :class="layout === 'grid' ? 'h-44' : 'h-24'"></div>
     </div>
 
     <div

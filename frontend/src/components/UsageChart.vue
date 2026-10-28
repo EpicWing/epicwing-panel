@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 
 const props = defineProps<{
   label: string;
@@ -26,8 +26,16 @@ const coords = computed(() => {
   ]);
 });
 
+// Weiche Kurve: waagerechte Tangenten an den Messpunkten, dadurch kein Überschwingen.
 const line = computed(() =>
-  coords.value.map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)}`).join(" "),
+  coords.value
+    .map(([x, y], i, all) => {
+      if (i === 0) return `M${x.toFixed(2)} ${y.toFixed(2)}`;
+      const [px, py] = all[i - 1];
+      const mx = ((px + x) / 2).toFixed(2);
+      return `C${mx} ${py.toFixed(2)} ${mx} ${y.toFixed(2)} ${x.toFixed(2)} ${y.toFixed(2)}`;
+    })
+    .join(" "),
 );
 
 const area = computed(() => {
@@ -41,6 +49,26 @@ const area = computed(() => {
 });
 
 const gradientId = `fill-${Math.random().toString(36).slice(2, 9)}`;
+
+// Bei einem neuen Messpunkt startet die Linie einen Schritt weiter rechts und gleitet zurück.
+const STEP = W / (MAX_POINTS - 1);
+const glide = ref<SVGGElement | null>(null);
+const shift = ref(0);
+const gliding = ref(false);
+
+watch(
+  () => props.points,
+  async () => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    gliding.value = false;
+    shift.value = STEP;
+    await nextTick();
+    glide.value?.getBoundingClientRect(); // Startzustand übernehmen, sonst entfällt die Transition
+    gliding.value = true;
+    shift.value = 0;
+  },
+  { deep: true },
+);
 </script>
 
 <template>
@@ -75,16 +103,24 @@ const gradientId = `fill-${Math.random().toString(36).slice(2, 9)}`;
         stroke-width="1"
         vector-effect="non-scaling-stroke"
       />
-      <path v-if="area" :d="area" :fill="`url(#${gradientId})`" />
-      <path
-        v-if="line"
-        :d="line"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linejoin="round"
-        vector-effect="non-scaling-stroke"
-      />
+      <g
+        ref="glide"
+        :style="{
+          transform: `translateX(${shift}px)`,
+          transition: gliding ? 'transform 700ms cubic-bezier(0.22, 1, 0.36, 1)' : 'none',
+        }"
+      >
+        <path v-if="area" :d="area" :fill="`url(#${gradientId})`" />
+        <path
+          v-if="line"
+          :d="line"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linejoin="round"
+          vector-effect="non-scaling-stroke"
+        />
+      </g>
     </svg>
   </div>
 </template>

@@ -70,7 +70,7 @@ async function copyAddress() {
     @keydown.enter="emit('open', server.id)"
     @keydown.space.prevent="emit('open', server.id)"
   >
-    <span class="absolute inset-y-0 left-0 w-1" :class="dot"></span>
+    <span class="absolute inset-y-0 left-0 w-1 transition-colors duration-500" :class="dot"></span>
 
     <div class="min-w-0" :class="layout === 'list' ? 'flex-1 basis-64' : ''">
       <div class="flex items-start justify-between gap-3">
@@ -86,7 +86,7 @@ async function copyAddress() {
         <span
           class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-ink-950 px-2.5 py-1 text-xs text-ink-300"
         >
-          <span class="h-2 w-2 rounded-full" :class="dot"></span>
+          <span class="h-2 w-2 rounded-full transition-colors duration-500" :class="dot"></span>
           {{ t(`servers.status.${server.status}`) }}
         </span>
       </div>
@@ -119,7 +119,7 @@ async function copyAddress() {
           class="mt-2 h-1 overflow-hidden rounded-full bg-ink-950"
         >
           <div
-            class="h-full rounded-full"
+            class="h-full rounded-full transition-[width,background-color] duration-700 ease-out"
             :class="barColor(stat.pct)"
             :style="{ width: `${Math.min(100, Math.max(0, stat.pct))}%` }"
           ></div>
