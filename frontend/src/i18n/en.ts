@@ -86,7 +86,7 @@ export default {
     imageHint: "The agent only runs images from its allowlist.",
     startup: "Start command",
     startupHint:
-      "Leave empty to use the default command of the image. Variables are written like {example}.",
+      "Leave empty to use the default command of the image. Placeholders: {builtin} and the variables of this egg, written like {example}.",
     stopCommand: "Stop command",
     stopHint: "Sent to the console to stop the server. Leave empty to send SIGTERM.",
     installScript: "Install script",
@@ -100,6 +100,16 @@ export default {
     varDefault: "Default value",
     varDescription: "Description",
     varEditable: "Editable by the user",
+    varViewable: "Visible to the user",
+    varRules: "Rules",
+    varRulesHint:
+      "Checked when a server is created or changed, for example {example}. Supported: required, nullable, string, integer, numeric, boolean, alpha_num, alpha_dash, min, max, between, in, not_in, regex.",
+    exportEgg: "Export",
+    importEgg: "Import egg",
+    importFile: "Egg file (Pterodactyl JSON)",
+    imported: "Egg {name} imported.",
+    importInvalid: "This file is not valid JSON.",
+    importWarnings: "Some parts of the file were not used:",
     save: "Save egg",
     saving: "Saving…",
     saved: "Egg saved.",
@@ -107,7 +117,7 @@ export default {
   },
   allocations: {
     title: "Allocations",
-    body: "IP and port pairs on this node that servers can use. Ports must be inside the port range of the node ({start}–{end}).",
+    body: "IP and port pairs on this node that servers can use. Any port from 1 to 65535 works, as long as nothing else on the node uses it.",
     ip: "IP address",
     ipHint: "The address the port is published on, for example the public IP of this node.",
     portStart: "Port",
@@ -223,7 +233,7 @@ export default {
     portStart: "First port",
     portEnd: "Last port",
     advancedHint:
-      "Ports for new servers are picked from this range. Default: 25000–25999. Fill in both fields or leave them empty.",
+      "Only a suggestion, any port from 1 to 65535 can be added as an allocation. Default: 25000–25999. Fill in both fields or leave them empty.",
     portsBoth: "Fill in both ports or leave both empty.",
     create: "Create node",
     creating: "Creating…",
@@ -274,7 +284,7 @@ export default {
     saving: "Saving…",
     saved: "Changes saved.",
     portsHint:
-      "Ports for new servers are picked from this range. Changing it does not move existing servers.",
+      "Only a suggestion, any port from 1 to 65535 can be added as an allocation.",
     nodeId: "Node ID",
     fingerprint: "Key fingerprint",
     fingerprintHint:

@@ -18,6 +18,8 @@ interface VariableRow {
   default_value: string;
   description: string;
   user_editable: boolean;
+  user_viewable: boolean;
+  rules: string;
 }
 
 interface EggItem {
@@ -48,6 +50,7 @@ const { t } = useI18n();
 
 // Only a hint for the start command, the panel fills the values in later.
 const placeholderExample = "{{SERVER_NAME}}";
+const builtinPlaceholders = "{{SERVER_MEMORY}}, {{SERVER_IP}}, {{SERVER_PORT}}";
 
 function emptyEggForm(nestId: string): EggForm {
   return {
@@ -166,6 +169,8 @@ function openEggForm(source?: EggItem, copy = false) {
         default_value: v.default_value,
         description: v.description,
         user_editable: v.user_editable,
+        user_viewable: v.user_viewable,
+        rules: v.rules,
       })),
     };
     editingId.value = copy ? null : source.id;
@@ -189,6 +194,8 @@ function addVariable() {
     default_value: "",
     description: "",
     user_editable: true,
+    user_viewable: true,
+    rules: "nullable|string",
   });
 }
 
@@ -214,6 +221,8 @@ async function saveEgg() {
       default_value: v.default_value,
       description: v.description,
       user_editable: v.user_editable,
+      user_viewable: v.user_viewable,
+      rules: v.rules,
     })),
   };
   busy.value = true;
@@ -247,6 +256,60 @@ async function removeEgg(egg: EggItem) {
   }
 }
 
+const importOpen = ref(false);
+const importNestId = ref("");
+const warnings = ref<string[]>([]);
+
+function toggleImport() {
+  error.value = "";
+  importOpen.value = !importOpen.value;
+  importNestId.value = nests.value[0]?.id ?? "";
+}
+
+async function importEgg(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = "";
+  if (!file || !importNestId.value) {
+    return;
+  }
+  error.value = "";
+  notice.value = "";
+  warnings.value = [];
+  busy.value = true;
+  try {
+    const egg: unknown = JSON.parse(await file.text());
+    const result = await api<EggItem & { warnings: string[] }>("/eggs/import", {
+      method: "POST",
+      body: { nest_id: importNestId.value, egg },
+    });
+    warnings.value = result.warnings;
+    importOpen.value = false;
+    notice.value = t("eggs.imported", { name: result.name });
+    await load();
+  } catch (e) {
+    error.value = e instanceof SyntaxError ? t("eggs.importInvalid") : message(e);
+  } finally {
+    busy.value = false;
+  }
+}
+
+async function exportEgg(egg: EggItem) {
+  error.value = "";
+  try {
+    const data = await api<unknown>("/eggs/" + egg.id + "/export");
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "egg-" + egg.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") + ".json";
+    link.click();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    error.value = message(e);
+  }
+}
+
 onMounted(() => void load());
 </script>
 
@@ -254,6 +317,9 @@ onMounted(() => void load());
   <AppLayout area="admin" :title="t('eggs.title')" :subtitle="t('eggs.subtitle')">
     <template #actions>
       <div class="flex items-center gap-2">
+        <button :class="buttonClass" :disabled="nests.length === 0" @click="toggleImport">
+          {{ importOpen ? t("eggs.cancel") : t("eggs.importEgg") }}
+        </button>
         <button :class="buttonClass" @click="toggleNestForm">
           {{ showNestForm ? t("eggs.cancel") : t("eggs.newNest") }}
         </button>
@@ -276,6 +342,41 @@ onMounted(() => void load());
     >
       {{ notice }}
     </p>
+
+    <form
+      v-if="importOpen"
+      class="mb-6 grid gap-4 rounded-lg border border-ink-700 bg-ink-900 p-5 sm:grid-cols-2"
+      @submit.prevent
+    >
+      <div>
+        <label for="import-nest" class="mb-1.5 block text-sm text-ink-300">{{ t("eggs.nest") }}</label>
+        <select id="import-nest" v-model="importNestId" :class="inputClass">
+          <option v-for="n in nests" :key="n.id" :value="n.id">{{ n.name }}</option>
+        </select>
+      </div>
+      <div>
+        <label for="import-file" class="mb-1.5 block text-sm text-ink-300">
+          {{ t("eggs.importFile") }}
+        </label>
+        <input
+          id="import-file"
+          type="file"
+          accept="application/json,.json"
+          :disabled="busy || !importNestId"
+          :class="inputClass"
+          @change="importEgg"
+        />
+      </div>
+    </form>
+    <div
+      v-if="warnings.length > 0"
+      class="mb-6 rounded-md border border-warn/40 bg-warn/10 px-3 py-2 text-sm text-warn"
+    >
+      <p>{{ t("eggs.importWarnings") }}</p>
+      <ul class="mt-1 list-disc pl-5">
+        <li v-for="w in warnings" :key="w">{{ w }}</li>
+      </ul>
+    </div>
 
     <form
       v-if="showNestForm"
@@ -360,7 +461,7 @@ onMounted(() => void load());
           :class="[inputClass, 'font-mono']"
         />
         <p class="mt-1.5 text-xs text-ink-400">
-          {{ t("eggs.startupHint", { example: placeholderExample }) }}
+          {{ t("eggs.startupHint", { example: placeholderExample, builtin: builtinPlaceholders }) }}
         </p>
       </div>
       <div class="sm:col-span-2">
@@ -435,11 +536,29 @@ onMounted(() => void load());
               :aria-label="t('eggs.varDescription')"
               :class="inputClass"
             />
+            <div class="sm:col-span-2">
+              <input
+                v-model="variable.rules"
+                maxlength="512"
+                placeholder="required|integer|between:1,100"
+                :aria-label="t('eggs.varRules')"
+                :class="[inputClass, 'font-mono']"
+              />
+              <p class="mt-1.5 text-xs text-ink-400">
+                {{ t("eggs.varRulesHint", { example: "required|integer|between:1,100" }) }}
+              </p>
+            </div>
             <div class="flex items-center justify-between sm:col-span-2">
-              <label class="flex items-center gap-2 text-sm text-ink-300">
-                <input v-model="variable.user_editable" type="checkbox" />
-                {{ t("eggs.varEditable") }}
-              </label>
+              <div class="flex flex-wrap gap-4">
+                <label class="flex items-center gap-2 text-sm text-ink-300">
+                  <input v-model="variable.user_viewable" type="checkbox" />
+                  {{ t("eggs.varViewable") }}
+                </label>
+                <label class="flex items-center gap-2 text-sm text-ink-300">
+                  <input v-model="variable.user_editable" type="checkbox" />
+                  {{ t("eggs.varEditable") }}
+                </label>
+              </div>
               <button type="button" :class="dangerClass" @click="removeVariable(index)">
                 {{ t("eggs.removeVariable") }}
               </button>
@@ -519,6 +638,9 @@ onMounted(() => void load());
                     <button :class="buttonClass" @click="openEggForm(egg)">{{ t("eggs.edit") }}</button>
                     <button :class="buttonClass" @click="openEggForm(egg, true)">
                       {{ t("eggs.duplicate") }}
+                    </button>
+                    <button :class="buttonClass" @click="exportEgg(egg)">
+                      {{ t("eggs.exportEgg") }}
                     </button>
                     <button :class="dangerClass" @click="removeEgg(egg)">{{ t("eggs.delete") }}</button>
                   </div>

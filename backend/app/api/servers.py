@@ -13,6 +13,8 @@ from app.schemas.server import AllocationRef, ServerCreate, ServerOut, ServerUpd
 from app.security.permissions import Permission, require
 from app.security.sessions import AuthContext
 from app.services import audit
+from app.services import rules as rule_engine
+from app.services import startup as startup_service
 
 router = APIRouter(prefix="/servers", tags=["servers"])
 
@@ -59,15 +61,38 @@ def _outs(db: Session, servers: list[Server]) -> list[ServerOut]:
             allocations.get(server.id, []), key=lambda a: (not a.is_primary, a.port)
         )
         out.variables = dict(values.get(server.id, {}))
+        main = out.allocations[0] if out.allocations else None
+        out.startup_command = startup_service.render(
+            server.startup,
+            out.variables,
+            server.memory_mb,
+            main.ip if main else None,
+            main.port if main else None,
+        )
         outs.append(out)
     return outs
 
 
-def _unknown_variables(db: Session, egg_id: uuid.UUID, given: dict[str, str]) -> None:
-    known = set(db.scalars(select(EggVariable.env_variable).where(EggVariable.egg_id == egg_id)))
-    unknown = sorted(set(given) - known)
+def _egg_variables(db: Session, egg_id: uuid.UUID) -> list[EggVariable]:
+    return list(db.scalars(select(EggVariable).where(EggVariable.egg_id == egg_id)))
+
+
+def _check_values(
+    variables: list[EggVariable], given: dict[str, str], fill_defaults: bool = False
+) -> None:
+    """Unbekannte Variablen und Werte, die gegen die Regeln des Eggs verstoßen."""
+    by_env = {v.env_variable: v for v in variables}
+    unknown = sorted(set(given) - set(by_env))
     if unknown:
         raise HTTPException(422, f"Unknown variables: {', '.join(unknown)}.")
+    values = dict(given)
+    if fill_defaults:
+        for env, variable in by_env.items():
+            values.setdefault(env, variable.default_value)
+    for env, value in values.items():
+        problem = rule_engine.validate(value, by_env[env].rules)
+        if problem:
+            raise HTTPException(422, f"{by_env[env].name}: {problem}")
 
 
 @router.get("")
@@ -93,7 +118,7 @@ def create_server(
     if egg is None:
         raise _not_found("Egg not found.")
     egg_variables = list(db.scalars(select(EggVariable).where(EggVariable.egg_id == egg.id)))
-    _unknown_variables(db, egg.id, body.variables)
+    _check_values(egg_variables, body.variables, fill_defaults=True)
 
     wanted = [body.allocation_id, *body.extra_allocation_ids]
     found = {a.id: a for a in db.scalars(select(Allocation).where(Allocation.id.in_(wanted)))}
@@ -163,7 +188,7 @@ def update_server(
     data = body.model_dump(exclude_unset=True)
     variables = data.pop("variables", None)
     if variables is not None:
-        _unknown_variables(db, server.egg_id, variables)
+        _check_values(_egg_variables(db, server.egg_id), variables)
         rows = {
             v.env_variable: v
             for v in db.scalars(

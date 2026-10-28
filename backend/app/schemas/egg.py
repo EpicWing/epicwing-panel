@@ -1,3 +1,4 @@
+import json
 import re
 import uuid
 from collections.abc import Callable
@@ -14,10 +15,12 @@ from pydantic import (
 )
 
 from app.schemas.node import NAME_RE
+from app.services import rules as rule_engine
 
 IMAGE_RE = re.compile(r"[a-z0-9][a-z0-9._/:@-]{0,254}")
 ENV_RE = re.compile(r"[A-Z_][A-Z0-9_]{0,63}")
 MAX_SCRIPT_CHARS = 65_535
+MAX_IMPORT_CHARS = 262_144
 
 
 def clean_name(value: str) -> str:
@@ -70,6 +73,7 @@ CLEANERS: dict[str, Callable[[str], str]] = {
     "install_script": clean_script,
     "env_variable": clean_env_name,
     "default_value": lambda v: clean_text(v, 1024),
+    "rules": lambda v: clean_text(v, 512),
 }
 
 
@@ -129,6 +133,22 @@ class EggVariableIn(CleanedFields):
     default_value: str = ""
     description: str = ""
     user_editable: bool = True
+    user_viewable: bool = True
+    rules: str = "nullable|string"
+
+    @model_validator(mode="after")
+    def _check_rules(self) -> Self:
+        found = rule_engine.problems(self.rules)
+        if found:
+            raise ValueError(f"Invalid rules for {self.env_variable}: {found[0]}")
+        if self.default_value:
+            problem = rule_engine.validate(self.default_value, self.rules)
+            if problem:
+                raise ValueError(
+                    f"The default value of {self.env_variable} does not match its rules: "
+                    f"{problem}"
+                )
+        return self
 
 
 class EggVariableOut(BaseModel):
@@ -140,6 +160,8 @@ class EggVariableOut(BaseModel):
     default_value: str
     description: str
     user_editable: bool
+    user_viewable: bool
+    rules: str
 
 
 def _check_unique_env(variables: list[EggVariableIn] | None) -> None:
@@ -203,3 +225,23 @@ class EggOut(BaseModel):
     install_script: str
     variables: list[EggVariableOut] = []
     created_at: datetime
+
+
+class EggImport(BaseModel):
+    """Ein Egg im Pterodactyl-Format (PTDL_v1 oder PTDL_v2) und das Nest dafür."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    nest_id: uuid.UUID
+    egg: dict[str, Any]
+
+    @field_validator("egg")
+    @classmethod
+    def _limit_size(cls, value: dict[str, Any]) -> dict[str, Any]:
+        if len(json.dumps(value, default=str)) > MAX_IMPORT_CHARS:
+            raise ValueError("The egg file is too large.")
+        return value
+
+
+class EggImported(EggOut):
+    warnings: list[str] = []

@@ -13,7 +13,8 @@ interface AllocationItem {
   is_primary: boolean;
 }
 
-const props = defineProps<{ nodeId: string; rangeStart: number; rangeEnd: number }>();
+// rangeStart und rangeEnd werden nicht mehr gebraucht, jeder Port ist erlaubt.
+const props = defineProps<{ nodeId: string; rangeStart?: number; rangeEnd?: number }>();
 
 const { t } = useI18n();
 
@@ -109,7 +110,7 @@ onMounted(() => void load());
       @submit.prevent="add"
     >
       <p class="text-sm text-ink-300 sm:col-span-3">
-        {{ t("allocations.body", { start: rangeStart, end: rangeEnd }) }}
+        {{ t("allocations.body") }}
       </p>
       <div>
         <label for="a-ip" class="mb-1.5 block text-sm text-ink-300">{{ t("allocations.ip") }}</label>
@@ -125,7 +126,7 @@ onMounted(() => void load());
           v-model.number="form.portStart"
           required
           type="number"
-          min="1024"
+          min="1"
           max="65535"
           :class="inputClass"
         />
@@ -138,7 +139,7 @@ onMounted(() => void load());
           id="a-end"
           v-model.number="form.portEnd"
           type="number"
-          min="1024"
+          min="1"
           max="65535"
           :class="inputClass"
         />

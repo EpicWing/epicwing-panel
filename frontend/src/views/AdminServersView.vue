@@ -34,6 +34,7 @@ interface EggVariable {
   name: string;
   default_value: string;
   description: string;
+  rules: string;
 }
 
 interface EggItem {
@@ -124,6 +125,15 @@ const extraOptions = computed(() =>
 
 function message(e: unknown): string {
   return e instanceof ApiError ? e.message : t("common.unreachable");
+}
+
+function isRequired(v: EggVariable): boolean {
+  return v.rules.split("|").includes("required");
+}
+
+function isNumeric(v: EggVariable): boolean {
+  const names = v.rules.split("|");
+  return names.includes("integer") || names.includes("numeric");
 }
 
 function statusLabel(status: string): string {
@@ -402,6 +412,8 @@ onUnmounted(() => window.clearInterval(timer));
               :id="`var-${v.env_variable}`"
               v-model="form.variables[v.env_variable]"
               maxlength="1024"
+              :required="isRequired(v)"
+              :inputmode="isNumeric(v) ? 'numeric' : undefined"
               :class="inputClass"
             />
             <p v-if="v.description" class="mt-1.5 text-xs text-ink-400">{{ v.description }}</p>

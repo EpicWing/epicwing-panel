@@ -25,25 +25,13 @@ def test_create_single_port_and_range(client, user):
     assert all(r["server_id"] is None and not r["is_primary"] for r in rows)
 
 
-def test_ports_outside_the_node_range_are_rejected(client, user):
+def test_any_port_is_allowed(client, user):
     headers = _login(client, user)
-    node_id = _create(client, headers)  # Standard: 25000 bis 25999
-    for body in (
-        {"ip": "45.142.104.41", "port_start": 27015},
-        {"ip": "45.142.104.41", "port_start": 25990, "port_end": 26005},
-    ):
-        assert client.post(_url(node_id), json=body, headers=headers).status_code == 422
-    assert client.get(_url(node_id)).json() == []
-
-
-def test_widening_the_node_range_allows_other_ports(client, user):
-    headers = _login(client, user)
-    node_id = _create(client, headers)
-    patch = client.patch(
-        f"/api/nodes/{node_id}", json={"port_range_end": 27999}, headers=headers
-    )
-    assert patch.status_code == 200
-    assert len(make_allocations(client, headers, node_id, 27015)) == 1
+    node_id = _create(client, headers)  # Der Standardbereich 25000 bis 25999 spielt keine Rolle.
+    for port in (1, 80, 7777, 27015, 65535):
+        body = {"ip": "45.142.104.41", "port_start": port}
+        assert client.post(_url(node_id), json=body, headers=headers).status_code == 201
+    assert [r["port"] for r in client.get(_url(node_id)).json()] == [1, 80, 7777, 27015, 65535]
 
 
 def test_duplicate_creates_nothing(client, user):
@@ -87,7 +75,9 @@ def test_unknown_node_gives_404(client, user):
     "body",
     [
         {"ip": "not-an-ip", "port_start": 25001},
-        {"ip": "45.142.104.41", "port_start": 80},
+        {"ip": "45.142.104.41", "port_start": 0},
+        {"ip": "45.142.104.41", "port_start": 65536},
+        {"ip": "45.142.104.41", "port_start": 65535, "port_end": 65536},
         {"ip": "45.142.104.41", "port_start": 25010, "port_end": 25001},
         {"ip": "45.142.104.41", "port_start": 25000, "port_end": 25600},
         {"ip": "45.142.104.41", "port_start": 25001, "protocol": "tcp"},

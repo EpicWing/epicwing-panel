@@ -1,8 +1,9 @@
 import uuid
 from collections import defaultdict
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from pydantic import ValidationError
 from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -11,6 +12,8 @@ from app.db import get_db
 from app.models import Egg, EggVariable, Nest, Server
 from app.schemas.egg import (
     EggCreate,
+    EggImport,
+    EggImported,
     EggOut,
     EggUpdate,
     EggVariableIn,
@@ -21,7 +24,8 @@ from app.schemas.egg import (
 )
 from app.security.permissions import Permission, require
 from app.security.sessions import AuthContext
-from app.services import audit
+from app.services import audit, eggio
+from app.services import startup as startup_service
 
 nests_router = APIRouter(prefix="/nests", tags=["nests"])
 router = APIRouter(prefix="/eggs", tags=["eggs"])
@@ -183,6 +187,8 @@ def _variable_rows(egg_id: uuid.UUID, variables: list[EggVariableIn]) -> list[Eg
             default_value=v.default_value,
             description=v.description,
             user_editable=v.user_editable,
+            user_viewable=v.user_viewable,
+            rules=v.rules,
         )
         for v in variables
     ]
@@ -213,11 +219,26 @@ def get_egg(egg_id: uuid.UUID, _auth: ManageNodes, db: DbSession) -> EggOut:
     return _egg_outs(db, [_get_egg(db, egg_id)])[0]
 
 
-@router.post("", status_code=status.HTTP_201_CREATED)
-def create_egg(body: EggCreate, request: Request, auth: ManageNodes, db: DbSession) -> EggOut:
+def _check_startup(startup: str, env_names: list[str]) -> None:
+    unknown = startup_service.unknown(startup, env_names)
+    if unknown:
+        raise HTTPException(
+            422, f"The start command uses unknown placeholders: {', '.join(unknown)}."
+        )
+
+
+def _insert_egg(
+    body: EggCreate,
+    config: str,
+    request: Request,
+    auth: AuthContext,
+    db: Session,
+    action: str = "egg.create",
+) -> Egg:
     nest = _get_nest(db, body.nest_id)
     _check_free_name(db, nest.id, body.name, None)
     egg = Egg(
+        config=config,
         nest_id=nest.id,
         name=body.name,
         description=body.description,
@@ -236,14 +257,56 @@ def create_egg(body: EggCreate, request: Request, auth: ManageNodes, db: DbSessi
         raise _conflict("An egg with this name already exists in this nest.") from None
     audit.record(
         db,
-        "egg.create",
+        action,
         actor_id=auth.user.id,
         target_type="egg",
         target_id=str(egg.id),
         ip=audit.client_ip(request),
         details={"name": egg.name, "nest": nest.name},
     )
+    return egg
+
+
+@router.post("", status_code=status.HTTP_201_CREATED)
+def create_egg(body: EggCreate, request: Request, auth: ManageNodes, db: DbSession) -> EggOut:
+    _check_startup(body.startup, [v.env_variable for v in body.variables])
+    egg = _insert_egg(body, "{}", request, auth, db)
     return _egg_outs(db, [egg])[0]
+
+
+@router.post("/import", status_code=status.HTTP_201_CREATED)
+def import_egg(
+    body: EggImport, request: Request, auth: ManageNodes, db: DbSession
+) -> EggImported:
+    try:
+        data, config, warnings = eggio.import_egg(body.egg)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from None
+    try:
+        create = EggCreate(nest_id=body.nest_id, **data)
+    except ValidationError as exc:
+        first = exc.errors()[0]
+        where = ".".join(str(part) for part in first["loc"])
+        reason = first["msg"].removeprefix("Value error, ")
+        raise HTTPException(422, f"The egg is invalid ({where}): {reason}") from None
+    unknown = startup_service.unknown(create.startup, [v.env_variable for v in create.variables])
+    if unknown:
+        names = ", ".join(unknown)
+        warnings.append(f"Placeholders in the start command that are not replaced: {names}.")
+    egg = _insert_egg(create, config, request, auth, db, "egg.import")
+    out = _egg_outs(db, [egg])[0]
+    return EggImported(**out.model_dump(), warnings=warnings)
+
+
+@router.get("/{egg_id}/export")
+def export_egg(egg_id: uuid.UUID, _auth: ManageNodes, db: DbSession) -> dict[str, Any]:
+    egg = _get_egg(db, egg_id)
+    variables = list(
+        db.scalars(
+            select(EggVariable).where(EggVariable.egg_id == egg.id).order_by(EggVariable.name)
+        )
+    )
+    return eggio.export_egg(egg, variables)
 
 
 @router.patch("/{egg_id}")
@@ -255,6 +318,14 @@ def update_egg(
     if "nest_id" in data:
         _get_nest(db, data["nest_id"])
     _check_free_name(db, data.get("nest_id", egg.nest_id), data.get("name", egg.name), egg.id)
+    if "startup" in data or body.variables is not None:
+        if body.variables is not None:
+            env_names = [v.env_variable for v in body.variables]
+        else:
+            env_names = list(
+                db.scalars(select(EggVariable.env_variable).where(EggVariable.egg_id == egg.id))
+            )
+        _check_startup(data.get("startup", egg.startup), env_names)
     for field, value in data.items():
         setattr(egg, field, value)
     if body.variables is not None:

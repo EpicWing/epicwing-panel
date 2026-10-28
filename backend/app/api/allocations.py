@@ -56,13 +56,6 @@ def create_allocations(
     node = _get_node(db, node_id)
     first = body.port_start
     last = body.port_end if body.port_end is not None else first
-    if first < node.port_range_start or last > node.port_range_end:
-        raise HTTPException(
-            422,
-            f"The ports must be inside the port range of this node "
-            f"({node.port_range_start} to {node.port_range_end}). "
-            "Change the range in the node settings first.",
-        )
     taken = db.scalar(
         select(Allocation.port)
         .where(
