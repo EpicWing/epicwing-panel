@@ -152,6 +152,14 @@ if [ ! -f "$POLICY" ] || [ "$FORCE" -eq 1 ]; then
     "ghcr.io/parkervcp/installers:alpine",
     "ghcr.io/ptero-eggs/installers:debian"
   ],
+  "image_digests": {
+    "ghcr.io/ptero-eggs/yolks:mono_latest": "sha256:327404b6358bdc3b558587713b21fbc1719c10b369a38f32b33045954ab4627b",
+    "ghcr.io/ptero-eggs/yolks:python_3.12": "sha256:196fee6764133099f82971c8e2fced2f0075c94930e90860c43f5e6619a7d575",
+    "ghcr.io/ptero-eggs/yolks:java_22": "sha256:3d71f6ebbfdae46e46d39b499533b7829e2272cb84b4950164110f6c6bddd27c",
+    "ghcr.io/ptero-eggs/yolks:java_25": "sha256:afbe93630fc543361cd463630335fc04d799d52e1e87ca8d87005938e0508ad2",
+    "ghcr.io/ptero-eggs/steamcmd:debian": "sha256:c8a93dc0e256d1dba10aed6a0d8d6e739d4f1809f4e3b7428d0c01adc6e6e68b",
+    "ghcr.io/ptero-eggs/installers:debian": "sha256:084e7a28d9902d054b35bcad7c547bcd3b5739040b9e0f5bfe63bb18ce021423"
+  },
   "port_min": 1024,
   "port_max": 65535,
   "bind_ip": "$BIND_IP",

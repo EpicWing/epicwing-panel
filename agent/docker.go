@@ -70,6 +70,7 @@ type ContainerPolicy struct {
 	PortMin       int
 	PortMax       int
 	ImageCaps     map[string][]string
+	ImageDigests  map[string]string
 	BindIP        string
 	DataDir       string
 }
@@ -226,7 +227,7 @@ func (m *containerManager) installArgs(spec InstallSpec) []string {
 	// Imported Pterodactyl eggs commonly contain Bash syntax and must not be
 	// forced through /bin/sh (which is dash in the Debian installer image).
 	args = append(args,
-		spec.InstallerImage,
+		m.pinned(spec.InstallerImage),
 		"-c", installWrapper,
 		spec.InstallerEntrypoint,
 		"/tmp/epicwing-install.sh",
@@ -340,7 +341,7 @@ func (m *containerManager) createArgs(spec ContainerSpec) []string {
 	for _, k := range keys {
 		args = append(args, "-e", k+"="+spec.Env[k])
 	}
-	return append(args, spec.Image)
+	return append(args, m.pinned(spec.Image))
 }
 
 // Create validates the spec and creates (does not start) a labelled container. Returns its ID.
