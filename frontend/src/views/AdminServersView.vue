@@ -230,8 +230,11 @@ async function openForm() {
   form.value.eggId = eggs.value[0]?.id ?? "";
   onEggChange();
   await onNodeChange();
+  autoInstall.value = true;
   showForm.value = true;
 }
+
+const autoInstall = ref(true);
 
 async function create() {
   const user = auth.state.user;
@@ -261,9 +264,12 @@ async function create() {
   }
   busy.value = true;
   try {
-    await api<ServerItem>("/servers", { method: "POST", body });
+    const created = await api<ServerItem>("/servers", { method: "POST", body });
     showForm.value = false;
     await loadServers(false);
+    if (autoInstall.value) {
+      void act(created, "install");
+    }
   } catch (e) {
     error.value = message(e);
   } finally {
@@ -535,6 +541,11 @@ onUnmounted(() => window.clearInterval(timer));
           <p class="text-xs text-ink-400 sm:col-span-2">{{ t("adminServers.overrideHint") }}</p>
         </div>
       </details>
+
+      <label class="flex items-center gap-2 text-sm text-ink-300 sm:col-span-2">
+        <input v-model="autoInstall" type="checkbox" class="h-4 w-4 accent-accent-500" />
+        {{ t("adminServers.autoInstall") }}
+      </label>
 
       <div class="sm:col-span-2">
         <button

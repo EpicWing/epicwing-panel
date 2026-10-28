@@ -224,6 +224,7 @@ export default {
     overrideHint: "Leave empty to use the values of the egg.",
     submit: "Create server",
     submitting: "Creating…",
+    autoInstall: "Install the server right after creating it",
     delete: "Delete",
     deleteConfirm: "Delete {name}? Its ports are released.",
     install: "Install",
