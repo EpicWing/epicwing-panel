@@ -91,7 +91,7 @@ class ConsoleHub:
             try:
                 await self._command(node_id, "console.watch", name)
             except Exception:
-                if self._install.get(name):
+                if name in self._install:
                     # Während der Installation kommt die Ausgabe über publish_install.
                     return
                 self._drop(name, websocket)
