@@ -20,6 +20,7 @@ interface Page {
 const props = defineProps<{ serverId: string; permissions: string[] }>();
 
 const PAGE_SIZE = 50;
+const MODE_KEYS = ["action", "signal", "power"];
 const items = ref<Item[]>([]);
 const hasMore = ref(false);
 const loading = ref(true);
@@ -27,43 +28,53 @@ const loadingMore = ref(false);
 const error = ref("");
 
 const canView = computed(() => props.permissions.includes("settings.view"));
+const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
 
-const LABELS: Record<string, string> = {
-  "server.create": "created the server",
-  "server.update": "updated the server settings",
-  "server.delete": "deleted the server",
-  "server.install": "started the installation",
-  "server.file.write": "saved a file",
-  "server.file.delete": "deleted a file or folder",
-  "server.backup.create": "created a backup",
-  "server.backup.download": "downloaded a backup",
-  "server.allocation.add": "added a port",
-  "server.allocation.remove": "removed a port",
-  "server.allocation.primary": "changed the primary port",
-};
-
-function label(item: Item): string {
-  if (item.action === "server.power") {
-    const data = item.details ?? {};
-    const mode = [data.action, data.signal, data.power].find((value) => typeof value === "string");
-    return mode ? `sent the power action “${mode}”` : "sent a power action";
-  }
-  return LABELS[item.action] ?? item.action.replace(/^server\./, "").replace(/[._]/g, " ");
+function mode(item: Item): string | null {
+  if (item.action !== "server.power") return null;
+  const data = item.details ?? {};
+  const key = MODE_KEYS.find((name) => typeof data[name] === "string");
+  return key ? (data[key] as string) : null;
 }
 
-function detail(item: Item): string {
+function code(item: Item): string {
+  const base = item.action.replace(".", ":");
+  const power = mode(item);
+  return power ? `${base}.${power}` : base;
+}
+
+function name(item: Item): string {
+  return item.actor ? item.actor.split("@")[0] : "System";
+}
+
+function details(item: Item): string[] {
   const data = item.details;
-  if (!data) return "";
-  const parts: string[] = [];
-  for (const key of ["path", "to", "backup", "port"]) {
-    const value = data[key];
-    if ((typeof value === "string" && value) || typeof value === "number") parts.push(String(value));
+  if (!data) return [];
+  const skip = mode(item) ? MODE_KEYS : [];
+  const out: string[] = [];
+  for (const [key, value] of Object.entries(data)) {
+    if (skip.includes(key)) continue;
+    if ((typeof value === "string" && value) || typeof value === "number") out.push(`${key}: ${value}`);
   }
-  return parts.join(" → ");
+  return out.slice(0, 3);
 }
 
 function when(value: string): string {
   return new Date(value).toLocaleString();
+}
+
+function ago(value: string): string {
+  const seconds = Math.round((new Date(value).getTime() - Date.now()) / 1000);
+  if (Math.abs(seconds) >= 30 * 86400) return new Date(value).toLocaleDateString();
+  const units: [Intl.RelativeTimeFormatUnit, number][] = [
+    ["day", 86400],
+    ["hour", 3600],
+    ["minute", 60],
+  ];
+  for (const [unit, size] of units) {
+    if (Math.abs(seconds) >= size) return rtf.format(Math.round(seconds / size), unit);
+  }
+  return rtf.format(seconds, "second");
 }
 
 function message(cause: unknown): string {
@@ -112,7 +123,7 @@ onMounted(load);
 <template>
   <div class="rounded-xl border border-ink-700 bg-ink-900">
     <div class="flex items-center justify-between border-b border-ink-700 px-5 py-3">
-      <h3 class="text-lg font-semibold">Events</h3>
+      <h3 class="text-lg font-semibold">Events <span v-if="canView && !loading && !error" class="ml-1 text-sm font-normal text-ink-400">({{ items.length }}{{ hasMore ? "+" : "" }} events)</span></h3>
       <button class="rounded-lg border border-ink-700 px-3 py-1.5 text-xs text-ink-200 transition hover:border-accent-500 disabled:opacity-40" :disabled="loading || !canView" @click="load">Refresh</button>
     </div>
     <p v-if="!canView" class="px-5 py-10 text-center text-sm text-ink-500">You do not have access to the activity of this server.</p>
@@ -120,12 +131,20 @@ onMounted(load);
     <p v-else-if="loading" class="px-5 py-10 text-center text-sm text-ink-500">Loading…</p>
     <p v-else-if="items.length === 0" class="px-5 py-10 text-center text-sm text-ink-500">No activity events found.</p>
     <ul v-else class="divide-y divide-ink-800">
-      <li v-for="item in items" :key="item.id" class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-5 py-3 text-sm">
+      <li v-for="item in items" :key="item.id" class="flex items-start gap-3 px-5 py-3">
+        <div class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink-700 text-xs font-semibold uppercase text-ink-100">{{ name(item).charAt(0) }}</div>
         <div class="min-w-0">
-          <p class="text-ink-100"><span class="font-semibold">{{ item.actor ?? "Unknown user" }}</span> <span class="text-ink-300">{{ label(item) }}</span></p>
-          <p v-if="detail(item)" class="mt-0.5 truncate font-mono text-xs text-ink-400">{{ detail(item) }}</p>
+          <p class="flex flex-wrap items-center gap-2 text-sm">
+            <span class="font-semibold text-ink-100" :title="item.actor ?? ''">{{ name(item) }}</span>
+            <span class="text-ink-500">•</span>
+            <span class="rounded bg-ink-800 px-2 py-0.5 font-mono text-xs text-ink-200">{{ code(item) }}</span>
+          </p>
+          <p class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-400">
+            <span v-if="item.ip" class="rounded bg-ink-800 px-1.5 py-0.5 font-mono">{{ item.ip }}</span>
+            <span :title="when(item.created_at)">{{ ago(item.created_at) }}</span>
+            <span v-for="entry in details(item)" :key="entry" class="break-all">{{ entry }}</span>
+          </p>
         </div>
-        <p class="shrink-0 text-xs text-ink-400">{{ when(item.created_at) }}<span v-if="item.ip" class="ml-3 font-mono">{{ item.ip }}</span></p>
       </li>
     </ul>
     <div v-if="canView && hasMore && !loading" class="border-t border-ink-800 px-5 py-3 text-center">
