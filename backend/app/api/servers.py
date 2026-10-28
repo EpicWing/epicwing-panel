@@ -1,11 +1,15 @@
 import asyncio
+import base64
 import contextlib
+import re
 import uuid
 from collections import defaultdict
 from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Annotated, Any, Literal
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi.responses import StreamingResponse
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
@@ -27,7 +31,7 @@ from app.security.server_access import (
     visible_servers,
 )
 from app.security.sessions import AuthContext, CurrentAuth
-from app.services import audit, lifecycle
+from app.services import audit, lifecycle, transfer
 from app.services import rules as rule_engine
 from app.services import startup as startup_service
 
@@ -562,6 +566,9 @@ FILES_BLOCKED = {"new", "installing"}
 # 8 KiB Rohdaten sind als base64 rund 10,9 Tausend Zeichen und bleiben unter dem 16-KiB-Rahmen.
 FILE_CHUNK_B64 = 12_000
 FILE_MAX_OFFSET = 1 << 30
+FILE_READ_CHUNK = 8 * 1024
+FILE_DOWNLOAD_WINDOW = 3  # Stücke, die gleichzeitig beim Agent angefragt sind
+FILE_DOWNLOAD_RETRIES = 4
 
 
 def _no_nul(value: str) -> str:
@@ -692,6 +699,75 @@ async def read_file(
         db, server_id, "file.read", path=path, offset=offset, length=length
     )
     return data
+
+
+def _attachment(name: str) -> str:
+    plain = re.sub(r"[^A-Za-z0-9._-]+", "_", name).strip("._") or "download"
+    return f"attachment; filename=\"{plain}\"; filename*=UTF-8''{quote(name, safe='')}"
+
+
+def _decode_chunk(data: dict[str, Any]) -> bytes:
+    return base64.b64decode(str(data.get("data", "")), validate=True)
+
+
+@router.get("/{server_id}/files/download")
+async def download_file(
+    server_id: uuid.UUID,
+    request: Request,
+    auth: FilesRead,
+    db: DbSession,
+    path: Annotated[str, Query(min_length=1, max_length=1024)],
+) -> StreamingResponse:
+    server, first = await _files(
+        db, server_id, "file.read", path=path, offset=0, length=FILE_READ_CHUNK
+    )
+    size = first.get("size")
+    if isinstance(size, bool) or not isinstance(size, int) or size < 0:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "The node sent an invalid size.")
+    try:
+        head = _decode_chunk(first)
+    except ValueError:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY, "The node sent an invalid chunk."
+        ) from None
+    if len(head) != min(FILE_READ_CHUNK, size):
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "The node sent an incomplete chunk.")
+    # Ab hier nur noch einfache Werte: der Stream darf die Datenbank nicht mehr anfassen.
+    node_id = server.node_id
+    params = {"name": lifecycle.container_name(server.id), "path": path}
+    filename = path.rstrip("/").rsplit("/", 1)[-1]
+    _audit_file(db, request, auth, server, "download", {"path": path})
+    db.commit()
+
+    async def fetch(offset: int) -> bytes:
+        for attempt in range(1, FILE_DOWNLOAD_RETRIES + 1):
+            try:
+                result = await broker.send(
+                    node_id, "file.read", {**params, "offset": offset, "length": FILE_READ_CHUNK}
+                )
+            except (AgentOffline, TimeoutError):
+                raise transfer.TransferError("The node is not reachable.") from None
+            busy = "too many open commands" in (result.error or "").lower()
+            if result.ok or not busy:
+                break
+            await asyncio.sleep(0.2 * attempt)
+        if not result.ok:
+            raise transfer.TransferError(result.error or "The node could not read the file.")
+        try:
+            return _decode_chunk(result.data or {})
+        except ValueError:
+            raise transfer.TransferError("The node sent an invalid chunk.") from None
+
+    return StreamingResponse(
+        transfer.stream(fetch, head, size, FILE_READ_CHUNK, FILE_DOWNLOAD_WINDOW),
+        media_type="application/octet-stream",
+        headers={
+            "Content-Length": str(size),
+            "Content-Disposition": _attachment(filename),
+            "X-Content-Type-Options": "nosniff",
+            "Cache-Control": "no-store",
+        },
+    )
 
 
 @router.put("/{server_id}/files/content", status_code=status.HTTP_204_NO_CONTENT)

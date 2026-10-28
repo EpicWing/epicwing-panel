@@ -92,6 +92,7 @@ DENIED_FOR_VIEWERS = [
     ("DELETE", "/allocations/00000000-0000-4000-8000-000000000001", None),
     ("PUT", "/allocations/00000000-0000-4000-8000-000000000001/primary", None),
     ("GET", "/files/content?path=/x", None),
+    ("GET", "/files/download?path=/x", None),
     ("GET", "/access", None),
     ("POST", "/access", {}),
     ("PUT", "/access/00000000-0000-4000-8000-000000000002", {}),
