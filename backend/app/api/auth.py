@@ -8,9 +8,23 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.db import get_db
 from app.models import User
-from app.schemas.auth import AuthResponse, LoginRequest, PasswordChangeRequest, UserOut
+from app.schemas.auth import (
+    AuthResponse,
+    LoginRequest,
+    PasswordChangeRequest,
+    TwoFactorChallenge,
+    TwoFactorLoginRequest,
+    UserOut,
+)
+from app.security import totp
+from app.security.challenge import make_challenge, read_challenge
 from app.security.passwords import hash_password, needs_rehash, verify_password
-from app.security.ratelimit import login_email_limiter, login_ip_limiter, password_change_limiter
+from app.security.ratelimit import (
+    login_email_limiter,
+    login_ip_limiter,
+    password_change_limiter,
+    totp_limiter,
+)
 from app.security.sessions import (
     SESSION_COOKIE,
     SESSION_MAX_AGE,
@@ -30,13 +44,25 @@ def _client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
+def _set_session_cookie(response: Response, token: str) -> None:
+    response.set_cookie(
+        SESSION_COOKIE,
+        token,
+        max_age=int(SESSION_MAX_AGE.total_seconds()),
+        httponly=True,
+        secure=get_settings().is_production,
+        samesite="lax",
+        path="/",
+    )
+
+
 @router.post("/login")
 def login(
     body: LoginRequest,
     request: Request,
     response: Response,
     db: Annotated[Session, Depends(get_db)],
-) -> AuthResponse:
+) -> AuthResponse | TwoFactorChallenge:
     ip = _client_ip(request)
     email = body.email.strip().lower()
 
@@ -71,6 +97,10 @@ def login(
     if needs_rehash(user.password_hash):
         user.password_hash = hash_password(body.password)
 
+    if totp.is_enabled(user):
+        audit.record(db, "auth.login_2fa_required", actor_id=user.id, ip=ip)
+        return TwoFactorChallenge(challenge=make_challenge(user))
+
     # Eine vorhandene alte Session wird beendet, jeder Login bekommt ein neues Token.
     old_token = request.cookies.get(SESSION_COOKIE)
     if old_token:
@@ -78,15 +108,7 @@ def login(
 
     token, session = create_session(db, user, ip, request.headers.get("user-agent"))
     audit.record(db, "auth.login", actor_id=user.id, ip=ip)
-    response.set_cookie(
-        SESSION_COOKIE,
-        token,
-        max_age=int(SESSION_MAX_AGE.total_seconds()),
-        httponly=True,
-        secure=get_settings().is_production,
-        samesite="lax",
-        path="/",
-    )
+    _set_session_cookie(response, token)
     return AuthResponse(user=UserOut.model_validate(user), csrf_token=session.csrf_token)
 
 
@@ -143,3 +165,53 @@ def change_password(
     password_change_limiter.reset(key)
     # Das Passwort selbst gehört nie ins Audit-Log.
     audit.record(db, "auth.password_change", actor_id=auth.user.id, ip=ip)
+
+
+@router.post("/login/2fa")
+def login_second_factor(
+    body: TwoFactorLoginRequest,
+    request: Request,
+    response: Response,
+    db: Annotated[Session, Depends(get_db)],
+) -> AuthResponse:
+    ip = _client_ip(request)
+    wait = login_ip_limiter.retry_after(ip)
+    if wait:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            "Too many sign-in attempts. Please try again later.",
+            headers={"Retry-After": str(wait)},
+        )
+
+    user = read_challenge(db, body.challenge)
+    if user is None or user.disabled_at is not None or not totp.is_enabled(user):
+        login_ip_limiter.add_failure(ip)
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED, "The sign-in has expired. Please sign in again."
+        )
+
+    key = str(user.id)
+    wait = totp_limiter.retry_after(key)
+    if wait:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            "Too many attempts. Please try again later.",
+            headers={"Retry-After": str(wait)},
+        )
+
+    ok = totp.verify_code(db, user, body.code) or totp.consume_recovery_code(db, user, body.code)
+    if not ok:
+        totp_limiter.add_failure(key)
+        login_ip_limiter.add_failure(ip)
+        audit.record(db, "auth.login_2fa_failed", actor_id=user.id, ip=ip)
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "The code is incorrect.")
+
+    totp_limiter.reset(key)
+    old_token = request.cookies.get(SESSION_COOKIE)
+    if old_token:
+        revoke_token(db, old_token)
+
+    token, session = create_session(db, user, ip, request.headers.get("user-agent"))
+    audit.record(db, "auth.login", actor_id=user.id, ip=ip, details={"second_factor": True})
+    _set_session_cookie(response, token)
+    return AuthResponse(user=UserOut.model_validate(user), csrf_token=session.csrf_token)

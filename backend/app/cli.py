@@ -7,7 +7,9 @@ from sqlalchemy.orm import Session
 
 from app.db import get_engine
 from app.models import User
+from app.security import totp
 from app.security.passwords import hash_password
+from app.services import audit
 
 MIN_PASSWORD_LENGTH = 12
 
@@ -76,6 +78,36 @@ def set_password(email: str) -> int:
     return 0
 
 
+def disable_2fa(email: str) -> int:
+    """Notfall: schaltet die 2FA eines Benutzers ab und beendet alle Sessions."""
+    email = _normalize_email(email)
+    if email is None:
+        return 1
+
+    with Session(get_engine()) as db:
+        user = db.scalar(select(User).where(User.email == email))
+        if user is None:
+            print("Kein Benutzer mit dieser E-Mail gefunden.", file=sys.stderr)
+            return 1
+        if user.totp_secret is None:
+            print("Für diesen Benutzer ist keine 2FA eingerichtet.")
+            return 0
+        totp.disable(db, user)
+        for session in user.sessions:
+            db.delete(session)
+        audit.record(
+            db,
+            "auth.2fa_disabled_cli",
+            actor_id=None,
+            ip=None,
+            details={"user_id": str(user.id)},
+        )
+        db.commit()
+
+    print("2FA wurde abgeschaltet, alle Sessions wurden beendet.")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="epicwing")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -86,7 +118,12 @@ def main(argv: list[str] | None = None) -> int:
     password = sub.add_parser("set-password", help="Passwort eines Benutzers ändern")
     password.add_argument("--email", required=True)
 
+    twofa = sub.add_parser("disable-2fa", help="2FA eines Benutzers abschalten (Notfall)")
+    twofa.add_argument("--email", required=True)
+
     args = parser.parse_args(argv)
+    if args.command == "disable-2fa":
+        return disable_2fa(args.email)
     if args.command == "create-admin":
         return create_admin(args.email)
     if args.command == "set-password":

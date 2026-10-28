@@ -16,6 +16,7 @@ USER_EMAIL = "user@example.test"
 PUBLIC_ROUTES = {
     ("/api/health", "GET"),
     ("/api/auth/login", "POST"),
+    ("/api/auth/login/2fa", "POST"),
     # Der Agent hat noch kein Konto und weist sich mit einem einmaligen Token aus.
     ("/api/agent/enroll", "POST"),
 }
