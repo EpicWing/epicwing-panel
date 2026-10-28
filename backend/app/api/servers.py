@@ -517,6 +517,47 @@ async def install_server(
     return _outs(db, [server], auth.user)[0]
 
 
+async def perform_power(db: Session, server: Server, action: str) -> None:
+    """Führt eine Power-Aktion aus. Endpunkt und Zeitpläne nutzen dieselbe Logik."""
+    # Kill ist der Notausgang und darf auch laufen, während ein Stop noch wartet.
+    guard = contextlib.nullcontext() if action == "kill" else _exclusive(server.id)
+    async with guard:
+        db.refresh(server)
+        if server.status not in POWER_FROM[action]:
+            raise _conflict(f"Not possible while the server is {server.status}.")
+
+        # Mit stop_command im Egg stoppt der Agent über die Konsole und fällt sonst auf
+        # docker stop zurück. Pterodactyl-Signale (^C) stehen leer in der DB.
+        stop_params = None
+        if action in ("stop", "restart"):
+            egg = db.get(Egg, server.egg_id)
+            command = (egg.stop_command or "").strip() if egg else ""
+            if command:
+                stop_params = {
+                    "name": lifecycle.container_name(server.id),
+                    "command": command,
+                }
+
+        async def work() -> None:
+            if action == "restart":
+                await _agent(server, "container.stop", stop_params)
+                _set_status(db, server, "starting")
+                await _agent(server, "container.start")
+            elif action == "stop":
+                await _agent(server, "container.stop", stop_params)
+            else:
+                await _agent(server, f"container.{action}")
+
+        await _transition(
+            db,
+            server,
+            POWER_BUSY[action],
+            POWER_DONE[action],
+            work,
+            keep_on_offline=True,
+        )
+
+
 @router.post("/{server_id}/power")
 async def power_server(
     server_id: uuid.UUID,
@@ -527,43 +568,7 @@ async def power_server(
 ) -> ServerOut:
     server = _get(db, server_id)
     auth.require(POWER_PERMISSION[body.action])
-    # Kill ist der Notausgang und darf auch laufen, während ein Stop noch wartet.
-    guard = contextlib.nullcontext() if body.action == "kill" else _exclusive(server.id)
-    async with guard:
-        db.refresh(server)
-        if server.status not in POWER_FROM[body.action]:
-            raise _conflict(f"Not possible while the server is {server.status}.")
-
-        # Mit stop_command im Egg stoppt der Agent über die Konsole und fällt sonst auf
-        # docker stop zurück. Pterodactyl-Signale (^C) stehen leer in der DB.
-        stop_params = None
-        if body.action in ("stop", "restart"):
-            egg = db.get(Egg, server.egg_id)
-            command = (egg.stop_command or "").strip() if egg else ""
-            if command:
-                stop_params = {
-                    "name": lifecycle.container_name(server.id),
-                    "command": command,
-                }
-
-        async def work() -> None:
-            if body.action == "restart":
-                await _agent(server, "container.stop", stop_params)
-                _set_status(db, server, "starting")
-                await _agent(server, "container.start")
-            elif body.action == "stop":
-                await _agent(server, "container.stop", stop_params)
-            else:
-                await _agent(server, f"container.{body.action}")
-
-        await _transition(
-            db,
-            server,
-            POWER_BUSY[body.action],
-            POWER_DONE[body.action],
-            work,
-            keep_on_offline=True,
-        )
+    await perform_power(db, server, body.action)
     audit.record(
         db,
         "server.power",
