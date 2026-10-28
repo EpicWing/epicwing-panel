@@ -2,10 +2,11 @@ import importlib
 import uuid
 
 import pytest
+from sqlalchemy import select
 
 from app.agentlink.commands import AgentOffline
 from app.agentlink.protocol import CommandResult
-from app.models import Server
+from app.models import AuditLog, Server
 from tests import test_server_power as base
 
 # Der Fixture "server" legt einen Server mit Node, Egg und Allocation an.
@@ -181,3 +182,50 @@ def test_invalid_read_length_is_rejected(client, ready, broker, length):
     )
     assert response.status_code == 422
     assert broker.calls == []
+
+
+def _audit(db_session, action):
+    db_session.expire_all()
+    return list(db_session.scalars(select(AuditLog).where(AuditLog.action == action)))
+
+
+def test_write_is_audited_only_for_the_first_chunk(client, db_session, ready, broker):
+    url = ready.url + "/files/content"
+    first = {"path": "a.txt", "offset": 0, "data": "aGk="}
+    later = {"path": "a.txt", "offset": 8192, "data": "aGk="}
+    assert client.put(url, json=first, headers=ready.headers).status_code == 204
+    assert client.put(url, json=later, headers=ready.headers).status_code == 204
+    entries = _audit(db_session, "server.file.write")
+    assert len(entries) == 1
+    assert entries[0].details["path"] == "a.txt"
+    assert "aGk=" not in str(entries[0].details)
+
+
+def test_mkdir_rename_and_delete_are_audited(client, db_session, ready, broker):
+    steps = [
+        ("/files/folder", {"path": "maps"}, "server.file.mkdir"),
+        ("/files/rename", {"path": "a", "to": "b"}, "server.file.rename"),
+        ("/files/delete", {"path": "old", "recursive": True}, "server.file.delete"),
+    ]
+    for url, body, action in steps:
+        assert client.post(ready.url + url, json=body, headers=ready.headers).status_code == 204
+        entries = _audit(db_session, action)
+        assert len(entries) == 1
+        assert entries[0].details["path"] == body["path"]
+    assert _audit(db_session, "server.file.delete")[0].details["recursive"] is True
+
+
+def test_reads_and_listings_are_not_audited(client, db_session, ready, broker):
+    client.get(ready.url + "/files", headers=ready.headers)
+    client.get(ready.url + "/files/content", params={"path": "a"}, headers=ready.headers)
+    entries = db_session.scalars(
+        select(AuditLog).where(AuditLog.action.like("server.file.%"))
+    ).all()
+    assert entries == []
+
+
+def test_failed_operations_are_not_audited(client, db_session, ready, broker):
+    broker.errors["file.delete"] = "no such file or directory"
+    response = client.post(ready.url + "/files/delete", json={"path": "x"}, headers=ready.headers)
+    assert response.status_code == 404
+    assert _audit(db_session, "server.file.delete") == []
