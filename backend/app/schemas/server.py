@@ -161,6 +161,7 @@ class ServerOut(BaseModel):
     last_error: str | None
     allocations: list[AllocationRef] = []
     variables: dict[str, str] = {}
+    permissions: list[str] = []
     live_cpu_percent: float | None = None
     live_memory_used_bytes: int | None = None
     live_disk_used_bytes: int | None = None

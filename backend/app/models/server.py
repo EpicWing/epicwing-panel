@@ -84,3 +84,32 @@ class ServerVariable(Base):
     )
     env_variable: Mapped[str] = mapped_column(String(64), primary_key=True)
     value: Mapped[str] = mapped_column(String(1024), default="")
+
+
+class ServerMember(Base):
+    """Ein Benutzer mit eigenen Rechten auf einem Server. Der Besitzer steht nicht hier."""
+
+    __tablename__ = "server_members"
+    __table_args__ = (
+        UniqueConstraint("server_id", "user_id", name="uq_server_members_server_user"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    server_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("servers.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class ServerMemberPermission(Base):
+    __tablename__ = "server_member_permissions"
+
+    member_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("server_members.id", ondelete="CASCADE"), primary_key=True
+    )
+    permission: Mapped[str] = mapped_column(String(64), primary_key=True)
