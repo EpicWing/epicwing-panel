@@ -696,8 +696,15 @@ async function download(targets: Entry[]): Promise<void> {
   try {
     const [only] = targets;
     if (targets.length === 1 && only && !only.dir) {
+      const target = join(path.value, only.name);
+      const direct = await ticketUrl("download", target);
       const link = document.createElement("a");
-      link.href = `/api${base()}/download?path=${encodeURIComponent(join(path.value, only.name))}`;
+      link.href = direct ?? `/api${base()}/download?path=${encodeURIComponent(target)}`;
+      if (direct) {
+        // Fehlerantworten der Node tragen kein Content-Disposition: nicht im Panel-Tab anzeigen.
+        link.target = "_blank";
+        link.rel = "noopener";
+      }
       link.download = only.name;
       document.body.appendChild(link);
       link.click();
@@ -767,6 +774,59 @@ async function uploadFolder(event: Event): Promise<void> {
   await uploadFiles(files);
 }
 
+interface TransferTicket {
+  direct: boolean;
+  url?: string;
+  expires_in?: number;
+}
+
+// Holt ein Einmal-Ticket für den direkten Weg zur Node. Jeder Fehler bedeutet: alter Weg.
+async function ticketUrl(kind: "upload" | "download", target: string): Promise<string | null> {
+  try {
+    const ticket = (await api(`${base()}/files/${kind}-ticket`, {
+      method: "POST",
+      body: { path: target },
+    })) as TransferTicket;
+    return ticket.direct && typeof ticket.url === "string" ? ticket.url : null;
+  } catch {
+    return null;
+  }
+}
+
+// Direkter PUT zur Node mit Fortschritt in MB/s. false = Node nicht erreichbar (Rückfall).
+function putDirect(url: string, file: File, report: (text: string) => void): Promise<boolean> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const started = performance.now();
+    xhr.open("PUT", url);
+    xhr.setRequestHeader("Content-Type", "application/octet-stream");
+    xhr.upload.onprogress = (event) => {
+      if (!event.lengthComputable) return;
+      const seconds = Math.max((performance.now() - started) / 1000, 0.001);
+      const speed = event.loaded / seconds / (1024 * 1024);
+      report(`${Math.floor((event.loaded / event.total) * 100)}% · ${speed.toFixed(1)} MB/s`);
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(true);
+        return;
+      }
+      const detail = (xhr.responseText || "").trim().slice(0, 200);
+      reject(new LocalError(`Direct upload failed (${xhr.status})${detail ? `: ${detail}` : ""}`));
+    };
+    xhr.onerror = () => resolve(false);
+    xhr.send(file);
+  });
+}
+
+// true = Datei ist angekommen, false = der Aufrufer nimmt den alten Weg.
+async function uploadDirect(target: string, file: File, report: (text: string) => void): Promise<boolean> {
+  if (file.size === 0) return false;
+  const url = await ticketUrl("upload", target);
+  if (!url) return false;
+  return putDirect(url, file, report);
+}
+
 async function uploadItems(uploads: Upload[], dirs: string[]): Promise<void> {
   if ((uploads.length === 0 && dirs.length === 0) || busy.value) return;
   const top = new Set([...uploads.map((u) => u.rel), ...dirs].map((rel) => rel.split("/")[0] ?? ""));
@@ -795,8 +855,11 @@ async function uploadItems(uploads: Upload[], dirs: string[]): Promise<void> {
       if (file.size > MAX_UPLOAD) {
         throw new LocalError(`"${rel}" is larger than ${formatBytes(MAX_UPLOAD)}.`);
       }
+      const target = join(path.value, rel);
+      const label = `Uploading ${rel} (${number}/${uploads.length})`;
+      if (await uploadDirect(target, file, (text) => { progress.value = `${label} ${text}`; })) continue;
       const bytes = new Uint8Array(await file.arrayBuffer());
-      await writeFile(join(path.value, rel), bytes, (done) => {
+      await writeFile(target, bytes, (done) => {
         const percent = Math.floor((done / bytes.length) * 100);
         progress.value = `Uploading ${rel} (${number}/${uploads.length}) ${percent}%`;
       });
@@ -932,9 +995,14 @@ watch(blocked, (value) => {
       <div v-if="!blocked" class="flex gap-2">
         <button class="rounded-lg border border-ink-700 px-4 py-2 text-sm text-ink-200 hover:bg-ink-800 disabled:opacity-50" :disabled="busy" @click="openDialog('folder')">New Folder</button>
         <button class="rounded-lg border border-ink-700 px-4 py-2 text-sm text-ink-200 hover:bg-ink-800 disabled:opacity-50" :disabled="busy" @click="openDialog('file')">New File</button>
-        <button class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950 disabled:opacity-50" :disabled="busy" @click="fileInput?.click()">Upload</button>
+        <div class="relative">
+          <button class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950 disabled:opacity-50" :disabled="busy" aria-haspopup="menu" :aria-expanded="menu === '/upload'" @click.stop="toggleMenu('/upload')">Upload ▾</button>
+          <div v-if="menu === '/upload'" role="menu" class="absolute right-0 z-20 mt-1 w-40 rounded-lg border border-ink-700 bg-ink-900 py-1 text-sm shadow-lg">
+            <button role="menuitem" class="block w-full px-3 py-2 text-left text-ink-100 hover:bg-ink-800" @click="closeMenu(); fileInput?.click()">Files</button>
+            <button role="menuitem" class="block w-full px-3 py-2 text-left text-ink-100 hover:bg-ink-800" @click="closeMenu(); folderInput?.click()">Folder</button>
+          </div>
+        </div>
         <input ref="fileInput" type="file" multiple class="hidden" @change="upload" />
-        <button class="rounded-lg border border-ink-700 px-4 py-2 text-sm text-ink-200 hover:bg-ink-800 disabled:opacity-50" :disabled="busy" @click="folderInput?.click()">Upload Folder</button>
         <input ref="folderInput" type="file" webkitdirectory multiple class="hidden" @change="uploadFolder" />
       </div>
     </div>
