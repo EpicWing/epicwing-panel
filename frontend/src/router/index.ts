@@ -13,6 +13,7 @@ import NodesView from "../views/NodesView.vue";
 import ServersView from "../views/ServersView.vue";
 import SettingsView from "../views/SettingsView.vue";
 import ServerDetailView from "../views/ServerDetailView.vue";
+import AdminDatabasesView from "../views/AdminDatabasesView.vue";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -66,6 +67,12 @@ const router = createRouter({
       path: "/admin/locations",
       name: "admin-locations",
       component: AdminLocationsView,
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
+    {
+      path: "/admin/databases",
+      name: "admin-databases",
+      component: AdminDatabasesView,
       meta: { requiresAuth: true, requiresAdmin: true },
     },
     { path: "/nodes", redirect: "/admin/nodes" },
