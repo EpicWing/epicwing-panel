@@ -1,0 +1,29 @@
+# Secrets und lokale Konfiguration
+.env
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Node
+node_modules/
+frontend/dist/
+
+# Go
+agent/bin/
+
+# Editor
+.idea/
+.vscode/
+*.swp
+
+# Build-Artefakte
+*.egg-info/
+build/
+dist/
