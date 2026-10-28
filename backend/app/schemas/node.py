@@ -157,6 +157,7 @@ class NodeDetail(NodeOut):
     cpu_percent: float | None
     ram_used_mb: int | None
     disk_used_mb: int | None
+    history: list[dict[str, float]] = []
 
 
 CONTAINER_NAME_RE = re.compile(r"[a-z0-9][a-z0-9_.-]{0,62}")

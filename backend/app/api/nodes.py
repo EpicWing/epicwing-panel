@@ -139,6 +139,7 @@ def _detail(db: Session, node: Node) -> NodeDetail:
         cpu_percent=stats.get("cpu_percent"),
         ram_used_mb=stats.get("ram_used_mb"),
         disk_used_mb=stats.get("disk_used_mb"),
+        history=list(registry.history.get(node.id, [])) if connected else [],
     )
 
 

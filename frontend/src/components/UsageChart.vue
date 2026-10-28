@@ -8,7 +8,7 @@ const props = defineProps<{
   points: number[];
 }>();
 
-// 60 Messpunkte im Fenster, bei 5 s Abstand sind das 5 Minuten.
+// 60 Messpunkte im Fenster, bei 10 s Abstand sind das 10 Minuten.
 const MAX_POINTS = 60;
 const W = 100;
 const H = 40;

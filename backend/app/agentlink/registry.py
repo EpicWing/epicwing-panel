@@ -1,10 +1,19 @@
 import contextlib
 import uuid
+from collections import deque
 from typing import Any
 
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from app.agentlink.protocol import WS_POLICY_VIOLATION, WS_REPLACED
+
+HISTORY_POINTS = 60  # bei 10 s Abstand 10 Minuten
+
+
+def _percent(used: int, total: int) -> float:
+    if total <= 0:
+        return 0.0
+    return round(min(100.0, max(0.0, used / total * 100)), 1)
 
 
 class AgentRegistry:
@@ -14,6 +23,7 @@ class AgentRegistry:
         self._connections: dict[uuid.UUID, WebSocket] = {}
         # Letzte Messwerte pro Node, werden später für die Serverkarten gebraucht.
         self.stats: dict[uuid.UUID, dict[str, Any]] = {}
+        self.history: dict[uuid.UUID, deque[dict[str, float]]] = {}
 
     async def register(self, node_id: uuid.UUID, websocket: WebSocket) -> None:
         previous = self._connections.get(node_id)
@@ -29,6 +39,7 @@ class AgentRegistry:
             return False
         del self._connections[node_id]
         self.stats.pop(node_id, None)
+        self.history.pop(node_id, None)
         return True
 
     async def disconnect(self, node_id: uuid.UUID) -> None:
@@ -43,6 +54,18 @@ class AgentRegistry:
 
     def connection(self, node_id: uuid.UUID) -> WebSocket | None:
         return self._connections.get(node_id)
+
+    def record(self, node_id: uuid.UUID, sample: dict[str, Any]) -> None:
+        """Speichert den letzten Messwert und hängt ihn an den Verlauf an."""
+        self.stats[node_id] = sample
+        points = self.history.setdefault(node_id, deque(maxlen=HISTORY_POINTS))
+        points.append(
+            {
+                "cpu": round(float(sample["cpu_percent"]), 1),
+                "ram": _percent(sample["ram_used_mb"], sample["ram_total_mb"]),
+                "disk": _percent(sample["disk_used_mb"], sample["disk_total_mb"]),
+            }
+        )
 
 
 registry = AgentRegistry()

@@ -129,7 +129,7 @@ async def _heartbeat_loop(websocket: WebSocket, db: Session, node_id: uuid.UUID)
             await websocket.send_json({"type": "error", "message": "Invalid message."})
             continue
 
-        registry.stats[node_id] = beat.model_dump(exclude={"type"})
+        registry.record(node_id, beat.model_dump(exclude={"type"}))
         await run_in_threadpool(_mark_online, db, node_id, beat)
         await websocket.send_json({"type": "heartbeat_ack"})
 

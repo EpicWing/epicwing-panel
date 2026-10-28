@@ -26,6 +26,7 @@ interface NodeDetail {
   cpu_percent: number | null;
   ram_used_mb: number | null;
   disk_used_mb: number | null;
+  history: { cpu: number; ram: number; disk: number }[];
 }
 
 interface Enrollment {
@@ -49,7 +50,6 @@ const busy = ref(false);
 const issued = ref<Enrollment | null>(null);
 const copied = ref("");
 
-const MAX_POINTS = 60;
 const history = ref<{ cpu: number[]; ram: number[]; disk: number[] }>({
   cpu: [],
   ram: [],
@@ -60,17 +60,13 @@ function series(key: string): number[] {
   return history.value[key as keyof typeof history.value] ?? [];
 }
 
-function pushHistory(n: NodeDetail) {
-  const add = (list: number[], value: number) => {
-    list.push(value);
-    if (list.length > MAX_POINTS) {
-      list.shift();
-    }
+function setHistory(n: NodeDetail) {
+  const list = n.history ?? [];
+  history.value = {
+    cpu: list.map((p) => p.cpu),
+    ram: list.map((p) => p.ram),
+    disk: list.map((p) => p.disk),
   };
-  const live = n.connected;
-  add(history.value.cpu, live && n.cpu_percent !== null ? n.cpu_percent : 0);
-  add(history.value.ram, live ? percent(n.ram_used_mb, n.ram_total_mb) : 0);
-  add(history.value.disk, live ? percent(n.disk_used_mb, n.disk_total_mb) : 0);
 }
 
 const form = ref({ name: "", location: "", fqdn: "", portStart: 25000, portEnd: 25999 });
@@ -114,7 +110,7 @@ async function load(first: boolean) {
   try {
     const result = await api<NodeDetail>(`/nodes/${nodeId}`);
     node.value = result;
-    pushHistory(result);
+    setHistory(result);
     if (first) {
       fillForm(result);
     }
