@@ -319,3 +319,84 @@ def test_download_needs_a_path(client, ready, broker):
     response = client.get(ready.url + "/files/download", headers=ready.headers)
     assert response.status_code == 422
     assert broker.calls == []
+
+
+def _decompress(client, ready, body):
+    return client.post(ready.url + "/files/decompress", json=body, headers=ready.headers)
+
+
+def test_decompress_passes_the_paths_through(client, ready, broker):
+    summary = {"files": 3, "dirs": 1, "skipped": 0, "bytes": 10}
+    broker.data["file.decompress"] = summary
+    response = _decompress(client, ready, {"path": "a.zip", "to": "out"})
+    assert response.status_code == 200, response.text
+    assert response.json() == summary
+    expected = {"name": _name(ready), "path": "a.zip", "to": "out"}
+    assert broker.calls == [("file.decompress", expected)]
+
+
+def test_decompress_defaults_to_the_archive_folder(client, ready, broker):
+    assert _decompress(client, ready, {"path": "sub/a.zip"}).status_code == 200
+    assert broker.calls[0][1]["to"] == ""
+
+
+@pytest.mark.parametrize(
+    ("error", "code"),
+    [
+        ('unsafe path in archive: "../x"', 400),
+        ("archive limit exceeded", 413),
+        ("invalid archive: zip: not a valid zip file", 422),
+        ("unsupported archive type", 400),
+        ("openat a.zip: no such file or directory", 404),
+        ("not a regular file", 409),
+        ("openat link/x: path escapes from parent", 400),
+    ],
+)
+def test_decompress_errors_become_clean_status_codes(client, ready, broker, error, code):
+    broker.errors["file.decompress"] = error
+    response = _decompress(client, ready, {"path": "a.zip"})
+    assert response.status_code == code
+    assert response.json()["detail"] != error
+
+
+def test_decompress_is_blocked_before_the_install_is_done(client, db_session, server, broker):
+    _set_status(db_session, server, "installing")
+    response = _decompress(client, server, {"path": "a.zip"})
+    assert response.status_code == 409
+    assert broker.calls == []
+
+
+def test_decompress_is_audited_only_on_success(client, db_session, ready, broker):
+    broker.errors["file.decompress"] = "archive limit exceeded"
+    assert _decompress(client, ready, {"path": "a.zip", "to": "out"}).status_code == 413
+    assert _audit(db_session, "server.file.decompress") == []
+    del broker.errors["file.decompress"]
+    broker.data["file.decompress"] = {"files": 2}
+    assert _decompress(client, ready, {"path": "a.zip", "to": "out"}).status_code == 200
+    entries = _audit(db_session, "server.file.decompress")
+    assert len(entries) == 1
+    assert entries[0].details["path"] == "a.zip"
+    assert entries[0].details["to"] == "out"
+    assert entries[0].details["files"] == 2
+
+
+def test_decompress_gets_a_long_timeout(client, ready, monkeypatch):
+    class TimeoutBroker(FileBroker):
+        def __init__(self):
+            super().__init__()
+            self.timeouts = []
+
+        async def send(self, node_id, action, params, timeout=90):
+            self.timeouts.append(timeout)
+            return await super().send(node_id, action, params, timeout)
+
+    fake = TimeoutBroker()
+    monkeypatch.setattr(importlib.import_module("app.api.servers"), "broker", fake)
+    assert _decompress(client, ready, {"path": "a.zip"}).status_code == 200
+    assert fake.timeouts[0] >= 300
+
+
+@pytest.mark.parametrize("body", [{"path": "a.zip", "extra": 1}, {"path": "a\x00.zip"}, {}])
+def test_decompress_rejects_bad_bodies(client, ready, broker, body):
+    assert _decompress(client, ready, body).status_code == 422
+    assert broker.calls == []

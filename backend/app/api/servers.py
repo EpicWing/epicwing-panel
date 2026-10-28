@@ -592,6 +592,8 @@ FILE_MAX_OFFSET = 1 << 30
 FILE_READ_CHUNK = 8 * 1024
 FILE_DOWNLOAD_WINDOW = 3  # Stücke, die gleichzeitig beim Agent angefragt sind
 FILE_DOWNLOAD_RETRIES = 4
+# Ein großes Archiv braucht länger als ein normaler Dateibefehl.
+DECOMPRESS_TIMEOUT_SECONDS = 600
 
 
 def _no_nul(value: str) -> str:
@@ -626,6 +628,14 @@ class FileRename(BaseModel):
     to: FilePath
 
 
+class FileDecompress(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    path: FilePath
+    # Leer heißt: der Ordner, in dem das Archiv liegt.
+    to: FilePath = ""
+
+
 class FileDelete(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -642,6 +652,10 @@ FILE_ERRORS = (
     ("is a directory", status.HTTP_409_CONFLICT, "This is a directory."),
     ("directory not empty", status.HTTP_409_CONFLICT, "The directory is not empty."),
     ("not a regular file", status.HTTP_409_CONFLICT, "This is not a regular file."),
+    ("unsafe path in archive", 400, "The archive contains unsafe paths and was not unpacked."),
+    ("archive limit exceeded", 413, "The archive is too large or has too many files."),
+    ("invalid archive", 422, "The archive is damaged or not a valid archive."),
+    ("unsupported archive type", 400, "Only .zip, .tar.gz and .tgz archives can be unpacked."),
     ("escapes", status.HTTP_400_BAD_REQUEST, "Invalid path."),
     ("invalid path", status.HTTP_400_BAD_REQUEST, "Invalid path."),
     ("invalid offset", status.HTTP_400_BAD_REQUEST, "Invalid offset."),
@@ -837,6 +851,31 @@ async def delete_file(
     _audit_file(
         db, request, auth, server, "delete", {"path": body.path, "recursive": body.recursive}
     )
+
+
+@router.post("/{server_id}/files/decompress")
+async def decompress_file(
+    server_id: uuid.UUID, body: FileDecompress, request: Request, auth: FilesWrite, db: DbSession
+) -> dict[str, Any]:
+    server = _get(db, server_id)
+    if server.status in FILES_BLOCKED:
+        raise _conflict(f"Files are not available while the server is {server.status}.")
+    result = await _send(
+        server,
+        "file.decompress",
+        {"name": lifecycle.container_name(server.id), "path": body.path, "to": body.to},
+        timeout=DECOMPRESS_TIMEOUT_SECONDS,
+    )
+    data = _file_data(result)
+    _audit_file(
+        db,
+        request,
+        auth,
+        server,
+        "decompress",
+        {"path": body.path, "to": body.to, "files": data.get("files", 0)},
+    )
+    return data
 
 
 class StartupVariableOut(BaseModel):
