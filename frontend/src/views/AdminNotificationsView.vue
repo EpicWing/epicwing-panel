@@ -131,7 +131,7 @@ onMounted(() => void load());
     </p>
     <p v-if="loading" class="text-sm text-ink-400">…</p>
 
-    <div v-else class="max-w-2xl space-y-6">
+    <div v-else class="grid max-w-6xl items-start gap-6 xl:grid-cols-2">
       <form class="space-y-6 rounded-xl border border-ink-700 bg-ink-900 p-6" @submit.prevent="save">
         <div>
           <h3 class="text-base font-semibold">{{ t("notify.alertsTitle") }}</h3>
@@ -150,7 +150,7 @@ onMounted(() => void load());
               id="nt-webhook"
               v-model="form.discord_webhook"
               type="password"
-              autocomplete="off"
+              autocomplete="new-password"
               placeholder="https://discord.com/api/webhooks/…"
               :class="fieldCls"
             />
@@ -212,8 +212,7 @@ onMounted(() => void load());
         </div>
       </form>
 
-      <h3 class="pt-2 text-base font-semibold">{{ t("notify.deliveryTitle") }}</h3>
-      <MailSettingsPanel />
+      <div><MailSettingsPanel /></div>
     </div>
   </AppLayout>
 </template>
