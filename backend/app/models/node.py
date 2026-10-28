@@ -24,9 +24,7 @@ class Node(Base):
     agent_version: Mapped[str | None] = mapped_column(String(32))
     port_range_start: Mapped[int] = mapped_column(Integer)
     port_range_end: Mapped[int] = mapped_column(Integer)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -45,9 +43,7 @@ class NodeEnrollment(Base):
     created_by: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL")
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class NodeCredential(Base):
@@ -60,7 +56,5 @@ class NodeCredential(Base):
     # Roher Ed25519-Public-Key als Base64. Der private Schlüssel bleibt auf dem Node.
     public_key: Mapped[str] = mapped_column(String(64))
     fingerprint: Mapped[str] = mapped_column(String(64), unique=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -29,9 +29,7 @@ from app.services import audit, lifecycle, stats_history
 
 router = APIRouter(prefix="/servers", tags=["console"])
 
-ConsoleViewAccess = Annotated[
-    ServerAccess, Depends(server_access(ServerPermission.CONSOLE_VIEW))
-]
+ConsoleViewAccess = Annotated[ServerAccess, Depends(server_access(ServerPermission.CONSOLE_VIEW))]
 DbSession = Annotated[Session, Depends(get_db)]
 
 MAX_INPUTS = 10
@@ -101,9 +99,7 @@ async def _watch_access(
 
 
 @router.post("/{server_id}/console/ticket")
-def console_ticket(
-    server_id: uuid.UUID, auth: ConsoleViewAccess, db: DbSession
-) -> dict[str, str]:
+def console_ticket(server_id: uuid.UUID, auth: ConsoleViewAccess, db: DbSession) -> dict[str, str]:
     if db.get(Server, server_id) is None:
         raise HTTPException(404, "Server not found.")
     return {"ticket": tickets.issue(auth.user.id, server_id)}

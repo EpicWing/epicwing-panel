@@ -43,9 +43,7 @@ def _name_taken() -> HTTPException:
 
 
 @router.get("")
-def list_nodes(
-    _auth: ManageNodes, db: Annotated[Session, Depends(get_db)]
-) -> list[NodeOut]:
+def list_nodes(_auth: ManageNodes, db: Annotated[Session, Depends(get_db)]) -> list[NodeOut]:
     nodes = db.scalars(select(Node).order_by(Node.created_at))
     return [_node_out(n) for n in nodes]
 
@@ -169,9 +167,7 @@ def update_node(
     start = data.get("port_range_start", node.port_range_start)
     end = data.get("port_range_end", node.port_range_end)
     if start > end:
-        raise HTTPException(
-            422, "The port range is invalid: the start must not be after the end."
-        )
+        raise HTTPException(422, "The port range is invalid: the start must not be after the end.")
 
     for field, value in data.items():
         setattr(node, field, value)

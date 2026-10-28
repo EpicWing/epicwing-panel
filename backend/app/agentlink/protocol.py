@@ -121,12 +121,30 @@ class StateFrame(BaseModel):
 # Packet and protocol counters an agent may add to a stats frame (cumulative values).
 STATS_NET_KEYS = frozenset(
     {
-        "rx_packets", "rx_errors", "rx_dropped", "tx_packets", "tx_errors", "tx_dropped",
-        "ip_in_receives", "ip_in_hdr_errors", "ip_in_addr_errors", "ip_reasm_reqds",
-        "icmp_in_msgs", "icmp_in_echos",
-        "tcp_in_segs", "tcp_passive_opens", "tcp_attempt_fails", "tcp_estab_resets",
-        "tcp_in_errs", "tcp_syncookies_sent", "tcp_listen_overflows", "tcp_listen_drops",
-        "udp_in_datagrams", "udp_no_ports", "udp_in_errors", "udp_rcvbuf_errors",
+        "rx_packets",
+        "rx_errors",
+        "rx_dropped",
+        "tx_packets",
+        "tx_errors",
+        "tx_dropped",
+        "ip_in_receives",
+        "ip_in_hdr_errors",
+        "ip_in_addr_errors",
+        "ip_reasm_reqds",
+        "icmp_in_msgs",
+        "icmp_in_echos",
+        "tcp_in_segs",
+        "tcp_passive_opens",
+        "tcp_attempt_fails",
+        "tcp_estab_resets",
+        "tcp_in_errs",
+        "tcp_syncookies_sent",
+        "tcp_listen_overflows",
+        "tcp_listen_drops",
+        "udp_in_datagrams",
+        "udp_no_ports",
+        "udp_in_errors",
+        "udp_rcvbuf_errors",
     }
 )
 

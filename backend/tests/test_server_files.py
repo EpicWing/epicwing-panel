@@ -415,9 +415,7 @@ def _give_node_a_domain(db_session, server, fqdn="node.example.org"):
 def _ticket(client, server, route, headers=None):
     if headers is None:
         headers = {**server.headers, "Origin": TRANSFER_ORIGIN}
-    return client.post(
-        server.url + "/files/" + route, json={"path": "/a/b.zip"}, headers=headers
-    )
+    return client.post(server.url + "/files/" + route, json={"path": "/a/b.zip"}, headers=headers)
 
 
 @pytest.mark.parametrize(

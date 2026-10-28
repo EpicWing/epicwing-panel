@@ -31,9 +31,7 @@ def _create(client, server, **body):
 def _task(client, server, schedule_id, **body):
     payload = {"action": "power", "payload": "restart"}
     payload.update(body)
-    return client.post(
-        f"{_url(server)}/{schedule_id}/tasks", json=payload, headers=server.headers
-    )
+    return client.post(f"{_url(server)}/{schedule_id}/tasks", json=payload, headers=server.headers)
 
 
 def test_create_and_list(client, server):

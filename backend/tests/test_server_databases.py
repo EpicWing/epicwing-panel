@@ -165,9 +165,7 @@ def test_rotate_password(client, server, host, mariadb):
     response = client.post(f"{_url(server)}/{created['id']}/rotate", headers=server.headers)
     assert response.status_code == 200, response.text
     assert response.json()["password"] != created["password"]
-    assert mariadb.passwords == [
-        (created["username"], "%", response.json()["password"])
-    ]
+    assert mariadb.passwords == [(created["username"], "%", response.json()["password"])]
 
 
 def test_delete_database(client, server, host, mariadb):

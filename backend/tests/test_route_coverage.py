@@ -5,9 +5,7 @@ from tests.helpers import collect_routes
 def test_collector_sees_every_documented_route():
     """OpenAPI baut sich unabhängig vom Sammler auf und dient als Gegenprobe."""
     documented = {
-        (path, method.upper())
-        for path, item in app.openapi()["paths"].items()
-        for method in item
+        (path, method.upper()) for path, item in app.openapi()["paths"].items() for method in item
     }
     collected = {
         (route.path, method)

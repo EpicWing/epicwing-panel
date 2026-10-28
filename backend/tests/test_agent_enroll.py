@@ -14,9 +14,7 @@ PASSWORD = "correct-horse-battery"  # noqa: S105
 
 def _public_key() -> str:
     key = Ed25519PrivateKey.generate()
-    raw = key.public_key().public_bytes(
-        serialization.Encoding.Raw, serialization.PublicFormat.Raw
-    )
+    raw = key.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
     return base64.b64encode(raw).decode()
 
 

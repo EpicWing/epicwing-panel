@@ -15,9 +15,7 @@ ENROLL_PREFIX = "epicwing_enroll_"
 ENROLL_TTL = timedelta(hours=1)
 
 
-def create_enrollment(
-    db: Session, node: Node, created_by: uuid.UUID
-) -> tuple[str, NodeEnrollment]:
+def create_enrollment(db: Session, node: Node, created_by: uuid.UUID) -> tuple[str, NodeEnrollment]:
     """Erzeugt einen neuen Token. Der Klartext wird nur hier zurückgegeben."""
     # Ältere unbenutzte Token für diesen Node werden ungültig.
     db.execute(

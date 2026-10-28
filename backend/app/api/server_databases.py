@@ -20,12 +20,8 @@ from app.services.server_databases import PASSWORD_PURPOSE, database_name, endpo
 router = APIRouter(prefix="/servers", tags=["databases"])
 
 DbSession = Annotated[Session, Depends(get_db)]
-DatabasesView = Annotated[
-    ServerAccess, Depends(server_access(ServerPermission.DATABASES_VIEW))
-]
-DatabasesManage = Annotated[
-    ServerAccess, Depends(server_access(ServerPermission.DATABASES_MANAGE))
-]
+DatabasesView = Annotated[ServerAccess, Depends(server_access(ServerPermission.DATABASES_VIEW))]
+DatabasesManage = Annotated[ServerAccess, Depends(server_access(ServerPermission.DATABASES_MANAGE))]
 
 # Fester Wert pro Server; ein einstellbares Limit folgt später.
 PER_SERVER_LIMIT = 10

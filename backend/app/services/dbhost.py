@@ -118,8 +118,7 @@ def create_database(endpoint: Endpoint, name: str, user: str, remote: str, passw
             endpoint,
             [
                 (
-                    f"CREATE DATABASE `{name}` "
-                    "CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci",
+                    f"CREATE DATABASE `{name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci",
                     None,
                 ),
                 ("CREATE USER %s@%s IDENTIFIED BY %s", (user, remote, password)),

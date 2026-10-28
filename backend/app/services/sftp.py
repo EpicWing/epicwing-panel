@@ -20,9 +20,7 @@ class SftpGrant:
     write: bool
 
 
-def _check(
-    db: Session, node_id: uuid.UUID, fingerprint: str, server_ref: str
-) -> SftpGrant | None:
+def _check(db: Session, node_id: uuid.UUID, fingerprint: str, server_ref: str) -> SftpGrant | None:
     """None heißt abgelehnt, ohne Grund: Der Agent erfährt nicht, woran es lag."""
     ref = server_ref.strip().lower()
     if not 4 <= len(ref) <= 36 or not set(ref) <= _HEX:
@@ -35,7 +33,8 @@ def _check(
         return None
 
     candidates = [
-        s for s in db.scalars(select(Server).where(Server.node_id == node_id))
+        s
+        for s in db.scalars(select(Server).where(Server.node_id == node_id))
         if str(s.id).startswith(ref)
     ]
     # Ein Kürzel muss eindeutig sein, sonst bekommt niemand Zugriff.

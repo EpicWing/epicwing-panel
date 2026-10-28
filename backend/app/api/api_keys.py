@@ -57,9 +57,7 @@ def list_keys(auth: CurrentAuth, db: DbSession) -> list[KeyOut]:
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
-def create_key(
-    body: KeyCreate, request: Request, auth: CurrentAuth, db: DbSession
-) -> KeyCreated:
+def create_key(body: KeyCreate, request: Request, auth: CurrentAuth, db: DbSession) -> KeyCreated:
     name = body.name.strip()
     if not name:
         raise HTTPException(422, "The name must not be empty.")

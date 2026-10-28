@@ -58,9 +58,7 @@ def test_non_images_are_rejected(client, user, headers, data):
 
 
 def test_declared_type_does_not_matter(client, user, headers):
-    response = client.put(
-        URL, content=b"<svg/>", headers={**headers, "Content-Type": "image/png"}
-    )
+    response = client.put(URL, content=b"<svg/>", headers={**headers, "Content-Type": "image/png"})
     assert response.status_code == 415
 
 

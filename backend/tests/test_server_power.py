@@ -194,9 +194,7 @@ def test_delete_stops_on_a_real_agent_error(client, server, broker):
 
 
 def test_build_spec_protects_reserved_names():
-    server = SimpleNamespace(
-        id=uuid.uuid4(), image="img:1", startup="x", memory_mb=0, cpus=0
-    )
+    server = SimpleNamespace(id=uuid.uuid4(), image="img:1", startup="x", memory_mb=0, cpus=0)
     allocations = [SimpleNamespace(ip="1.2.3.4", port=7777)]
     variables = {"STARTUP": "evil", "SERVER_PORT": "1", "A": "b"}
     spec = lifecycle.build_spec(server, allocations, variables, 8192)

@@ -129,9 +129,7 @@ def _retry(db: Session, server: Server, now: datetime, reason: str, *, count: bo
     if count:
         server.restart_failures = (server.restart_failures or 0) + 1
     if count and _limit_reached(server):
-        _give_up(
-            db, server, f"Automatic restart failed {server.restart_failures} times: {reason}"
-        )
+        _give_up(db, server, f"Automatic restart failed {server.restart_failures} times: {reason}")
     else:
         delay = max(server.auto_restart_delay or 0, INTERVAL_SECONDS)
         server.restart_due_at = now + timedelta(seconds=delay)

@@ -73,8 +73,7 @@ def test_server_of_another_node_is_rejected(client, headers, db_session, user, w
     other_node = _node(client, headers, "node-b")
     _key(db_session, user, "SHA256:owner")
     assert (
-        sftp_service.authorize(db_session, other_node, "SHA256:owner", str(server.id)[:8])
-        is None
+        sftp_service.authorize(db_session, other_node, "SHA256:owner", str(server.id)[:8]) is None
     )
 
 
@@ -202,10 +201,10 @@ def test_agent_login_frame_is_audited(client, db_session, user):
         from tests.test_agent_ws import _eventually
 
         assert _eventually(
-            lambda: db_session.scalars(
-                select(AuditLog).where(AuditLog.action == "sftp.login")
-            ).first()
-            is not None
+            lambda: (
+                db_session.scalars(select(AuditLog).where(AuditLog.action == "sftp.login")).first()
+                is not None
+            )
         )
 
 

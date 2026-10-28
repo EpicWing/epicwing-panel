@@ -5,6 +5,7 @@
 - Ein Code gilt nur einmal: der zuletzt genutzte Zeitschritt wird atomar gespeichert.
 - Wiederherstellungscodes liegen nur als SHA-256-Hash vor und sind einmal nutzbar.
 """
+
 import base64
 import hashlib
 import hmac
@@ -34,9 +35,9 @@ _CODE = re.compile(r"[0-9]{6}")
 
 def _fernet() -> Fernet:
     raw = get_settings().epicwing_encryption_key.encode()
-    key = HKDF(
-        algorithm=hashes.SHA256(), length=32, salt=None, info=b"epicwing-totp-v1"
-    ).derive(raw)
+    key = HKDF(algorithm=hashes.SHA256(), length=32, salt=None, info=b"epicwing-totp-v1").derive(
+        raw
+    )
     return Fernet(base64.urlsafe_b64encode(key))
 
 
@@ -56,9 +57,7 @@ def is_enabled(user: User) -> bool:
 
 
 def provisioning_uri(secret: str, email: str) -> str:
-    return pyotp.TOTP(secret, interval=TOTP_STEP).provisioning_uri(
-        name=email, issuer_name=ISSUER
-    )
+    return pyotp.TOTP(secret, interval=TOTP_STEP).provisioning_uri(name=email, issuer_name=ISSUER)
 
 
 def begin_enrollment(db: Session, user: User) -> str:

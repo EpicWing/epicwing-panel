@@ -36,12 +36,8 @@ class Allocation(Base):
     server_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("servers.id", ondelete="SET NULL"), index=True
     )
-    is_primary: Mapped[bool] = mapped_column(
-        Boolean, default=False, server_default=false()
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    is_primary: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Server(Base):
@@ -71,9 +67,7 @@ class Server(Base):
     # Neustart, wenn der Server von selbst endet: off, crash (nur Absturz) oder always.
     auto_restart: Mapped[str] = mapped_column(String(8), default="always", server_default="always")
     auto_restart_delay: Mapped[int] = mapped_column(Integer, default=30, server_default="30")
-    auto_restart_max_failures: Mapped[int] = mapped_column(
-        Integer, default=5, server_default="5"
-    )
+    auto_restart_max_failures: Mapped[int] = mapped_column(Integer, default=5, server_default="5")
     restart_failures: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     restart_due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_auto_start_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -81,9 +75,7 @@ class Server(Base):
     # (installing, offline, starting, running, stopping, error) setzt die Agent-Anbindung.
     status: Mapped[str] = mapped_column(String(16), default="new")
     last_error: Mapped[str | None] = mapped_column(String(1024))
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -114,9 +106,7 @@ class ServerMember(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class ServerMemberPermission(Base):
@@ -148,7 +138,5 @@ class ServerBackup(Base):
     is_locked: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     ignored: Mapped[str] = mapped_column(Text, default="", server_default="")
     error: Mapped[str | None] = mapped_column(String(1024))
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

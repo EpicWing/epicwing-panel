@@ -12,9 +12,7 @@ def _egg(features):
         "docker_images": {"Java": "ghcr.io/ptero-eggs/yolks:java_21"},
         "startup": "./run",
         "config": {},
-        "scripts": {
-            "installation": {"script": "", "container": "alpine:3.4", "entrypoint": "ash"}
-        },
+        "scripts": {"installation": {"script": "", "container": "alpine:3.4", "entrypoint": "ash"}},
         "variables": [],
     }
 

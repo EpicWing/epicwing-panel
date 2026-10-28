@@ -184,9 +184,7 @@ class Detector:
         net = net or {}
         state = self._states.get(name)
         if state is None:
-            state = _State(
-                at=now, rx_bytes=rx_bytes, counters=dict(net), tx_bytes=tx_bytes or 0
-            )
+            state = _State(at=now, rx_bytes=rx_bytes, counters=dict(net), tx_bytes=tx_bytes or 0)
             self._states[name] = state
             seeded = self._seed.pop(name, None)
             if seeded:

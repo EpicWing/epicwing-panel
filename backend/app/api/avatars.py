@@ -54,9 +54,7 @@ async def upload_avatar(request: Request, auth: CurrentAuth, db: DbSession) -> R
     row = db.get(UserAvatar, auth.user.id)
     if row is None:
         db.add(
-            UserAvatar(
-                user_id=auth.user.id, content_type=content_type, data=data, sha256=digest
-            )
+            UserAvatar(user_id=auth.user.id, content_type=content_type, data=data, sha256=digest)
         )
     else:
         row.content_type = content_type

@@ -126,9 +126,7 @@ def logout(
 
 @router.get("/me")
 def me(auth: CurrentAuth) -> AuthResponse:
-    return AuthResponse(
-        user=UserOut.model_validate(auth.user), csrf_token=auth.session.csrf_token
-    )
+    return AuthResponse(user=UserOut.model_validate(auth.user), csrf_token=auth.session.csrf_token)
 
 
 @router.post("/password", status_code=status.HTTP_204_NO_CONTENT)

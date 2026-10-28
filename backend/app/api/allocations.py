@@ -27,9 +27,7 @@ def _get_node(db: Session, node_id: uuid.UUID) -> Node:
 
 
 @router.get("/nodes/{node_id}/allocations")
-def list_allocations(
-    node_id: uuid.UUID, _auth: ManageNodes, db: DbSession
-) -> list[AllocationOut]:
+def list_allocations(node_id: uuid.UUID, _auth: ManageNodes, db: DbSession) -> list[AllocationOut]:
     _get_node(db, node_id)
     rows = db.execute(
         select(Allocation, Server.name)
@@ -103,9 +101,7 @@ def delete_allocation(
     if allocation is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Allocation not found.")
     if allocation.server_id is not None:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, "This allocation is assigned to a server."
-        )
+        raise HTTPException(status.HTTP_409_CONFLICT, "This allocation is assigned to a server.")
     details = {"node_id": str(allocation.node_id), "ip": allocation.ip, "port": allocation.port}
     db.delete(allocation)
     db.commit()

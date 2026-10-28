@@ -24,9 +24,7 @@ class Nest(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(64), unique=True)
     description: Mapped[str] = mapped_column(String(255), default="")
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Egg(Base):
@@ -49,9 +47,7 @@ class Egg(Base):
     install_script: Mapped[str] = mapped_column(Text, default="")
     # Rest des Pterodactyl-Formats als JSON-Text, für Import und Export.
     config: Mapped[str] = mapped_column(Text, default="{}", server_default="{}")
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -59,24 +55,16 @@ class Egg(Base):
 
 class EggVariable(Base):
     __tablename__ = "egg_variables"
-    __table_args__ = (
-        UniqueConstraint("egg_id", "env_variable", name="uq_egg_variables_env"),
-    )
+    __table_args__ = (UniqueConstraint("egg_id", "env_variable", name="uq_egg_variables_env"),)
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    egg_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("eggs.id", ondelete="CASCADE"), index=True
-    )
+    egg_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("eggs.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(64))
     env_variable: Mapped[str] = mapped_column(String(64))
     default_value: Mapped[str] = mapped_column(String(1024), default="")
     description: Mapped[str] = mapped_column(String(255), default="")
-    user_editable: Mapped[bool] = mapped_column(
-        Boolean, default=True, server_default=true()
-    )
-    user_viewable: Mapped[bool] = mapped_column(
-        Boolean, default=True, server_default=true()
-    )
+    user_editable: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    user_viewable: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
     # Regeln im Pterodactyl-Stil, zum Beispiel required|integer|between:1,100.
     rules: Mapped[str] = mapped_column(
         String(512), default="nullable|string", server_default="nullable|string"

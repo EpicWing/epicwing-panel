@@ -301,9 +301,7 @@ def test_file_rights_split_read_and_write(client, db_session, world):
     db_session.commit()
     _add(db_session, member, P.FILES_WRITE)
     assert client.get(world.url + "/files?path=/", headers=headers).status_code == 403
-    denied = client.post(
-        world.url + "/files/download-ticket", json={"path": "/x"}, headers=headers
-    )
+    denied = client.post(world.url + "/files/download-ticket", json={"path": "/x"}, headers=headers)
     assert denied.status_code == 403
     assert _reached_the_endpoint(
         client, "POST", world.url + "/files/upload-ticket", json={"path": "/x"}, headers=headers

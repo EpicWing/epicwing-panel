@@ -144,9 +144,7 @@ def server_access(permission: ServerPermission | None = None) -> Callable[..., S
         db: Annotated[Session, Depends(get_db)],
     ) -> ServerAccess:
         if isinstance(auth, KeyContext) and permission in KEY_DENIED:
-            raise HTTPException(
-                status.HTTP_403_FORBIDDEN, "API keys cannot manage server access."
-            )
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "API keys cannot manage server access.")
         server = db.get(Server, server_id)
         if server is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Server not found.")
