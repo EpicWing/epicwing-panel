@@ -6,7 +6,7 @@ import uuid
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel
 from sqlalchemy import ColumnElement, String, cast, or_, select
 from sqlalchemy.orm import Session
@@ -17,6 +17,7 @@ from app.schemas.audit import AuditLogOut
 from app.security.permissions import Permission, require
 from app.security.server_access import ServerAccess, ServerPermission, server_access
 from app.security.sessions import AuthContext
+from app.services import audit
 
 router = APIRouter(prefix="/audit-logs", tags=["audit"])
 server_router = APIRouter(prefix="/servers", tags=["audit"])
@@ -182,6 +183,7 @@ def server_activity(
 
 @server_router.get("/{server_id}/activity/export")
 def export_activity(
+    request: Request,
     access: ActivityAccess,
     db: Annotated[Session, Depends(get_db)],
     flt: Annotated[ActivityFilter, Depends()],
@@ -212,6 +214,30 @@ def export_activity(
             writer.writerow([_csv_cell(cell) for cell in cells])
         body = buffer.getvalue()
         media_type = "text/csv; charset=utf-8"
+
+    filters: dict[str, object] = {}
+    if flt.groups:
+        filters["groups"] = flt.groups
+    if flt.since:
+        filters["since"] = flt.since.isoformat()
+    if flt.until:
+        filters["until"] = flt.until.isoformat()
+    if flt.q:
+        filters["q"] = flt.q
+
+    details: dict[str, object] = {"name": access.server.name, "format": fmt, "rows": len(items)}
+    if filters:
+        details["filters"] = filters
+
+    audit.record(
+        db,
+        "server.activity.export",
+        actor_id=access.user.id,
+        target_type="server",
+        target_id=str(access.server.id),
+        ip=audit.client_ip(request),
+        details=details,
+    )
 
     filename = f"activity-{secrets.token_hex(4)}.{fmt}"
     return Response(

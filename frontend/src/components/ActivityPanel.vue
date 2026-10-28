@@ -91,6 +91,11 @@ function details(item: Item): string[] {
       out.push(`${key}: ${value}`);
     } else if (Array.isArray(value) && value.length > 0) {
       out.push(`${key}: ${value.join(", ")}`);
+    } else if (value && typeof value === "object") {
+      const parts = Object.entries(value as Record<string, unknown>)
+        .filter(([, v]) => (Array.isArray(v) ? v.length > 0 : v !== "" && v != null))
+        .map(([name, v]) => `${name}=${Array.isArray(v) ? v.join(", ") : String(v)}`);
+      if (parts.length > 0) out.push(`${key}: ${parts.join(", ")}`);
     }
   }
   return out.slice(0, 3);
