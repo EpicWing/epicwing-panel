@@ -1,5 +1,4 @@
 import pytest
-from fastapi.routing import APIRoute
 from sqlalchemy import select
 
 from app.main import app
@@ -7,6 +6,7 @@ from app.models import AuditLog, Role, RolePermission, User, UserRole
 from app.security.passwords import hash_password
 from app.security.permissions import Permission
 from app.security.sessions import get_auth
+from tests.helpers import collect_routes
 
 PASSWORD = "correct-horse-battery"
 ADMIN_EMAIL = "admin@example.test"
@@ -48,11 +48,15 @@ def _depends_on(dependant, target):
 
 
 def test_every_route_requires_auth():
+    routes = [r for r in collect_routes(app) if not r.websocket]
+    # Schutz gegen Leerlauf: Der Test muss die Routen wirklich sehen.
+    assert len(routes) >= 11, f"Nur {len(routes)} HTTP-Routen gefunden"
+    found = {(r.path, m) for r in routes for m in r.methods}
+    assert PUBLIC_ROUTES <= found, f"Öffentliche Routen nicht gefunden: {PUBLIC_ROUTES - found}"
+
     unprotected = []
-    for route in app.routes:
-        if not isinstance(route, APIRoute):
-            continue
-        for method in route.methods:
+    for route in routes:
+        for method in sorted(route.methods):
             if (route.path, method) in PUBLIC_ROUTES:
                 continue
             if not _depends_on(route.dependant, get_auth):
