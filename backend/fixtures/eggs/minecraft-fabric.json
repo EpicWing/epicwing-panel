@@ -1,0 +1,71 @@
+{
+  "_comment": "Exported by EpicWing in the Pterodactyl egg format.",
+  "meta": {
+    "version": "PTDL_v2"
+  },
+  "exported_at": "2026-10-23T10:44:08.788445+00:00",
+  "name": "Fabric",
+  "author": "noreply@epicwing.invalid",
+  "description": "Fabric Server. Fabric is a lightweight mod loader for Minecraft, with support for snapshots and fast updates to new versions.",
+  "features": null,
+  "docker_images": {
+    "ghcr.io/pyrodactyl-oss/images:java_25": "ghcr.io/pyrodactyl-oss/images:java_25"
+  },
+  "file_denylist": [],
+  "startup": "java -Xms128M -XX:MaxRAMPercentage=95.0 -jar {{SERVER_JARFILE}}",
+  "config": {
+    "files": "{\n    \"server.properties\": {\n        \"parser\": \"properties\",\n        \"find\": {\n            \"server-ip\": \"0.0.0.0\",\n            \"server-port\": \"{{server.build.default.port}}\",\n            \"query.port\": \"{{server.build.default.port}}\"\n        }\n    }\n}",
+    "startup": "{\n    \"done\": \")! For help, type \"\n}",
+    "logs": "{}",
+    "stop": "stop"
+  },
+  "scripts": {
+    "installation": {
+      "script": "#!/bin/bash\n# Vanilla MC Installation Script\n#\n# Server Files: /mnt/server\nmkdir -p /mnt/server\ncd /mnt/server\n\nLATEST_MC_VERSION=$(curl https://meta.fabricmc.net/v2/versions/game | jq -r 'map(select(.stable == true)) | first.version')\nLATEST_MC_SNAPSHOT_VERSION=$(curl https://meta.fabricmc.net/v2/versions/game | jq -r '.[0].version')\n\nLATEST_LOADER_VERSION=$(curl https://meta.fabricmc.net/v2/versions/loader | jq -r 'map(select(.stable == true)) | first.version')\nLATEST_INSTALLER=$(curl https://meta.fabricmc.net/v2/versions/installer | jq -r 'map(select(.stable == true)) | first')\nLATEST_INSTALLER_VERSION=$(echo \"$LATEST_INSTALLER\" | jq -r \".version\")\nLATEST_INSTALLER_URL=$(echo \"$LATEST_INSTALLER\" | jq -r \".url\")\n\necho -e \"Latest MC version is $LATEST_MC_VERSION\"\necho -e \"Latest MC snapshot is $LATEST_MC_SNAPSHOT_VERSION\"\necho -e \"Latest loader version is $LATEST_LOADER_VERSION\"\necho -e \"Latest installer version is $LATEST_INSTALLER_VERSION\"\n\nif [ -z \"$MINECRAFT_VERSION\" ] || [ \"$MINECRAFT_VERSION\" == \"latest\" ]; then\n  MC_VERSION=$LATEST_MC_VERSION\nelif [ \"$MINECRAFT_VERSION\" == \"snapshot\" ]; then\n  MC_VERSION=$LATEST_MC_SNAPSHOT_VERSION\nelse\n  MC_VERSION=$MINECRAFT_VERSION\nfi\n\nif [ -z \"$FABRIC_VERSION\" ] || [ \"$FABRIC_VERSION\" == \"latest\" ]; then\n  LOADER_VERSION=$LATEST_LOADER_VERSION\nelse\n  LOADER_VERSION=$FABRIC_VERSION\nfi\n\nif [ -z \"$FABRIC_INSTALLER_VERSION\" ] || [ \"$FABRIC_INSTALLER_VERSION\" == \"latest\" ]; then\n  INSTALLER_VERSION=$LATEST_INSTALLER_VERSION\nelse\n  INSTALLER_VERSION=$VANILLA_VERSION\nfi\n\nDOWNLOAD_URL=\"https://meta.fabricmc.net/v2/versions/loader/$MC_VERSION/$LOADER_VERSION/$INSTALLER_VERSION/server/jar\"\n\necho -e \"running: curl -o ${SERVER_JARFILE} $DOWNLOAD_URL\"\ncurl -o \"${SERVER_JARFILE}\" \"$DOWNLOAD_URL\"\n\necho -e \"Install Complete\"",
+      "container": "ghcr.io/pterodactyl/installers:alpine",
+      "entrypoint": "ash"
+    }
+  },
+  "variables": [
+    {
+      "name": "Fabric Installer Version",
+      "description": "The version of the Fabric Installer to use",
+      "env_variable": "FABRIC_INSTALLER_VERSION",
+      "default_value": "latest",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|string|max:20",
+      "field_type": "text"
+    },
+    {
+      "name": "Fabric Version",
+      "description": "The version of FabricMC to use",
+      "env_variable": "FABRIC_VERSION",
+      "default_value": "latest",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|string|max:20",
+      "field_type": "text"
+    },
+    {
+      "name": "Minecraft Version",
+      "description": "The version of Minecraft to download. Leave at latest to always get the latest version. Invalid versions will default to latest.",
+      "env_variable": "MINECRAFT_VERSION",
+      "default_value": "latest",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|string|max:20",
+      "field_type": "text"
+    },
+    {
+      "name": "Server Jar File",
+      "description": "The name of the .jar file to run the server with.",
+      "env_variable": "SERVER_JARFILE",
+      "default_value": "server.jar",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|regex:/^([\\w\\d._-]+)(\\.jar)$/",
+      "field_type": "text"
+    }
+  ]
+}

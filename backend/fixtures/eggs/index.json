@@ -1,0 +1,26 @@
+[
+  {
+    "nest": "Minecraft",
+    "file": "minecraft-fabric.json"
+  },
+  {
+    "nest": "Minecraft",
+    "file": "minecraft-paper.json"
+  },
+  {
+    "nest": "Minecraft",
+    "file": "minecraft-purpur.json"
+  },
+  {
+    "nest": "Generic",
+    "file": "generic-static-website.json"
+  },
+  {
+    "nest": "Games",
+    "file": "games-unturned.json"
+  },
+  {
+    "nest": "Minecraft",
+    "file": "minecraft-vanilla-minecraft.json"
+  }
+]
