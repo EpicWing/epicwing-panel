@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api import (
+    admin,
     agent,
     agent_ws,
     allocations,
@@ -73,6 +74,7 @@ def create_app() -> FastAPI:
     app.include_router(server_members.router, prefix="/api")
     app.include_router(avatars.router, prefix="/api")
     app.include_router(backups.router, prefix="/api")
+    app.include_router(admin.router, prefix="/api")
     return app
 
 
