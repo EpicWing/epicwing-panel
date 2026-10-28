@@ -142,6 +142,8 @@ def import_egg(data: dict[str, Any]) -> tuple[dict[str, Any], str, list[str]]:
     stop = source.get("stop")
     stop_command = _line(stop, 255) if isinstance(stop, str) and not stop.startswith("^") else ""
     script = install.get("script")
+    if isinstance(script, str):
+        script = script.replace("\r\n", "\n").replace("\r", "\n")
     fields = {
         "name": _name(data.get("name"), "Imported egg", "The egg name", warnings),
         "description": _line(data.get("description"), 255),

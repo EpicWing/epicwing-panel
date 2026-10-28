@@ -61,7 +61,7 @@ def build_install_spec(
     spec = build_spec(server, allocations, variables, host_memory_mb)
     spec.pop("ports", None)
     spec.pop("data", None)
-    spec["install_script"] = install_script
+    spec["install_script"] = install_script.replace("\r\n", "\n").replace("\r", "\n")
     spec["installer_image"] = installer_image
     spec["installer_entrypoint"] = installer_entrypoint
     return spec
