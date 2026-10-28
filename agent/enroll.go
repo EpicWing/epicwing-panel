@@ -26,6 +26,9 @@ type enrollResponse struct {
 // enroll redeems the one-time token and registers the public key at the panel.
 func enroll(ctx context.Context, panel, token string, pub ed25519.PublicKey) (enrollResponse, error) {
 	var res enrollResponse
+	if err := checkPanelURL(panel); err != nil {
+		return res, err
+	}
 	body, err := json.Marshal(enrollRequest{
 		Token:        token,
 		PublicKey:    base64.StdEncoding.EncodeToString(pub),

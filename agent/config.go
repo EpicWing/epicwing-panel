@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 )
@@ -88,5 +90,31 @@ func loadConfig(path string) (Config, ed25519.PrivateKey, error) {
 	if c.Panel == "" || c.NodeID == "" {
 		return c, nil, errors.New("config is missing panel or node_id")
 	}
+	if err := checkPanelURL(c.Panel); err != nil {
+		return c, nil, err
+	}
 	return c, ed25519.NewKeyFromSeed(seed), nil
+}
+
+// checkPanelURL only lets the agent talk to the panel over https. Plain http is
+// accepted for the local machine, and elsewhere only with EPICWING_AGENT_INSECURE=1.
+func checkPanelURL(raw string) error {
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" {
+		return fmt.Errorf("invalid panel address %q", raw)
+	}
+	switch u.Scheme {
+	case "https":
+		return nil
+	case "http":
+		host := u.Hostname()
+		if ip := net.ParseIP(host); host == "localhost" || (ip != nil && ip.IsLoopback()) {
+			return nil
+		}
+		if os.Getenv("EPICWING_AGENT_INSECURE") == "1" {
+			return nil
+		}
+		return fmt.Errorf("panel address must use https:// (http is only allowed for localhost or with EPICWING_AGENT_INSECURE=1)")
+	}
+	return fmt.Errorf("panel address must start with https://")
 }
