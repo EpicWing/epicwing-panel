@@ -6,6 +6,7 @@ import { useRoute, useRouter } from "vue-router";
 import { ApiError, api } from "../api/client";
 import AppLayout from "../components/AppLayout.vue";
 import ConsoleOutput from "../components/ConsoleOutput.vue";
+import AccessPanel from "../components/AccessPanel.vue";
 import FilesPanel from "../components/FilesPanel.vue";
 import PortsPanel from "../components/PortsPanel.vue";
 import StartupPanel from "../components/StartupPanel.vue";
@@ -281,7 +282,7 @@ onMounted(async () => {
             <PortsPanel :server-id="server.id" :permissions="permissions" @changed="onAllocationsChanged" />
           </div>
 
-          <div v-else-if="active === 'users'" class="space-y-6"><div class="flex items-start justify-between"><div><h2 class="text-2xl font-semibold">Access</h2><p class="mt-2 text-sm text-ink-400">Manage user access to your server and permissions.</p></div><button class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950">New User</button></div><div class="flex min-h-[24rem] items-center justify-center rounded-xl border border-ink-700 bg-ink-900 text-center"><div><h3 class="text-lg font-semibold">No users found</h3><p class="mt-2 text-sm text-ink-400">No additional users have access to this server.</p></div></div></div>
+          <AccessPanel v-else-if="active === 'users'" :server-id="server.id" :permissions="permissions" />
 
           <StartupPanel v-else-if="active === 'startup'" :server-id="server.id" :status="server.status" />
 
