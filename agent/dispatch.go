@@ -152,6 +152,7 @@ func (d *commandDispatcher) execute(ctx context.Context, action string, params j
 		}
 		switch action {
 		case "container.start":
+			d.announce(p.Name, "Server marked as starting...")
 			return nil, d.containers.Start(ctx, p.Name)
 		case "container.stop":
 			return nil, d.containers.StopWithCommand(ctx, p.Name, p.Command)
