@@ -107,6 +107,7 @@ DENIED_FOR_VIEWERS = [
     ("GET", "/backups/00000000-0000-4000-8000-000000000003/restore", None),
     ("GET", "/backups/00000000-0000-4000-8000-000000000003/download", None),
     ("GET", "/activity", None),
+    ("GET", "/activity/export", None),
 ]
 
 # Routen mit Server-ID, die absichtlich nicht in der Matrix stehen.

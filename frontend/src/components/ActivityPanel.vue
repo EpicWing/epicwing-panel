@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, reactive, ref } from "vue";
 
 import { ApiError, api } from "../api/client";
 
@@ -17,18 +17,48 @@ interface Page {
   has_more: boolean;
 }
 
+interface Filters {
+  groups: string[];
+  since: string;
+  until: string;
+  q: string;
+}
+
 const props = defineProps<{ serverId: string; permissions: string[] }>();
 
 const PAGE_SIZE = 50;
 const MODE_KEYS = ["action", "signal", "power"];
+const HIDDEN_KEYS = ["name", "allocation", "ip", "port"];
+const GROUP_OPTIONS: [string, string][] = [
+  ["power", "Power"],
+  ["files", "Files"],
+  ["backups", "Backups"],
+  ["ports", "Ports"],
+  ["server", "Server"],
+];
+
 const items = ref<Item[]>([]);
 const hasMore = ref(false);
 const loading = ref(true);
 const loadingMore = ref(false);
+const exporting = ref(false);
+const showFilters = ref(false);
 const error = ref("");
+
+const draft = reactive<Filters>({ groups: [], since: "", until: "", q: "" });
+const applied = ref<Filters>({ groups: [], since: "", until: "", q: "" });
 
 const canView = computed(() => props.permissions.includes("settings.view"));
 const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+const filterCount = computed(() => {
+  const f = applied.value;
+  return f.groups.length + (f.since ? 1 : 0) + (f.until ? 1 : 0) + (f.q.trim() ? 1 : 0);
+});
+
+const inputClass =
+  "rounded-md border border-ink-700 bg-ink-950 px-3 py-1.5 text-sm outline-none transition focus:border-accent-500";
+const buttonClass =
+  "rounded-lg border border-ink-700 px-3 py-1.5 text-xs text-ink-200 transition hover:border-accent-500 disabled:opacity-40";
 
 function mode(item: Item): string | null {
   if (item.action !== "server.power") return null;
@@ -52,9 +82,16 @@ function details(item: Item): string[] {
   if (!data) return [];
   const skip = mode(item) ? MODE_KEYS : [];
   const out: string[] = [];
+  if (typeof data.ip === "string" && typeof data.port === "number") {
+    out.push(`allocation: ${data.ip}:${data.port}`);
+  }
   for (const [key, value] of Object.entries(data)) {
-    if (skip.includes(key)) continue;
-    if ((typeof value === "string" && value) || typeof value === "number") out.push(`${key}: ${value}`);
+    if (skip.includes(key) || HIDDEN_KEYS.includes(key)) continue;
+    if ((typeof value === "string" && value) || typeof value === "number") {
+      out.push(`${key}: ${value}`);
+    } else if (Array.isArray(value) && value.length > 0) {
+      out.push(`${key}: ${value.join(", ")}`);
+    }
   }
   return out.slice(0, 3);
 }
@@ -81,8 +118,19 @@ function message(cause: unknown): string {
   return cause instanceof ApiError ? cause.message : "The panel is not reachable.";
 }
 
+function query(extra: Record<string, string>): string {
+  const params = new URLSearchParams(extra);
+  const f = applied.value;
+  for (const group of f.groups) params.append("groups", group);
+  if (f.since) params.set("since", f.since);
+  if (f.until) params.set("until", f.until);
+  if (f.q.trim()) params.set("q", f.q.trim());
+  return params.toString();
+}
+
 function page(offset: number): Promise<Page> {
-  return api<Page>(`/servers/${props.serverId}/activity?limit=${PAGE_SIZE}&offset=${offset}`);
+  const qs = query({ limit: String(PAGE_SIZE), offset: String(offset) });
+  return api<Page>(`/servers/${props.serverId}/activity?${qs}`);
 }
 
 async function load(): Promise<void> {
@@ -97,6 +145,8 @@ async function load(): Promise<void> {
     items.value = first.items;
     hasMore.value = first.has_more;
   } catch (cause) {
+    items.value = [];
+    hasMore.value = false;
     error.value = message(cause);
   } finally {
     loading.value = false;
@@ -117,19 +167,90 @@ async function more(): Promise<void> {
   }
 }
 
+function apply(): void {
+  applied.value = { groups: [...draft.groups], since: draft.since, until: draft.until, q: draft.q };
+  void load();
+}
+
+function clear(): void {
+  draft.groups = [];
+  draft.since = "";
+  draft.until = "";
+  draft.q = "";
+  apply();
+}
+
+async function exportAs(format: "csv" | "json"): Promise<void> {
+  exporting.value = true;
+  error.value = "";
+  try {
+    const response = await fetch(
+      `/api/servers/${props.serverId}/activity/export?${query({ format })}`,
+      { credentials: "same-origin" },
+    );
+    if (!response.ok) {
+      let text = `Export failed (${response.status}).`;
+      try {
+        const data = await response.json();
+        if (typeof data.detail === "string") text = data.detail;
+      } catch {
+        // Keine JSON-Antwort, die allgemeine Meldung bleibt.
+      }
+      throw new ApiError(response.status, text);
+    }
+    const blob = await response.blob();
+    const match = /filename="([^"]+)"/.exec(response.headers.get("Content-Disposition") ?? "");
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = match ? match[1] : `activity.${format}`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (cause) {
+    error.value = message(cause);
+  } finally {
+    exporting.value = false;
+  }
+}
+
 onMounted(load);
 </script>
 
 <template>
   <div class="rounded-xl border border-ink-700 bg-ink-900">
-    <div class="flex items-center justify-between border-b border-ink-700 px-5 py-3">
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-ink-700 px-5 py-3">
       <h3 class="text-lg font-semibold">Events <span v-if="canView && !loading && !error" class="ml-1 text-sm font-normal text-ink-400">({{ items.length }}{{ hasMore ? "+" : "" }} events)</span></h3>
-      <button class="rounded-lg border border-ink-700 px-3 py-1.5 text-xs text-ink-200 transition hover:border-accent-500 disabled:opacity-40" :disabled="loading || !canView" @click="load">Refresh</button>
+      <div class="flex flex-wrap items-center gap-2">
+        <button :class="buttonClass" :disabled="!canView" @click="showFilters = !showFilters">Filters<span v-if="filterCount" class="ml-1.5 rounded-full bg-accent-500 px-1.5 text-[10px] font-semibold text-white">{{ filterCount }}</span></button>
+        <button :class="buttonClass" :disabled="!canView || exporting" @click="exportAs('csv')">Export CSV</button>
+        <button :class="buttonClass" :disabled="!canView || exporting" @click="exportAs('json')">Export JSON</button>
+        <button :class="buttonClass" :disabled="loading || !canView" @click="load">Refresh</button>
+      </div>
     </div>
+
+    <div v-if="canView && showFilters" class="space-y-4 border-b border-ink-800 px-5 py-4">
+      <div class="flex flex-wrap gap-x-5 gap-y-2">
+        <label v-for="[key, text] in GROUP_OPTIONS" :key="key" class="flex items-center gap-2 text-sm text-ink-200">
+          <input v-model="draft.groups" type="checkbox" :value="key" class="accent-accent-500" />{{ text }}
+        </label>
+      </div>
+      <div class="flex flex-wrap items-end gap-4">
+        <label class="text-xs text-ink-400">From<input v-model="draft.since" type="date" :class="[inputClass, 'mt-1 block']" /></label>
+        <label class="text-xs text-ink-400">To<input v-model="draft.until" type="date" :class="[inputClass, 'mt-1 block']" /></label>
+        <label class="min-w-[12rem] flex-1 text-xs text-ink-400">Search<input v-model="draft.q" type="text" maxlength="100" placeholder="User, action or path" :class="[inputClass, 'mt-1 block w-full']" @keyup.enter="apply" /></label>
+      </div>
+      <div class="flex gap-2">
+        <button :class="buttonClass" :disabled="loading" @click="apply">Apply</button>
+        <button :class="buttonClass" :disabled="loading" @click="clear">Clear</button>
+      </div>
+    </div>
+
     <p v-if="!canView" class="px-5 py-10 text-center text-sm text-ink-500">You do not have access to the activity of this server.</p>
     <p v-else-if="error" class="px-5 py-4 text-sm text-bad">{{ error }}</p>
     <p v-else-if="loading" class="px-5 py-10 text-center text-sm text-ink-500">Loading…</p>
-    <p v-else-if="items.length === 0" class="px-5 py-10 text-center text-sm text-ink-500">No activity events found.</p>
+    <p v-else-if="items.length === 0" class="px-5 py-10 text-center text-sm text-ink-500">{{ filterCount ? "No events match the filters." : "No activity events found." }}</p>
     <ul v-else class="divide-y divide-ink-800">
       <li v-for="item in items" :key="item.id" class="flex items-start gap-3 px-5 py-3">
         <div class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink-700 text-xs font-semibold uppercase text-ink-100">{{ name(item).charAt(0) }}</div>
@@ -148,7 +269,7 @@ onMounted(load);
       </li>
     </ul>
     <div v-if="canView && hasMore && !loading" class="border-t border-ink-800 px-5 py-3 text-center">
-      <button class="rounded-lg border border-ink-700 px-4 py-1.5 text-xs text-ink-200 transition hover:border-accent-500 disabled:opacity-40" :disabled="loadingMore" @click="more">{{ loadingMore ? "Loading…" : "Show more" }}</button>
+      <button :class="buttonClass" :disabled="loadingMore" @click="more">{{ loadingMore ? "Loading…" : "Show more" }}</button>
     </div>
   </div>
 </template>
