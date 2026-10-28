@@ -1,4 +1,5 @@
 import importlib
+import re
 import uuid
 from types import SimpleNamespace
 
@@ -90,7 +91,41 @@ DENIED_FOR_VIEWERS = [
     ("POST", "/allocations", {}),
     ("DELETE", "/allocations/00000000-0000-4000-8000-000000000001", None),
     ("PUT", "/allocations/00000000-0000-4000-8000-000000000001/primary", None),
+    ("GET", "/files/content?path=/x", None),
+    ("GET", "/access", None),
+    ("POST", "/access", {}),
+    ("PUT", "/access/00000000-0000-4000-8000-000000000002", {}),
+    ("DELETE", "/access/00000000-0000-4000-8000-000000000002", None),
 ]
+
+# Routen mit Server-ID, die absichtlich nicht in der Matrix stehen.
+# Die Konsole per WebSocket steht nicht im OpenAPI-Schema, ihre Rechte prüfen die Ticket-Tests.
+NOT_IN_MATRIX = {
+    ("GET", "/"),  # Ansicht: server.view reicht
+    ("DELETE", "/"),  # nur Admin, siehe test_owner_cannot_create_or_delete_servers
+}
+UUID_RE = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+
+
+def _shape(path):
+    path = path.split("?", 1)[0] or "/"
+    return UUID_RE.sub("{}", re.sub(r"\{[^}]+\}", "{}", path))
+
+
+def test_every_server_route_is_in_the_permission_matrix():
+    from app.main import app
+
+    found = set()
+    for path, operations in app.openapi()["paths"].items():
+        match = re.search(r"/servers/\{[^}]+\}(.*)$", path)
+        if not match:
+            continue
+        for method in operations:
+            if method.upper() in {"GET", "POST", "PUT", "PATCH", "DELETE"}:
+                found.add((method.upper(), _shape(match.group(1))))
+    covered = {(m, _shape(p)) for m, p, _ in DENIED_FOR_VIEWERS} | NOT_IN_MATRIX
+    missing = sorted(found - covered)
+    assert not missing, f"Routen ohne Rechte-Test: {missing}"
 
 
 def test_stranger_cannot_see_or_touch_the_server(client, world):
