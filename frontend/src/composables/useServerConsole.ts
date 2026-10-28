@@ -65,6 +65,8 @@ export function useServerConsole(options: Options = {}) {
 
   async function connect(serverId: string): Promise<void> {
     socket?.close();
+    // The backend replays the install output on every new socket, so start from scratch.
+    clear();
     status.value = "connecting";
     try {
       const { ticket } = await api<{ ticket: string }>(`/servers/${serverId}/console/ticket`, {
