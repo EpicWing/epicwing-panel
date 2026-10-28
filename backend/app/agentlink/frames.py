@@ -51,6 +51,7 @@ async def handle_frame(db: Session, node_id: uuid.UUID, raw: str) -> bool:
             "disk_used_bytes": stats.disk_used_bytes,
             "network_rx_bytes": stats.network_rx_bytes,
             "network_tx_bytes": stats.network_tx_bytes,
+            "started_at": stats.started_at,
         }
         registry.server_stats[stats.name] = payload
         await hub.publish(
