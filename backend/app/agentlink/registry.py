@@ -24,6 +24,7 @@ class AgentRegistry:
         # Letzte Messwerte pro Node, werden später für die Serverkarten gebraucht.
         self.stats: dict[uuid.UUID, dict[str, Any]] = {}
         self.history: dict[uuid.UUID, deque[dict[str, float]]] = {}
+        self.server_stats: dict[str, dict[str, Any]] = {}
 
     async def register(self, node_id: uuid.UUID, websocket: WebSocket) -> None:
         previous = self._connections.get(node_id)
@@ -40,6 +41,7 @@ class AgentRegistry:
         del self._connections[node_id]
         self.stats.pop(node_id, None)
         self.history.pop(node_id, None)
+        self.server_stats.clear()
         return True
 
     async def disconnect(self, node_id: uuid.UUID) -> None:

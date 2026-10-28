@@ -49,9 +49,19 @@ leaves the node. The token is single use and valid for one hour.
 
 - Panel to agent (commands): `console.watch` and `console.unwatch` with `{"name"}`, and
   `console.input` with `{"name", "data"}` (one line, no control characters).
+- Panel to agent (installation): `container.install` with the server name, exact runtime
+  image, installer image and entrypoint, environment, resource limits and the egg's
+  installation script. The agent runs the script in a short-lived installer container
+  with the server data directory mounted at `/home/container`; the server container
+  remains stopped until installation succeeds. Both images must be explicitly allowed
+  by the node policy.
 - Agent to panel, unprompted and not acknowledged:
   `{"type": "console", "name", "data"}` with output chunks of at most 2000 bytes, and
   `{"type": "state", "name", "state", "exit_code"}` with `state` one of `running`, `exited`,
   `removed`, `created`. The agent also sends the state of all managed containers once after
   connecting.
 - The panel accepts these frames only for containers of the node that sent them.
+- While a console is watched, the agent also sends `stats` frames every two seconds:
+  `{"type":"stats","name","cpu_percent","memory_used_bytes","memory_limit_bytes",
+  "disk_used_bytes","network_rx_bytes","network_tx_bytes"}`. Network values are
+  cumulative Docker counters; the panel calculates the current rate.

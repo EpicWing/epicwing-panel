@@ -162,6 +162,7 @@ class NodeDetail(NodeOut):
 
 CONTAINER_NAME_RE = re.compile(r"[a-z0-9][a-z0-9_.-]{0,62}")
 CREATE_PARAMS = {"name", "image", "ports", "env", "memory_mb", "cpus"}
+INSTALL_PARAMS = {"name", "image", "env", "memory_mb", "cpus", "install_script"}
 MAX_PARAMS_CHARS = 12_000
 
 
@@ -177,12 +178,21 @@ class CommandRequest(BaseModel):
     def _check(self) -> Self:
         if self.action not in COMMAND_ACTIONS:
             raise ValueError("Unknown action.")
-        wanted = CREATE_PARAMS if self.action == "container.create" else {"name"}
+        if self.action == "container.create":
+            wanted = CREATE_PARAMS
+        elif self.action == "container.install":
+            wanted = INSTALL_PARAMS
+        else:
+            wanted = {"name"}
         if set(self.params) != wanted:
             raise ValueError(f"The params must be exactly: {', '.join(sorted(wanted))}.")
         name = self.params["name"]
         if not isinstance(name, str) or not CONTAINER_NAME_RE.fullmatch(name):
             raise ValueError("Invalid container name.")
+        if self.action == "container.install":
+            script = self.params["install_script"]
+            if not isinstance(script, str) or not script or len(script) > 65_535:
+                raise ValueError("Invalid install script.")
         if len(json.dumps(self.params)) > MAX_PARAMS_CHARS:
             raise ValueError("The params are too large.")
         return self

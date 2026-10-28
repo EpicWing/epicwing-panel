@@ -11,11 +11,24 @@ class Settings(BaseSettings):
     database_url: str
     epicwing_secret_key: str = Field(min_length=32)
     epicwing_encryption_key: str
-    epicwing_allowed_origins: str = "http://localhost:5173"
+    epicwing_allowed_origins: str = (
+        "http://127.0.0.1:5183,http://localhost:5183,"
+        "http://127.0.0.1:5184,http://localhost:5184"
+    )
 
     @property
     def allowed_origins(self) -> list[str]:
-        return [o.strip() for o in self.epicwing_allowed_origins.split(",") if o.strip()]
+        origins = [o.strip() for o in self.epicwing_allowed_origins.split(",") if o.strip()]
+        if not self.is_production:
+            for origin in (
+                "http://127.0.0.1:5183",
+                "http://localhost:5183",
+                "http://127.0.0.1:5184",
+                "http://localhost:5184",
+            ):
+                if origin not in origins:
+                    origins.append(origin)
+        return origins
 
     @property
     def is_production(self) -> bool:

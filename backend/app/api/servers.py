@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.agentlink import protocol
 from app.agentlink.commands import AgentOffline, broker
+from app.agentlink.registry import registry
 from app.db import get_db
 from app.models import Allocation, Egg, EggVariable, Node, Server, ServerVariable, User
 from app.schemas.server import AllocationRef, ServerCreate, ServerOut, ServerUpdate
@@ -75,6 +76,12 @@ def _outs(db: Session, servers: list[Server]) -> list[ServerOut]:
             main.port if main else None,
             host_memory_mb=host_ram.get(server.node_id),
         )
+        live = registry.server_stats.get(lifecycle.container_name(server.id), {})
+        out.live_cpu_percent = live.get("cpu_percent")
+        out.live_memory_used_bytes = live.get("memory_used_bytes")
+        out.live_disk_used_bytes = live.get("disk_used_bytes")
+        out.live_network_rx_bytes = live.get("network_rx_bytes")
+        out.live_network_tx_bytes = live.get("network_tx_bytes")
         outs.append(out)
     return outs
 
@@ -253,18 +260,19 @@ async def delete_server(
 class PowerRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    action: Literal["start", "stop", "kill"]
+    action: Literal["start", "restart", "stop", "kill"]
 
 
 # Aus welchem Zustand welche Aktion erlaubt ist, und wohin sie führt.
 POWER_FROM = {
     "start": {"offline", "error"},
+    "restart": {"running", "starting"},
     "stop": {"running", "starting"},
     "kill": {"running", "starting", "stopping", "error"},
 }
-POWER_BUSY = {"start": "starting", "stop": "stopping", "kill": "stopping"}
+POWER_BUSY = {"start": "starting", "restart": "starting", "stop": "stopping", "kill": "stopping"}
 # Nach dem Start meldet der Agent selbst "running", sobald der Container wirklich läuft.
-POWER_DONE = {"start": None, "stop": "offline", "kill": "offline"}
+POWER_DONE = {"start": None, "restart": None, "stop": "offline", "kill": "offline"}
 INSTALL_FROM = {"new", "offline", "error"}
 
 
@@ -338,6 +346,7 @@ async def install_server(
         raise _conflict(f"Not possible while the server is {server.status}.")
     out = _outs(db, [server])[0]
     node = db.get(Node, server.node_id)
+    egg = db.get(Egg, server.egg_id)
     spec = lifecycle.build_spec(
         server, out.allocations, out.variables, node.ram_total_mb if node else None
     )
@@ -347,6 +356,18 @@ async def install_server(
         if reinstall:
             await _remove_container(server)
         await _agent(server, "container.create", spec)
+        if egg and egg.install_script.strip():
+            installer_image, installer_entrypoint = lifecycle.install_settings(egg)
+            install_spec = lifecycle.build_install_spec(
+                server,
+                out.allocations,
+                out.variables,
+                node.ram_total_mb if node else None,
+                egg.install_script,
+                installer_image,
+                installer_entrypoint,
+            )
+            await _agent(server, "container.install", install_spec)
 
     await _transition(db, server, "installing", "offline", work)
     audit.record(
@@ -374,7 +395,11 @@ async def power_server(
         raise _conflict(f"Not possible while the server is {server.status}.")
 
     async def work() -> None:
-        await _agent(server, f"container.{body.action}")
+        if body.action == "restart":
+            await _agent(server, "container.stop")
+            await _agent(server, "container.start")
+        else:
+            await _agent(server, f"container.{body.action}")
 
     await _transition(db, server, POWER_BUSY[body.action], POWER_DONE[body.action], work)
     audit.record(

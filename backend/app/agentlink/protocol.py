@@ -16,6 +16,7 @@ IDLE_TIMEOUT_SECONDS = 30
 COMMAND_TIMEOUT_SECONDS = 90
 COMMAND_ACTIONS = (
     "container.create",
+    "container.install",
     "container.start",
     "container.stop",
     "container.kill",
@@ -93,3 +94,16 @@ class StateFrame(BaseModel):
     name: str = Field(min_length=1, max_length=64)
     state: Literal["running", "exited", "removed", "created"]
     exit_code: int | None = None
+
+
+class StatsFrame(BaseModel):
+    """Live resource counters for one managed container."""
+
+    type: Literal["stats"]
+    name: str = Field(min_length=1, max_length=64)
+    cpu_percent: float = Field(ge=0, le=100_000)
+    memory_used_bytes: int = Field(ge=0)
+    memory_limit_bytes: int = Field(ge=0)
+    disk_used_bytes: int = Field(ge=0)
+    network_rx_bytes: int = Field(ge=0)
+    network_tx_bytes: int = Field(ge=0)
