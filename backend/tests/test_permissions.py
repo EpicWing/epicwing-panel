@@ -3,9 +3,9 @@ from sqlalchemy import select
 
 from app.main import app
 from app.models import AuditLog, Role, RolePermission, User, UserRole
+from app.security.apikeys import get_server_auth
 from app.security.passwords import hash_password
 from app.security.permissions import Permission
-from app.security.apikeys import get_server_auth
 from app.security.sessions import get_auth
 from tests.helpers import collect_routes
 

@@ -1,5 +1,4 @@
 from app.models.apikey import ApiKey
-from app.models.sshkey import SshKey
 from app.models.audit import AuditLog
 from app.models.database import DatabaseHost, ServerDatabase
 from app.models.ddos import DdosSample
@@ -9,6 +8,7 @@ from app.models.panel import PanelSetting
 from app.models.rbac import Role, RolePermission, UserRole
 from app.models.schedule import Schedule, ScheduleTask
 from app.models.server import Allocation, Server, ServerVariable
+from app.models.sshkey import SshKey
 from app.models.user import RecoveryCode, User, UserAvatar, UserSession
 
 __all__ = [

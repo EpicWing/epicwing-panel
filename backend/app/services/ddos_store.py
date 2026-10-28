@@ -8,7 +8,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.models import DdosSample
-from app.services.ddos_detect import BUCKET_SECONDS, HISTORY_SECONDS, detector
+from app.services.ddos_detect import HISTORY_SECONDS, detector
 from app.services.schedule_runner import open_session
 
 log = logging.getLogger(__name__)

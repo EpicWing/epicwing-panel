@@ -73,7 +73,12 @@ def test_blank_name_is_rejected(client, credentials):
 def test_keys_are_limited_per_user(client, credentials, db_session, user):
     for i in range(MAX_KEYS):
         db_session.add(
-            ApiKey(user_id=user.id, name=f"k{i}", prefix="ewk_xxxxxxxx", token_hash=hash_token(f"t{i}"))
+            ApiKey(
+                user_id=user.id,
+                name=f"k{i}",
+                prefix="ewk_xxxxxxxx",
+                token_hash=hash_token(f"t{i}"),
+            )
         )
     db_session.commit()
     headers = _login(client, credentials)
@@ -162,6 +167,12 @@ def test_key_cannot_reach_cookie_only_endpoints(client, credentials):
     headers = _login(client, credentials)
     token = _create(client, headers)["token"]
     client.cookies.clear()
-    for path in ("/api/auth/me", "/api/api-keys", "/api/users", "/api/admin/overview", "/api/nodes"):
+    for path in (
+        "/api/auth/me",
+        "/api/api-keys",
+        "/api/users",
+        "/api/admin/overview",
+        "/api/nodes",
+    ):
         reply = client.get(path, headers=_bearer(token))
         assert reply.status_code == 401, path

@@ -143,7 +143,12 @@ def test_agent_frame_roundtrip(client, db_session, user):
     with client.websocket_connect(WS_URL) as ws:
         _login_agent(ws, node_id, key)
         ws.send_json(
-            {"type": "sftp_auth", "id": "a1", "fingerprint": "SHA256:owner", "server": server_id[:8]}
+            {
+                "type": "sftp_auth",
+                "id": "a1",
+                "fingerprint": "SHA256:owner",
+                "server": server_id[:8],
+            }
         )
         assert _read_result(ws) == {
             "type": "sftp_auth_result",

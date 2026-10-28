@@ -20,8 +20,8 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import ApiKey, Server, User, UserSession
 from app.models.server import ServerMember, ServerMemberPermission
-from app.security.permissions import Permission, has_permission
 from app.security.apikeys import KeyContext, ServerAuth
+from app.security.permissions import Permission, has_permission
 
 
 class ServerPermission(StrEnum):
