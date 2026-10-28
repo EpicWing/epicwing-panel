@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 
@@ -341,6 +341,77 @@ function sendCommand(): void {
   if (send(command.value)) command.value = "";
 }
 
+// Games that stop until a EULA or rules are accepted. One entry per game: how the
+// console message looks, which file to change and what to replace in it.
+interface AcceptRule {
+  id: string;
+  title: string;
+  text: string;
+  link?: string;
+  detect: RegExp;
+  file: string;
+  from: RegExp;
+  to: string;
+}
+
+const ACCEPT_RULES: AcceptRule[] = [
+  {
+    id: "minecraft-eula",
+    title: "Minecraft EULA",
+    text: "This server stopped because the Minecraft EULA has not been accepted. By accepting, you agree to the EULA of Mojang and Microsoft.",
+    link: "https://aka.ms/MinecraftEULA",
+    detect: /agree to the EULA/i,
+    file: "eula.txt",
+    from: /^eula\s*=\s*false/im,
+    to: "eula=true",
+  },
+];
+
+const acceptDismissed = ref<string[]>([]);
+const acceptBusy = ref(false);
+const acceptError = ref("");
+
+const acceptRule = computed<AcceptRule | null>(() => {
+  const state = server.value?.status;
+  if (!state || ["running", "starting", "installing", "new"].includes(state)) return null;
+  const tail = lines.value
+    .slice(-60)
+    .map((line) => line.segments.map((segment) => segment.text).join(""))
+    .join("\n");
+  return ACCEPT_RULES.find((rule) => !acceptDismissed.value.includes(rule.id) && rule.detect.test(tail)) ?? null;
+});
+
+async function acceptAndStart(rule: AcceptRule): Promise<void> {
+  if (!server.value || acceptBusy.value) return;
+  acceptBusy.value = true;
+  acceptError.value = "";
+  try {
+    const base = `/servers/${server.value.id}/files`;
+    const chunk = await api<{ data: string }>(
+      `${base}/content?path=${encodeURIComponent(rule.file)}&offset=0&length=8192`,
+    );
+    const text = new TextDecoder().decode(Uint8Array.from(atob(chunk.data), (c) => c.charCodeAt(0)));
+    if (!rule.from.test(text)) {
+      acceptError.value = `${rule.file} has no line to accept. Open Files and check it by hand.`;
+      return;
+    }
+    let binary = "";
+    new TextEncoder().encode(text.replace(rule.from, rule.to)).forEach((byte) => {
+      binary += String.fromCharCode(byte);
+    });
+    await api(`${base}/content`, {
+      method: "PUT",
+      body: { path: rule.file, offset: 0, data: btoa(binary), create: true, truncate: true },
+    });
+    acceptDismissed.value.push(rule.id);
+    await power("start");
+  } catch (cause) {
+    acceptError.value = message(cause);
+  } finally {
+    acceptBusy.value = false;
+  }
+}
+
 let statusTimer: number | undefined;
 
 // Polls the stored status so the buttons never depend on a single websocket event.
@@ -466,6 +537,18 @@ onMounted(async () => {
 
     <div v-if="server">
       <main class="min-w-0 space-y-3">
+        <div v-if="acceptRule && active === 'home' && permissions.includes('files.write')" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true">
+          <div class="w-full max-w-md rounded-2xl border border-ink-700 bg-ink-900 p-6 shadow-2xl shadow-black/50">
+            <h2 class="text-xl font-semibold text-ink-100">{{ acceptRule.title }}</h2>
+            <p class="mt-3 text-sm text-ink-300">{{ acceptRule.text }}</p>
+            <a v-if="acceptRule.link" :href="acceptRule.link" target="_blank" rel="noopener noreferrer" class="mt-3 inline-block text-sm text-ink-200 underline hover:text-ink-100">Read the full text</a>
+            <p v-if="acceptError" class="mt-3 text-sm text-bad">{{ acceptError }}</p>
+            <div class="mt-6 flex justify-end gap-3">
+              <button class="rounded-lg border border-ink-700 px-4 py-2 text-sm text-ink-200 transition hover:bg-ink-800" @click="acceptDismissed.push(acceptRule.id)">Not now</button>
+              <button class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950 transition hover:bg-accent-400 disabled:opacity-50" :disabled="acceptBusy" @click="acceptAndStart(acceptRule)">{{ acceptBusy ? "Saving…" : "Accept and start" }}</button>
+            </div>
+          </div>
+        </div>
         <div v-if="active === 'home'" class="flex flex-wrap items-center justify-start gap-3">
           <div>
             <span class="inline-flex items-center gap-2 rounded-full border border-ink-700 bg-ink-900 px-3 py-1.5 text-sm font-medium text-ink-200 shadow-sm">
