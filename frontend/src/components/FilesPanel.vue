@@ -990,7 +990,7 @@ watch(blocked, (value) => {
     <div v-if="!editor" class="flex flex-wrap items-start justify-between gap-4">
       <div>
         <h2 class="text-4xl font-bold">Files</h2>
-        <p class="mt-2 text-sm text-ink-400">Browse and edit the files of your server.</p>
+        <p class="mt-2 text-sm text-ink-400">Your server's files.</p>
       </div>
       <div v-if="!blocked" class="flex gap-2">
         <button class="rounded-lg border border-ink-700 px-4 py-2 text-sm text-ink-200 hover:bg-ink-800 disabled:opacity-50" :disabled="busy" @click="openDialog('folder')">New Folder</button>

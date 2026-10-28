@@ -139,7 +139,7 @@ onMounted(load);
     <div class="flex flex-wrap items-start justify-between gap-4">
       <div>
         <h2 class="text-2xl font-semibold">Launch</h2>
-        <p class="mt-2 text-sm text-ink-400">Configure how your server starts and manage its environment variables.</p>
+        <p class="mt-2 text-sm text-ink-400">Startup command and environment variables.</p>
       </div>
       <div v-if="data" class="flex items-center gap-2">
         <p v-if="saved && !dirty" class="mr-1 text-sm text-ok">Saved.</p>
