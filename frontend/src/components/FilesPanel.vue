@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, ref, watch } from "vue";
 
 import { ApiError, api } from "../api/client";
 import { buildZip, type ZipItem } from "../lib/zip";
+import { LANGUAGES, detectLanguage, highlight, type Lang } from "../lib/highlight";
 
 interface Entry {
   name: string;
@@ -54,6 +55,8 @@ const progress = ref("");
 const selected = ref<string[]>([]);
 const gutter = ref<HTMLElement | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
+const backdrop = ref<HTMLElement | null>(null);
+const language = ref<Lang>("plain");
 
 const editor = ref<{ path: string; content: string; original: string } | null>(null);
 const saving = ref(false);
@@ -96,6 +99,17 @@ const downloadLabel = computed(() => {
   const [only] = selectedEntries.value;
   return selectedEntries.value.length === 1 && only && !only.dir ? "Download" : "Download ZIP";
 });
+
+const HIGHLIGHT_LIMIT = 256 * 1024;
+const overlay = computed(
+  () =>
+    editor.value !== null &&
+    language.value !== "plain" &&
+    editor.value.content.length <= HIGHLIGHT_LIMIT,
+);
+const highlighted = computed(() =>
+  editor.value && overlay.value ? highlight(editor.value.content, language.value) : "",
+);
 
 function base(): string {
   return `/servers/${props.serverId}/files`;
@@ -323,6 +337,7 @@ async function openFile(entry: Entry): Promise<void> {
       return;
     }
     editor.value = { path: target, content: text, original: text };
+    language.value = detectLanguage(entry.name, text);
   } catch (cause) {
     fail(cause);
   } finally {
@@ -353,7 +368,12 @@ function closeEditor(): void {
 }
 
 function syncScroll(event: Event): void {
-  if (gutter.value) gutter.value.scrollTop = (event.target as HTMLTextAreaElement).scrollTop;
+  const area = event.target as HTMLTextAreaElement;
+  if (gutter.value) gutter.value.scrollTop = area.scrollTop;
+  if (backdrop.value) {
+    backdrop.value.scrollTop = area.scrollTop;
+    backdrop.value.scrollLeft = area.scrollLeft;
+  }
 }
 
 function indent(event: KeyboardEvent): void {
@@ -597,23 +617,32 @@ watch(blocked, (value) => {
           </template>
         </nav>
         <div class="flex gap-2">
+          <select v-model="language" title="Language" class="rounded-lg border border-ink-700 bg-ink-900 px-3 py-2 text-sm text-ink-200 focus:border-accent-500 focus:outline-none">
+            <option v-for="item in LANGUAGES" :key="item.id" :value="item.id">{{ item.label }}</option>
+          </select>
           <button class="rounded-lg border border-ink-700 px-4 py-2 text-sm text-ink-200 hover:bg-ink-800" @click="closeEditor">Close</button>
           <button class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950 disabled:opacity-50" :disabled="saving || !dirty" @click="save">{{ saving ? "Saving…" : "Save" }}</button>
         </div>
       </div>
       <div class="flex overflow-hidden rounded-xl border border-ink-700 bg-ink-950 focus-within:border-accent-500" style="height: calc(100vh - 8.5rem); min-height: 24rem">
-        <div ref="gutter" aria-hidden="true" class="shrink-0 select-none overflow-hidden border-r border-ink-800 bg-ink-900/60 py-4 pl-4 pr-3 text-right text-[13px] leading-6 text-ink-500">
-          <pre class="m-0 pb-8 font-mono">{{ lineNumbers }}</pre>
+        <div ref="gutter" aria-hidden="true" class="code shrink-0 select-none overflow-hidden border-r border-ink-800 bg-ink-900/60 py-3 pl-4 pr-3 text-right text-ink-500">
+          <pre class="code m-0 pb-8">{{ lineNumbers }}</pre>
         </div>
-        <textarea
-          v-model="editor.content"
-          wrap="off"
-          spellcheck="false"
-          class="h-full min-w-0 flex-1 resize-none overflow-auto whitespace-pre bg-transparent px-4 py-4 font-mono text-[13px] leading-6 text-ink-100 focus:outline-none"
-          @scroll="syncScroll"
-          @keydown.ctrl.s.prevent="save"
-          @keydown.tab.prevent="indent"
-        ></textarea>
+        <div class="relative min-w-0 flex-1">
+          <div v-if="overlay" ref="backdrop" aria-hidden="true" class="pointer-events-none absolute inset-0 overflow-hidden px-4 py-3">
+            <pre class="code code-layer m-0 pb-8 pr-8" v-html="highlighted"></pre>
+          </div>
+          <textarea
+            v-model="editor.content"
+            wrap="off"
+            spellcheck="false"
+            class="code code-input absolute inset-0 h-full w-full resize-none overflow-auto whitespace-pre bg-transparent px-4 py-3 focus:outline-none"
+            :class="overlay ? 'code-input--overlay' : 'text-ink-100'"
+            @scroll="syncScroll"
+            @keydown.ctrl.s.prevent="save"
+            @keydown.tab.prevent="indent"
+          ></textarea>
+        </div>
       </div>
     </div>
 
@@ -687,3 +716,24 @@ watch(blocked, (value) => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 13px;
+  line-height: 18px;
+  tab-size: 2;
+}
+.code-layer {
+  display: block;
+  width: max-content;
+  min-width: 100%;
+}
+.code-input--overlay {
+  color: transparent;
+  caret-color: #e5e7eb;
+}
+.code-input--overlay::selection {
+  background: rgba(245, 158, 11, 0.28);
+}
+</style>
