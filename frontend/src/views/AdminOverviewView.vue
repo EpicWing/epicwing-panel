@@ -157,10 +157,10 @@ onUnmounted(() => window.clearInterval(timer));
           :href="link.url || undefined"
           :target="link.url ? '_blank' : undefined"
           rel="noopener noreferrer"
-          class="flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition"
+          class="flex items-center justify-center gap-3 rounded-xl px-5 py-4 text-base font-semibold text-white transition"
           :class="link.url ? linkClass[link.key] : 'cursor-not-allowed bg-ink-800 opacity-50'"
         >
-          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path :d="linkIcons[link.key]" />
           </svg>
           {{ link.label }}
@@ -169,29 +169,29 @@ onUnmounted(() => window.clearInterval(timer));
     </section>
 
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <div class="rounded-xl border border-ink-700 bg-ink-900 p-5">
-        <p class="flex items-center gap-2 text-sm text-ink-400"><svg class="h-4 w-4 text-accent-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16v5H4zM4 13h16v5H4zM8 8.5h.01M8 15.5h.01" /></svg>{{ t("admin.nodes") }}</p>
-        <p class="mt-1 font-mono text-2xl font-semibold">{{ data?.nodes.total ?? "–" }}</p>
-        <p v-if="data" class="mt-1 text-xs text-ink-400">
+      <div class="rounded-xl border border-ink-700 bg-ink-900 p-6">
+        <p class="flex items-center gap-2.5 text-base text-ink-400"><svg class="h-5 w-5 text-accent-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16v5H4zM4 13h16v5H4zM8 8.5h.01M8 15.5h.01" /></svg>{{ t("admin.nodes") }}</p>
+        <p class="mt-2 font-mono text-4xl font-semibold">{{ data?.nodes.total ?? "–" }}</p>
+        <p v-if="data" class="mt-1.5 text-sm text-ink-400">
           {{ t("admin.nodesOnline", { online: data.nodes.online, total: data.nodes.total }) }}
         </p>
       </div>
-      <div class="rounded-xl border border-ink-700 bg-ink-900 p-5">
-        <p class="flex items-center gap-2 text-sm text-ink-400"><svg class="h-4 w-4 text-accent-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v14H4zM8 10l3 2-3 2M13 14h3" /></svg>{{ t("admin.servers") }}</p>
-        <p class="mt-1 font-mono text-2xl font-semibold">{{ data?.servers.total ?? "–" }}</p>
-        <p v-if="data" class="mt-1 text-xs text-ink-400">{{ t("admin.serversRunning", { running }) }}</p>
+      <div class="rounded-xl border border-ink-700 bg-ink-900 p-6">
+        <p class="flex items-center gap-2.5 text-base text-ink-400"><svg class="h-5 w-5 text-accent-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v14H4zM8 10l3 2-3 2M13 14h3" /></svg>{{ t("admin.servers") }}</p>
+        <p class="mt-2 font-mono text-4xl font-semibold">{{ data?.servers.total ?? "–" }}</p>
+        <p v-if="data" class="mt-1.5 text-sm text-ink-400">{{ t("admin.serversRunning", { running }) }}</p>
       </div>
-      <div class="rounded-xl border border-ink-700 bg-ink-900 p-5">
-        <p class="flex items-center gap-2 text-sm text-ink-400"><svg class="h-4 w-4 text-accent-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 19v-1a4 4 0 00-4-4H8a4 4 0 00-4 4v1M10 11a3 3 0 100-6 3 3 0 000 6zM20 19v-1a3 3 0 00-2-2.8" /></svg>{{ t("admin.users") }}</p>
-        <p class="mt-1 font-mono text-2xl font-semibold">{{ data?.users.total ?? "–" }}</p>
-        <p v-if="data" class="mt-1 text-xs text-ink-400">
+      <div class="rounded-xl border border-ink-700 bg-ink-900 p-6">
+        <p class="flex items-center gap-2.5 text-base text-ink-400"><svg class="h-5 w-5 text-accent-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 19v-1a4 4 0 00-4-4H8a4 4 0 00-4 4v1M10 11a3 3 0 100-6 3 3 0 000 6zM20 19v-1a3 3 0 00-2-2.8" /></svg>{{ t("admin.users") }}</p>
+        <p class="mt-2 font-mono text-4xl font-semibold">{{ data?.users.total ?? "–" }}</p>
+        <p v-if="data" class="mt-1.5 text-sm text-ink-400">
           {{ t("admin.usersDetail", { admins: data.users.admins, disabled: data.users.disabled }) }}
         </p>
       </div>
-      <div class="rounded-xl border border-ink-700 bg-ink-900 p-5">
-        <p class="flex items-center gap-2 text-sm text-ink-400"><svg class="h-4 w-4 text-accent-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v4H4zM5 9v10h14V9M10 13h4" /></svg>{{ t("admin.backups") }}</p>
-        <p class="mt-1 font-mono text-2xl font-semibold">{{ data?.backups.total ?? "–" }}</p>
-        <p v-if="data" class="mt-1 text-xs" :class="data.backups.failed ? 'text-bad' : 'text-ink-400'">
+      <div class="rounded-xl border border-ink-700 bg-ink-900 p-6">
+        <p class="flex items-center gap-2.5 text-base text-ink-400"><svg class="h-5 w-5 text-accent-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v4H4zM5 9v10h14V9M10 13h4" /></svg>{{ t("admin.backups") }}</p>
+        <p class="mt-2 font-mono text-4xl font-semibold">{{ data?.backups.total ?? "–" }}</p>
+        <p v-if="data" class="mt-1.5 text-sm" :class="data.backups.failed ? 'text-bad' : 'text-ink-400'">
           {{
             t("admin.backupsDetail", {
               running: data.backups.running,
@@ -203,14 +203,14 @@ onUnmounted(() => window.clearInterval(timer));
       </div>
     </div>
 
-    <h2 class="mt-10 text-xl font-semibold">{{ t("admin.systemTitle") }}</h2>
+    <h2 class="mt-10 text-2xl font-semibold">{{ t("admin.systemTitle") }}</h2>
     <section v-if="statusEntries.length" class="mt-8">
-      <h2 class="mb-3 text-lg font-semibold">{{ t("admin.statusTitle") }}</h2>
+      <h2 class="mb-4 text-xl font-semibold">{{ t("admin.statusTitle") }}</h2>
       <ul class="flex flex-wrap gap-2">
         <li
           v-for="[name, count] in statusEntries"
           :key="name"
-          class="rounded-full border border-ink-700 bg-ink-900 px-3 py-1 text-xs text-ink-300"
+          class="rounded-full border border-ink-700 bg-ink-900 px-4 py-1.5 text-sm text-ink-300"
         >
           <span class="font-mono text-ink-100">{{ count }}</span> {{ name }}
         </li>
@@ -218,15 +218,15 @@ onUnmounted(() => window.clearInterval(timer));
     </section>
 
     <section v-if="data" class="mt-8">
-      <h2 class="mb-3 text-lg font-semibold">{{ t("admin.loadTitle") }}</h2>
+      <h2 class="mb-4 text-xl font-semibold">{{ t("admin.loadTitle") }}</h2>
       <p v-if="data.node_load.length === 0" class="text-sm text-ink-400">{{ t("admin.loadEmpty") }}</p>
       <ul v-else class="divide-y divide-ink-700 rounded-xl border border-ink-700 bg-ink-900">
-        <li v-for="n in data.node_load" :key="n.id" class="p-5">
+        <li v-for="n in data.node_load" :key="n.id" class="p-6">
           <div class="flex flex-wrap items-center justify-between gap-2">
             <p class="font-medium">
               <span class="mr-2 inline-block h-2 w-2 rounded-full" :class="dots[n.status] ?? 'bg-ink-600'" />{{ n.name }}
             </p>
-            <p class="text-xs text-ink-400">
+            <p class="text-sm text-ink-400">
               {{
                 t("admin.allocated", {
                   count: n.servers,
@@ -239,11 +239,11 @@ onUnmounted(() => window.clearInterval(timer));
           <p v-if="n.status !== 'online'" class="mt-1 text-xs text-ink-400">{{ t("admin.noLive") }}</p>
           <div class="mt-3 grid gap-4 sm:grid-cols-3">
             <div v-for="m in meters(n)" :key="m.key">
-              <div class="flex justify-between text-xs text-ink-400">
+              <div class="flex justify-between text-sm text-ink-400">
                 <span>{{ m.label }}</span>
                 <span class="font-mono text-ink-300">{{ m.text }}</span>
               </div>
-              <div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-ink-800">
+              <div class="mt-2 h-2 overflow-hidden rounded-full bg-ink-800">
                 <div
                   class="h-full rounded-full transition-all"
                   :class="barClass(m.percent)"
@@ -257,7 +257,7 @@ onUnmounted(() => window.clearInterval(timer));
     </section>
 
     <section v-if="data && !allDone" class="mt-8">
-      <h2 class="mb-4 text-lg font-semibold">{{ t("admin.startTitle") }}</h2>
+      <h2 class="mb-4 text-xl font-semibold">{{ t("admin.startTitle") }}</h2>
       <ol class="divide-y divide-ink-700 rounded-xl border border-ink-700 bg-ink-900">
         <li v-for="(step, index) in steps" :key="step.title" class="flex items-center gap-4 p-5">
           <span
