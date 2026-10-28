@@ -1,5 +1,6 @@
 import uuid
 
+from fastapi import Request
 from sqlalchemy.orm import Session
 
 from app.models import AuditLog
@@ -26,3 +27,7 @@ def record(
         )
     )
     db.commit()
+
+
+def client_ip(request: Request) -> str:
+    return request.client.host if request.client else "unknown"

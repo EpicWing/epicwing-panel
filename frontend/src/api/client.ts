@@ -42,6 +42,9 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
       const data = await response.json();
       if (typeof data.detail === "string") {
         detail = data.detail;
+      } else if (Array.isArray(data.detail) && typeof data.detail[0]?.msg === "string") {
+        // Validierungsfehler von FastAPI: erste Meldung ohne technisches Präfix.
+        detail = data.detail[0].msg.replace(/^Value error, /, "");
       }
     } catch {
       // Antwort ohne JSON-Body, die allgemeine Meldung bleibt.
