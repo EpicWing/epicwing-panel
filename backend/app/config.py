@@ -1,4 +1,5 @@
 from functools import lru_cache
+from urllib.parse import urlsplit
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -15,13 +16,25 @@ class Settings(BaseSettings):
     mail_from: str = ""
     mail_reply_to: str = ""
     epicwing_sftp_port: int = 2222
-    epicwing_allowed_origins: str = (
-        "http://127.0.0.1:5183,http://localhost:5183,http://127.0.0.1:5184,http://localhost:5184"
-    )
+    # Public address of the panel, e.g. https://panel.example.com
+    epicwing_public_url: str = ""
+    # Additional allowed origins, comma-separated (optional)
+    epicwing_allowed_origins: str = ""
+
+    @property
+    def public_origin(self) -> str:
+        parts = urlsplit(self.epicwing_public_url.strip())
+        if parts.scheme in ("http", "https") and parts.netloc:
+            return f"{parts.scheme}://{parts.netloc}"
+        return ""
 
     @property
     def allowed_origins(self) -> list[str]:
-        origins = [o.strip() for o in self.epicwing_allowed_origins.split(",") if o.strip()]
+        origins = [
+            o.strip().rstrip("/") for o in self.epicwing_allowed_origins.split(",") if o.strip()
+        ]
+        if self.public_origin and self.public_origin not in origins:
+            origins.append(self.public_origin)
         if not self.is_production:
             for origin in (
                 "http://127.0.0.1:5183",

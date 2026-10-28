@@ -39,7 +39,7 @@ for large or multi-tenant hosting. See [Limitations](#limitations).
 ## Production notes
 
 - Set `EPICWING_ENV=production` (this disables `/docs` and `/openapi.json`).
-- Set `EPICWING_ALLOWED_ORIGINS` to the address of your panel.
+- Set `EPICWING_PUBLIC_URL` to the public address of your panel, e.g. `https://panel.example.com`. Logins from any other origin are rejected in production. `EPICWING_ALLOWED_ORIGINS` is optional and only for additional origins.
 - Serve the panel over HTTPS only.
 
 ## Development
