@@ -2,13 +2,14 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log"
+	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
@@ -246,46 +247,6 @@ func (c *consoleManager) stream(ctx context.Context, name string, args []string)
 	}
 }
 
-// Input writes one line into the container's console through a short docker attach.
-func (c *consoleManager) Input(ctx context.Context, name, data string) error {
-	if !validConsoleInput(data) {
-		return errors.New("invalid console input")
-	}
-	state, _, err := c.containers.Status(ctx, name)
-	if err != nil {
-		return err
-	}
-	if state != "running" {
-		return errors.New("the container is not running")
-	}
-	cmd := exec.CommandContext(ctx, "docker", "attach", "--sig-proxy=false", name)
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return err
-	}
-	var errOut bytes.Buffer
-	cmd.Stdout = io.Discard
-	cmd.Stderr = &errOut
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-	done := make(chan error, 1)
-	go func() { done <- cmd.Wait() }()
-	if _, err := io.WriteString(stdin, data+"\n"); err != nil {
-		_ = cmd.Process.Kill()
-		<-done
-		return fmt.Errorf("writing to the container: %w", err)
-	}
-	select {
-	case err := <-done:
-		return fmt.Errorf("docker attach ended early: %v: %s", err, strings.TrimSpace(errOut.String()))
-	case <-time.After(400 * time.Millisecond):
-		_ = cmd.Process.Kill()
-		<-done
-		return nil
-	}
-}
-
 // watchEvents reports start, exit and removal of managed containers to the panel.
 func watchEvents(ctx context.Context, send func(map[string]any)) {
 	for ctx.Err() == nil {
@@ -316,4 +277,57 @@ func runEvents(ctx context.Context, send func(map[string]any)) {
 		}
 	}
 	_ = cmd.Wait()
+}
+
+const dockerSocket = "/var/run/docker.sock"
+
+// Input writes one line into the container's console. The Docker CLI refuses stdin
+// from a pipe for containers with a TTY, so this uses the Docker API directly.
+func (c *consoleManager) Input(ctx context.Context, name, data string) error {
+	if !validConsoleInput(data) {
+		return errors.New("invalid console input")
+	}
+	state, _, err := c.containers.Status(ctx, name)
+	if err != nil {
+		return err
+	}
+	if state != "running" {
+		return errors.New("the container is not running")
+	}
+	return attachWrite(ctx, dockerSocket, name, data+"\n")
+}
+
+// attachWrite opens an attach connection to the container, switches it to a raw
+// stream and writes one line into it.
+func attachWrite(ctx context.Context, socket, name, line string) error {
+	if !containerNameRe.MatchString(name) {
+		return errors.New("invalid container name")
+	}
+	dialer := net.Dialer{Timeout: 5 * time.Second}
+	conn, err := dialer.DialContext(ctx, "unix", socket)
+	if err != nil {
+		return fmt.Errorf("connecting to docker: %w", err)
+	}
+	defer conn.Close()
+	_ = conn.SetDeadline(time.Now().Add(10 * time.Second))
+
+	request := "POST /containers/" + name + "/attach?stream=1&stdin=1&stdout=1&stderr=1 HTTP/1.1\r\n" +
+		"Host: docker\r\nUpgrade: tcp\r\nConnection: Upgrade\r\n\r\n"
+	if _, err := io.WriteString(conn, request); err != nil {
+		return fmt.Errorf("docker attach: %w", err)
+	}
+	resp, err := http.ReadResponse(bufio.NewReader(conn), nil)
+	if err != nil {
+		return fmt.Errorf("docker attach: %w", err)
+	}
+	if resp.StatusCode != http.StatusSwitchingProtocols && resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return fmt.Errorf("docker attach: %s: %s", resp.Status, strings.TrimSpace(string(body)))
+	}
+	if _, err := io.WriteString(conn, line); err != nil {
+		return fmt.Errorf("writing to the container: %w", err)
+	}
+	// Give the daemon a moment to pass the line on before the connection closes.
+	sleepCtx(ctx, 150*time.Millisecond)
+	return nil
 }

@@ -1,7 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"context"
+	"io"
+	"net"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -108,5 +112,72 @@ func TestConsoleWithoutManager(t *testing.T) {
 	d, _ := dispatchTestDispatcher("true")
 	if _, err := d.execute(context.Background(), "console.watch", rawJSON(`{"name":"web-1"}`)); err == nil {
 		t.Fatal("expected an error without a console manager")
+	}
+}
+
+func fakeDocker(t *testing.T, reply string) (socket string, got chan string) {
+	t.Helper()
+	socket = filepath.Join(t.TempDir(), "d.sock")
+	l, err := net.Listen("unix", socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = l.Close() })
+	got = make(chan string, 2)
+	go func() {
+		conn, err := l.Accept()
+		if err != nil {
+			got <- "accept: " + err.Error()
+			got <- ""
+			return
+		}
+		defer conn.Close()
+		r := bufio.NewReader(conn)
+		first, _ := r.ReadString('\n')
+		for {
+			line, err := r.ReadString('\n')
+			if err != nil || line == "\r\n" {
+				break
+			}
+		}
+		_, _ = io.WriteString(conn, reply)
+		input, _ := r.ReadString('\n')
+		got <- first
+		got <- input
+	}()
+	return socket, got
+}
+
+func TestAttachWrite(t *testing.T) {
+	socket, got := fakeDocker(t, "HTTP/1.1 101 UPGRADED\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n")
+	if err := attachWrite(context.Background(), socket, "web-1", "say hi\n"); err != nil {
+		t.Fatal(err)
+	}
+	first, input := <-got, <-got
+	if !strings.HasPrefix(first, "POST /containers/web-1/attach?") || !strings.Contains(first, "stdin=1") {
+		t.Fatalf("unexpected request %q", first)
+	}
+	if input != "say hi\n" {
+		t.Fatalf("unexpected input %q", input)
+	}
+}
+
+func TestAttachWriteReportsDockerErrors(t *testing.T) {
+	body := "no such container\n"
+	reply := "HTTP/1.1 404 Not Found\r\nContent-Length: 18\r\n\r\n" + body
+	socket, _ := fakeDocker(t, reply)
+	err := attachWrite(context.Background(), socket, "web-1", "x\n")
+	if err == nil || !strings.Contains(err.Error(), "no such container") {
+		t.Fatalf("expected the docker message, got %v", err)
+	}
+}
+
+func TestAttachWriteRejectsBadNamesAndMissingSocket(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "none.sock")
+	if err := attachWrite(context.Background(), missing, "--all", "x\n"); err == nil {
+		t.Fatal("expected an error for an invalid name")
+	}
+	if err := attachWrite(context.Background(), missing, "web-1", "x\n"); err == nil {
+		t.Fatal("expected an error without a socket")
 	}
 }
