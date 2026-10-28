@@ -13,10 +13,25 @@ MAX_CONFIG_CHARS = 65_535
 AUTHOR = "noreply@epicwing.invalid"
 DEFAULT_INSTALLER = "ghcr.io/pterodactyl/installers:alpine"
 
-_ENV = re.compile(r"[A-Z_][A-Z0-9_]{0,63}")
+_ENV = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,63}")
 _BAD_NAME = re.compile(r"[^A-Za-z0-9 ._-]+")
 _SPACES = re.compile(r"\s+")
 _CONTROL = re.compile(r"[\x00-\x1f\x7f]")
+
+
+MAX_STARTUP_CHARS = 2048
+
+
+def _startup(value: Any) -> str:
+    """Startbefehl: Steuerzeichen werden zu Leerzeichen, sonst bleibt er unverändert.
+
+    Mehrfache Leerzeichen bleiben stehen, weil sie in Anführungszeichen vorkommen können.
+    Ist der Befehl länger als das Schema erlaubt, lehnt der Import ab, statt still zu kürzen.
+    """
+    text = _CONTROL.sub(" ", "" if value is None else str(value)).strip()
+    if len(text) > MAX_STARTUP_CHARS:
+        raise ValueError(f"The startup command is longer than {MAX_STARTUP_CHARS} characters.")
+    return text
 
 
 def _line(value: Any, limit: int) -> str:
@@ -124,7 +139,7 @@ def import_egg(data: dict[str, Any]) -> tuple[dict[str, Any], str, list[str]]:
         "name": _name(data.get("name"), "Imported egg", "The egg name", warnings),
         "description": _line(data.get("description"), 255),
         "docker_image": images[0],
-        "startup": _line(data.get("startup"), 100_000),
+        "startup": _startup(data.get("startup")),
         "stop_command": stop_command,
         "install_script": script if isinstance(script, str) else "",
         "variables": variables,

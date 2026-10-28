@@ -18,7 +18,7 @@ from app.schemas.node import NAME_RE
 from app.services import rules as rule_engine
 
 IMAGE_RE = re.compile(r"[a-z0-9][a-z0-9._/:@-]{0,254}")
-ENV_RE = re.compile(r"[A-Z_][A-Z0-9_]{0,63}")
+ENV_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,63}")
 MAX_SCRIPT_CHARS = 65_535
 MAX_IMPORT_CHARS = 262_144
 
@@ -51,7 +51,7 @@ def clean_env_name(value: str) -> str:
     value = value.strip()
     if not ENV_RE.fullmatch(value):
         raise ValueError(
-            "The variable name may only contain uppercase letters, digits and underscores."
+            "The variable name may only use letters, digits and underscores."
         )
     return value
 

@@ -85,7 +85,7 @@ def test_import_cleans_names_and_defaults():
         "variables": [
             {"name": "Slots", "env_variable": "SLOTS", "default_value": "abc", "rules": "integer"},
             {"name": "Again", "env_variable": "SLOTS"},
-            {"name": "Bad", "env_variable": "lower"},
+            {"name": "Bad", "env_variable": "bad-name"},
         ],
     }
     data, _config, warnings = eggio.import_egg(egg)
