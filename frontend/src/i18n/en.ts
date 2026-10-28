@@ -70,7 +70,7 @@ export default {
     password: "Password",
     submit: "Sign in",
     submitting: "Signing in…",
-    notice: "Beta. Fine for small setups, not ready for large or multi-tenant hosting.",
+    notice: "Beta. Not for large or multi-tenant hosting.",
   },
   servers: {
     title: "Your Servers",
