@@ -144,6 +144,36 @@ function smoothPath(points: string, area = 0): string {
   return area ? `${d} L${area},72 L0,72 Z` : d;
 }
 
+const nameDraft = ref<string | null>(null);
+const savingName = ref(false);
+const nameError = ref("");
+const nameSaved = ref(false);
+
+function nameChanged(): boolean {
+  const draft = (nameDraft.value ?? "").trim();
+  return nameDraft.value !== null && draft.length > 0 && draft !== server.value?.name;
+}
+
+async function saveName(): Promise<void> {
+  if (!server.value || !nameChanged() || savingName.value) return;
+  savingName.value = true;
+  nameError.value = "";
+  nameSaved.value = false;
+  try {
+    const updated = await api<{ name: string }>(`/servers/${server.value.id}`, {
+      method: "PATCH",
+      body: { name: (nameDraft.value ?? "").trim() },
+    });
+    if (server.value) server.value.name = updated.name;
+    nameDraft.value = null;
+    nameSaved.value = true;
+  } catch (cause) {
+    nameError.value = message(cause);
+  } finally {
+    savingName.value = false;
+  }
+}
+
 const reinstalling = ref(false);
 const reinstallError = ref("");
 
@@ -421,7 +451,7 @@ onMounted(async () => {
 
           <div v-else-if="active === 'schedules'" class="space-y-6"><div class="flex items-start justify-between"><div><h2 class="text-2xl font-semibold">Automations</h2><p class="mt-2 text-sm text-ink-400">Automate server tasks with scheduled commands and backups.</p></div><button class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950">New Schedule</button></div><div class="min-h-[20rem] rounded-xl border border-ink-700 bg-ink-900"></div></div>
 
-          <div v-else-if="active === 'settings'" class="space-y-6"><div><h2 class="text-2xl font-semibold">Settings</h2><p class="mt-2 text-sm text-ink-400">Configure your server settings and maintenance actions.</p></div><div class="rounded-xl border border-ink-700 bg-ink-900 p-6"><h3 class="text-lg font-semibold">Server Details</h3><label class="mt-5 block text-sm text-ink-400">Server Name</label><input :value="server.name" class="mt-2 w-full rounded-lg border border-ink-700 bg-ink-950 px-4 py-3 text-sm text-ink-100" readonly /></div><div class="rounded-xl border border-ink-700 bg-ink-900 p-6"><h3 class="text-lg font-semibold">Reinstall Server</h3><p class="mt-2 text-sm text-ink-400">Reinstalling replaces the container and runs the installation script again. This can overwrite files.</p><button class="mt-5 rounded-lg border border-bad/50 px-4 py-2 text-sm text-bad transition hover:bg-bad/10 disabled:cursor-not-allowed disabled:opacity-40" :disabled="!canReinstall()" @click="reinstall()">{{ reinstalling ? "Reinstalling…" : "Reinstall Server" }}</button><p v-if="!canReinstall() && !reinstalling" class="mt-3 text-xs text-ink-400">Stop the server before reinstalling.</p><p v-if="reinstallError" class="mt-3 text-sm text-bad">{{ reinstallError }}</p></div><BackupLimitField v-if="auth.state.user?.is_admin" :server-id="server.id" :limit="server.backup_limit" @saved="server.backup_limit = $event" /></div>
+          <div v-else-if="active === 'settings'" class="space-y-6"><div><h2 class="text-2xl font-semibold">Settings</h2><p class="mt-2 text-sm text-ink-400">Configure your server settings and maintenance actions.</p></div><div class="rounded-xl border border-ink-700 bg-ink-900 p-6"><h3 class="text-lg font-semibold">Server Details</h3><label class="mt-5 block text-sm text-ink-400">Server Name</label><div class="mt-2 flex gap-3"><input :value="nameDraft ?? server.name" @input="nameDraft = ($event.target as HTMLInputElement).value; nameSaved = false" @keydown.enter.prevent="saveName()" class="w-full rounded-lg border border-ink-700 bg-ink-950 px-4 py-3 text-sm text-ink-100" /><button class="shrink-0 rounded-lg bg-accent-500 px-5 py-2 text-sm font-medium text-ink-950 transition hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-40" :disabled="!nameChanged() || savingName" @click="saveName()">{{ savingName ? "Saving…" : "Save" }}</button></div><p v-if="nameError" class="mt-3 text-sm text-bad">{{ nameError }}</p><p v-else-if="nameSaved" class="mt-3 text-sm text-ink-400">Saved.</p></div><div class="rounded-xl border border-ink-700 bg-ink-900 p-6"><h3 class="text-lg font-semibold">Reinstall Server</h3><p class="mt-2 text-sm text-ink-400">Reinstalling replaces the container and runs the installation script again. This can overwrite files.</p><button class="mt-5 rounded-lg border border-bad/50 px-4 py-2 text-sm text-bad transition hover:bg-bad/10 disabled:cursor-not-allowed disabled:opacity-40" :disabled="!canReinstall()" @click="reinstall()">{{ reinstalling ? "Reinstalling…" : "Reinstall Server" }}</button><p v-if="!canReinstall() && !reinstalling" class="mt-3 text-xs text-ink-400">Stop the server before reinstalling.</p><p v-if="reinstallError" class="mt-3 text-sm text-bad">{{ reinstallError }}</p></div><BackupLimitField v-if="auth.state.user?.is_admin" :server-id="server.id" :limit="server.backup_limit" @saved="server.backup_limit = $event" /></div>
 
           <div v-else-if="active === 'activity'" class="space-y-6"><div><h2 class="text-2xl font-semibold">Timeline</h2><p class="mt-2 text-sm text-ink-400">Monitor server activity and track actions performed on this server.</p></div><ActivityPanel :server-id="server.id" :permissions="permissions" /></div>
         </template>
