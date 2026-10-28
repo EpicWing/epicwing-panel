@@ -2,6 +2,8 @@ import { createRouter, createWebHistory } from "vue-router";
 
 import { auth } from "../stores/auth";
 import AdminOverviewView from "../views/AdminOverviewView.vue";
+import AdminServersView from "../views/AdminServersView.vue";
+import EggsView from "../views/EggsView.vue";
 import LoginView from "../views/LoginView.vue";
 import NodeDetailView from "../views/NodeDetailView.vue";
 import NodesView from "../views/NodesView.vue";
@@ -29,6 +31,18 @@ const router = createRouter({
       path: "/admin/nodes/:id",
       name: "node-detail",
       component: NodeDetailView,
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
+    {
+      path: "/admin/servers",
+      name: "admin-servers",
+      component: AdminServersView,
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
+    {
+      path: "/admin/eggs",
+      name: "eggs",
+      component: EggsView,
       meta: { requiresAuth: true, requiresAdmin: true },
     },
     { path: "/nodes", redirect: "/admin/nodes" },

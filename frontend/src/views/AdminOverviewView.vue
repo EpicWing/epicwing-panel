@@ -7,6 +7,7 @@ import AppLayout from "../components/AppLayout.vue";
 
 const { t } = useI18n();
 const nodeCount = ref<number | null>(null);
+const serverCount = ref<number | null>(null);
 
 const steps = computed(() => [
   {
@@ -16,7 +17,12 @@ const steps = computed(() => [
     to: "/admin/nodes",
   },
   { title: t("admin.step2Title"), body: t("admin.step2Body"), done: false, to: null },
-  { title: t("admin.step3Title"), body: t("admin.step3Body"), done: false, to: null },
+  {
+    title: t("admin.step3Title"),
+    body: t("admin.step3Body"),
+    done: (serverCount.value ?? 0) > 0,
+    to: "/admin/servers",
+  },
 ]);
 
 // The checklist disappears on its own once every step is done.
@@ -27,6 +33,11 @@ onMounted(async () => {
     nodeCount.value = (await api<unknown[]>("/nodes")).length;
   } catch {
     // Without permission or on an error the number stays empty.
+  }
+  try {
+    serverCount.value = (await api<unknown[]>("/servers")).length;
+  } catch {
+    // Same here.
   }
 });
 </script>
@@ -40,8 +51,7 @@ onMounted(async () => {
       </div>
       <div class="rounded-xl border border-ink-700 bg-ink-900 p-5">
         <p class="text-sm text-ink-400">{{ t("admin.servers") }}</p>
-        <p class="mt-1 font-mono text-2xl font-semibold text-ink-600">–</p>
-        <p class="mt-1 text-xs text-ink-400">{{ t("admin.notImplemented") }}</p>
+        <p class="mt-1 font-mono text-2xl font-semibold">{{ serverCount ?? "–" }}</p>
       </div>
       <div class="rounded-xl border border-ink-700 bg-ink-900 p-5">
         <p class="text-sm text-ink-400">{{ t("admin.users") }}</p>

@@ -9,10 +9,40 @@ import { auth } from "../stores/auth";
 
 const { t } = useI18n();
 
-// Real servers do not exist yet, the list stays empty until the agent is built.
+// Real servers, loaded for admins. Live values come with the agent.
 const servers = ref<ServerItem[]>([]);
 const nodeCount = ref<number | null>(null);
 const layout = ref<"grid" | "list">("grid");
+
+interface ApiServer {
+  id: string;
+  name: string;
+  status: string;
+  memory_mb: number;
+  cpus: number;
+  disk_mb: number;
+  allocations: { ip: string; port: number; is_primary: boolean }[];
+}
+
+function formatSize(mb: number): string {
+  return mb >= 1024 ? `${+(mb / 1024).toFixed(1)} GiB` : `${mb} MiB`;
+}
+
+// Until the agent reports live usage, the cards show the configured limits.
+function toCard(s: ApiServer): ServerItem {
+  const main = s.allocations.find((a) => a.is_primary) ?? s.allocations[0];
+  const status: ServerItem["status"] =
+    s.status === "running" || s.status === "starting" ? s.status : "offline";
+  return {
+    id: s.id,
+    name: s.name,
+    address: main ? `${main.ip}:${main.port}` : "–",
+    status,
+    cpu: `${s.cpus} cores`,
+    ram: formatSize(s.memory_mb),
+    storage: formatSize(s.disk_mb),
+  };
+}
 
 // Demo data is only available in development and always labelled as such.
 const demoAllowed = import.meta.env.DEV;
@@ -36,6 +66,11 @@ onMounted(async () => {
     nodeCount.value = (await api<unknown[]>("/nodes")).length;
   } catch {
     // Without permission or on an error the hint is simply not shown.
+  }
+  try {
+    servers.value = (await api<ApiServer[]>("/servers")).map(toCard);
+  } catch {
+    // Same here.
   }
 });
 </script>

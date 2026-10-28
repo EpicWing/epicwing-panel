@@ -5,6 +5,7 @@ import { useRoute, useRouter } from "vue-router";
 
 import { ApiError, api } from "../api/client";
 import AppLayout from "../components/AppLayout.vue";
+import AllocationsPanel from "../components/AllocationsPanel.vue";
 import UsageChart from "../components/UsageChart.vue";
 
 interface NodeDetail {
@@ -34,8 +35,8 @@ interface Enrollment {
   expires_at: string;
 }
 
-type Tab = "overview" | "settings" | "configuration" | "danger";
-const tabs: Tab[] = ["overview", "settings", "configuration", "danger"];
+type Tab = "overview" | "allocations" | "settings" | "configuration" | "danger";
+const tabs: Tab[] = ["overview", "allocations", "settings", "configuration", "danger"];
 
 const { t, te } = useI18n();
 const route = useRoute();
@@ -358,6 +359,13 @@ onUnmounted(() => window.clearInterval(timer));
           </div>
         </div>
       </section>
+
+      <AllocationsPanel
+        v-else-if="tab === 'allocations'"
+        :node-id="nodeId"
+        :range-start="node.port_range_start"
+        :range-end="node.port_range_end"
+      />
 
       <form
         v-else-if="tab === 'settings'"
