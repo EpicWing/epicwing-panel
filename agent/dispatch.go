@@ -186,9 +186,15 @@ func (d *commandDispatcher) run(ctx context.Context, conn *websocket.Conn, f pan
 	select {
 	case d.slots <- struct{}{}:
 		defer func() { <-d.slots }()
-		d.mu.Lock()
-		data, err := d.execute(ctx, f.Action, f.Params)
-		d.mu.Unlock()
+		var data map[string]any
+		var err error
+		if strings.HasPrefix(f.Action, "file.") {
+			data, err = d.executeFile(f.Action, f.Params)
+		} else {
+			d.mu.Lock()
+			data, err = d.execute(ctx, f.Action, f.Params)
+			d.mu.Unlock()
+		}
 		if err != nil {
 			log.Printf("command %s (%s) failed: %v", f.ID, f.Action, err)
 		}
