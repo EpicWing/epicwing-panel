@@ -5,6 +5,7 @@ import { useRouter } from "vue-router";
 
 import { auth } from "../stores/auth";
 import LogoMark from "./LogoMark.vue";
+import UserAvatar from "./UserAvatar.vue";
 
 const props = withDefaults(
   defineProps<{ title: string; subtitle?: string; area?: "user" | "admin"; wide?: boolean; minimal?: boolean; hero?: boolean; hideHeader?: boolean }>(),
@@ -148,6 +149,14 @@ async function logout() {
           >
             {{ switchLink.badge }}
           </span>
+        </RouterLink>
+        <RouterLink
+          v-if="auth.state.user"
+          to="/settings"
+          class="flex items-center gap-2.5 text-sm text-ink-300 transition hover:text-accent-400"
+        >
+          <UserAvatar :user-id="auth.state.user.id" :label="auth.state.user.email" :size="28" />
+          <span class="min-w-0 truncate">{{ auth.state.user.email }}</span>
         </RouterLink>
         <button class="text-sm text-ink-300 transition hover:text-accent-400" @click="logout">
           {{ t("common.signOut") }}
