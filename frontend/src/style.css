@@ -38,3 +38,104 @@ body:has(.server-detail-shell) {
 ::selection {
   background: color-mix(in srgb, var(--color-accent-500) 35%, transparent);
 }
+
+/* Console colors for ANSI output (utils/ansi.ts) */
+.ansi-bold {
+  font-weight: 700;
+}
+.ansi-fg-0 {
+  color: #4d4f57;
+}
+.ansi-fg-1 {
+  color: #e5534b;
+}
+.ansi-fg-2 {
+  color: #3fb950;
+}
+.ansi-fg-3 {
+  color: #d9a21b;
+}
+.ansi-fg-4 {
+  color: #5b9bf0;
+}
+.ansi-fg-5 {
+  color: #c678dd;
+}
+.ansi-fg-6 {
+  color: #39c5cf;
+}
+.ansi-fg-7 {
+  color: #c9c9d1;
+}
+.ansi-fg-8 {
+  color: #6e7079;
+}
+.ansi-fg-9 {
+  color: #ff7b72;
+}
+.ansi-fg-10 {
+  color: #56d364;
+}
+.ansi-fg-11 {
+  color: #f2cc60;
+}
+.ansi-fg-12 {
+  color: #79b8ff;
+}
+.ansi-fg-13 {
+  color: #d2a8ff;
+}
+.ansi-fg-14 {
+  color: #56d4dd;
+}
+.ansi-fg-15 {
+  color: #f0f0f5;
+}
+.ansi-bg-0 {
+  background-color: #2a2c32;
+}
+.ansi-bg-1 {
+  background-color: #e5534b;
+}
+.ansi-bg-2 {
+  background-color: #3fb950;
+}
+.ansi-bg-3 {
+  background-color: #d9a21b;
+}
+.ansi-bg-4 {
+  background-color: #5b9bf0;
+}
+.ansi-bg-5 {
+  background-color: #c678dd;
+}
+.ansi-bg-6 {
+  background-color: #39c5cf;
+}
+.ansi-bg-7 {
+  background-color: #c9c9d1;
+}
+.ansi-bg-8 {
+  background-color: #6e7079;
+}
+.ansi-bg-9 {
+  background-color: #ff7b72;
+}
+.ansi-bg-10 {
+  background-color: #56d364;
+}
+.ansi-bg-11 {
+  background-color: #f2cc60;
+}
+.ansi-bg-12 {
+  background-color: #79b8ff;
+}
+.ansi-bg-13 {
+  background-color: #d2a8ff;
+}
+.ansi-bg-14 {
+  background-color: #56d4dd;
+}
+.ansi-bg-15 {
+  background-color: #f0f0f5;
+}

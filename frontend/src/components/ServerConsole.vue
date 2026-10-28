@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref } from "vue";
+import { onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 
-import { ApiError, api } from "../api/client";
-import { stripAnsi } from "../utils/ansi";
+import { useServerConsole } from "../composables/useServerConsole";
+import ConsoleOutput from "./ConsoleOutput.vue";
 
 const props = defineProps<{
   serverId: string;
@@ -13,88 +13,19 @@ const props = defineProps<{
 const emit = defineEmits<{ close: [] }>();
 const { t } = useI18n();
 
-const output = ref("");
 const command = ref("");
-const status = ref("connecting");
-const error = ref("");
-const terminal = ref<HTMLElement | null>(null);
-let socket: WebSocket | null = null;
+const { lines, status, error, connect, send, close: closeSocket } = useServerConsole();
 
-function append(value: string): void {
-  output.value += stripAnsi(value);
-  void nextTick(() => {
-    if (terminal.value) {
-      terminal.value.scrollTop = terminal.value.scrollHeight;
-    }
-  });
-}
-
-function socketUrl(ticket: string): string {
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  return `${protocol}//${window.location.host}/api/servers/${props.serverId}/console?ticket=${encodeURIComponent(ticket)}`;
-}
-
-async function connect(): Promise<void> {
-  try {
-    const { ticket } = await api<{ ticket: string }>(`/servers/${props.serverId}/console/ticket`, {
-      method: "POST",
-      body: {},
-    });
-    socket = new WebSocket(socketUrl(ticket));
-    socket.onopen = () => {
-      status.value = "connected";
-      error.value = "";
-    };
-    socket.onmessage = (event) => {
-      try {
-        const frame = JSON.parse(event.data) as {
-          type?: string;
-          data?: string;
-          status?: string;
-          message?: string;
-        };
-        if (frame.type === "output" && frame.data) {
-          append(frame.data);
-        } else if (frame.type === "status" && frame.status) {
-          status.value = frame.status;
-        } else if (frame.type === "error") {
-          error.value = frame.message ?? t("console.connectionError");
-        }
-      } catch {
-        append(event.data);
-      }
-    };
-    socket.onerror = () => {
-      status.value = "error";
-      error.value = t("console.connectionError");
-    };
-    socket.onclose = () => {
-      if (status.value !== "error") {
-        status.value = "closed";
-      }
-    };
-  } catch (cause) {
-    status.value = "error";
-    error.value = cause instanceof ApiError ? cause.message : t("console.connectionError");
-  }
-}
-
-function send(): void {
-  const value = command.value.trim();
-  if (!value || socket?.readyState !== WebSocket.OPEN) {
-    return;
-  }
-  socket.send(JSON.stringify({ type: "input", data: value }));
-  command.value = "";
+function submit(): void {
+  if (send(command.value)) command.value = "";
 }
 
 function close(): void {
-  socket?.close();
+  closeSocket();
   emit("close");
 }
 
-onMounted(() => void connect());
-onBeforeUnmount(() => socket?.close());
+onMounted(() => void connect(props.serverId));
 </script>
 
 <template>
@@ -112,13 +43,11 @@ onBeforeUnmount(() => socket?.close());
         </button>
       </header>
 
-      <div ref="terminal" class="min-h-[22rem] flex-1 overflow-auto bg-[#090a0c] p-4 font-mono text-xs leading-5 text-ink-200">
-        <pre class="whitespace-pre-wrap break-words">{{ output || t("console.waiting") }}</pre>
-      </div>
+      <ConsoleOutput :lines="lines" :placeholder="t('console.waiting')" class="min-h-[22rem] flex-1" />
 
       <p v-if="error" class="border-t border-bad/30 bg-bad/10 px-4 py-2 text-xs text-bad">{{ error }}</p>
 
-      <form class="flex gap-2 border-t border-ink-700 p-3" @submit.prevent="send">
+      <form class="flex gap-2 border-t border-ink-700 p-3" @submit.prevent="submit">
         <input
           v-model="command"
           class="min-w-0 flex-1 rounded-md border border-ink-700 bg-ink-950 px-3 py-2 font-mono text-sm outline-none focus:border-accent-500"
