@@ -9,7 +9,7 @@ func TestDaemonStateMessage(t *testing.T) {
 		want  string
 		ok    bool
 	}{
-		{"running", map[string]any{"state": "running"}, "Server marked as running", true},
+		{"running", map[string]any{"state": "running"}, "Container started", true},
 		{"exited sauber", map[string]any{"state": "exited", "exit_code": 0}, "Server marked as offline", true},
 		{"exited mit Code", map[string]any{"state": "exited", "exit_code": 137}, "Server marked as offline (exit code 137)", true},
 		{"removed", map[string]any{"state": "removed"}, "", false},
