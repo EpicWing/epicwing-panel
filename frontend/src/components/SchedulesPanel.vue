@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import cronstrue from "cronstrue";
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 import { ApiError, api } from "../api/client";
 import Modal from "./Modal.vue";
@@ -33,6 +33,8 @@ interface Schedule {
   tasks: Task[];
 }
 
+type Preset = "daily" | "weekly" | "hourly" | "minutes" | "custom";
+
 const props = defineProps<{ serverId: string; permissions: string[] }>();
 
 const rows = ref<Schedule[]>([]);
@@ -48,6 +50,11 @@ const taskFor = ref<string | null>(null);
 const expanded = ref<string | null>(null);
 const form = ref(emptyForm());
 const taskForm = ref(emptyTask());
+const preset = ref<Preset>("daily");
+const time = ref("04:00");
+const weekday = ref("1");
+const hourlyMinute = ref("0");
+const everyMinutes = ref("5");
 let timer: number | undefined;
 let alive = true;
 
@@ -97,7 +104,7 @@ const zoneName = computed(() => rows.value[0]?.timezone ?? "the panel time zone"
 
 function sentence(parts: string[]): string {
   try {
-    return cronstrue.toString(parts.map((p) => p.trim()).join(" "), { use24HourTimeFormat: true });
+    return cronstrue.toString(parts.map((p) => p.trim() || "*").join(" "), { use24HourTimeFormat: true });
   } catch {
     return "";
   }
@@ -114,6 +121,61 @@ const liveDescription = computed(() => {
     ? { ok: true, text }
     : { ok: false, text: 'These values do not make a valid timing yet. Use * for "every".' };
 });
+
+const timeOk = computed(() => /^\d{1,2}:\d{2}$/.test(time.value));
+
+const timingOk = computed(() => {
+  if (preset.value === "custom") return liveDescription.value.ok;
+  if (preset.value === "daily" || preset.value === "weekly") return timeOk.value;
+  return true;
+});
+
+function applyPreset() {
+  const kind = preset.value;
+  if (kind === "custom") return;
+  if ((kind === "daily" || kind === "weekly") && !timeOk.value) return;
+  const f = form.value;
+  const [hh, mm] = time.value.split(":");
+  f.day_of_month = "*";
+  f.month = "*";
+  f.day_of_week = kind === "weekly" ? weekday.value : "*";
+  if (kind === "daily" || kind === "weekly") {
+    f.minute = String(Number(mm));
+    f.hour = String(Number(hh));
+  } else if (kind === "hourly") {
+    const m = Math.min(59, Math.max(0, Math.floor(Number(hourlyMinute.value)) || 0));
+    f.minute = String(m);
+    f.hour = "*";
+  } else {
+    f.minute = `*/${everyMinutes.value}`;
+    f.hour = "*";
+  }
+}
+
+function loadPreset(f: ReturnType<typeof emptyForm>) {
+  const num = (v: string) => /^\d{1,2}$/.test(v);
+  const pad = (v: string) => v.padStart(2, "0");
+  const plain = f.day_of_month === "*" && f.month === "*";
+  const every = /^\*\/(5|10|15|30)$/.exec(f.minute);
+  if (plain && f.day_of_week === "*" && f.hour === "*" && every) {
+    preset.value = "minutes";
+    everyMinutes.value = every[1] ?? "5";
+  } else if (plain && f.day_of_week === "*" && f.hour === "*" && num(f.minute)) {
+    preset.value = "hourly";
+    hourlyMinute.value = String(Number(f.minute));
+  } else if (plain && f.day_of_week === "*" && num(f.minute) && num(f.hour)) {
+    preset.value = "daily";
+    time.value = `${pad(f.hour)}:${pad(f.minute)}`;
+  } else if (plain && /^[0-6]$/.test(f.day_of_week) && num(f.minute) && num(f.hour)) {
+    preset.value = "weekly";
+    weekday.value = f.day_of_week;
+    time.value = `${pad(f.hour)}:${pad(f.minute)}`;
+  } else {
+    preset.value = "custom";
+  }
+}
+
+watch([preset, time, weekday, hourlyMinute, everyMinutes], applyPreset);
 
 const powerText: Record<string, string> = {
   start: "Start the server",
@@ -166,6 +228,11 @@ function toggleOpen(s: Schedule) {
 function openNew() {
   editing.value = null;
   form.value = emptyForm();
+  preset.value = "daily";
+  time.value = "04:00";
+  weekday.value = "1";
+  hourlyMinute.value = "0";
+  everyMinutes.value = "5";
   formError.value = "";
   scheduleOpen.value = true;
 }
@@ -182,6 +249,7 @@ function openEdit(s: Schedule) {
     only_when_online: s.only_when_online,
     enabled: s.enabled,
   };
+  loadPreset(form.value);
   formError.value = "";
   scheduleOpen.value = true;
 }
@@ -197,7 +265,17 @@ async function save() {
   notice.value = "";
   busy.value = true;
   try {
-    const body = { ...form.value, name: form.value.name.trim() };
+    const f = form.value;
+    const fix = (v: string) => v.trim() || "*";
+    const body = {
+      ...f,
+      name: f.name.trim(),
+      minute: fix(f.minute),
+      hour: fix(f.hour),
+      day_of_month: fix(f.day_of_month),
+      month: fix(f.month),
+      day_of_week: fix(f.day_of_week),
+    };
     if (editing.value) {
       await api<Schedule>(`${base()}/${editing.value}`, { method: "PATCH", body });
       closeForm();
@@ -207,7 +285,7 @@ async function save() {
       const created = await api<Schedule>(base(), { method: "POST", body });
       closeForm();
       expanded.value = created?.id ?? null;
-      notice.value = "Automation created. Add a step so it has something to do.";
+      notice.value = "Automation created. Add a task so it has something to do.";
       await load();
     }
   } catch (e) {
@@ -287,7 +365,7 @@ async function addTask() {
       },
     });
     taskOpen.value = false;
-    notice.value = "Step added.";
+    notice.value = "Task added.";
     await load();
   } catch (e) {
     formError.value = message(e);
@@ -374,12 +452,12 @@ onBeforeUnmount(() => {
         <div v-if="expanded === s.id" class="space-y-4 border-t border-ink-700 px-5 py-4">
           <div class="flex flex-wrap items-center justify-between gap-3">
             <p class="text-xs text-ink-400">
-              {{ s.tasks.length }} {{ s.tasks.length === 1 ? "step" : "steps" }}
+              {{ s.tasks.length }} {{ s.tasks.length === 1 ? "task" : "tasks" }}
               <span v-if="s.only_when_online"> · skipped while the server is offline</span>
             </p>
             <div v-if="manage" class="flex flex-wrap gap-2">
               <button :class="ghostClass" :disabled="s.is_running || s.tasks.length === 0" @click="runNow(s)">Run now</button>
-              <button :class="ghostClass" @click="openTaskForm(s)">Add step</button>
+              <button :class="ghostClass" @click="openTaskForm(s)">Add task</button>
               <button :class="ghostClass" :disabled="s.is_running" @click="openEdit(s)">Edit</button>
               <button :class="dangerClass" :disabled="s.is_running" @click="remove(s)">Delete</button>
             </div>
@@ -395,7 +473,7 @@ onBeforeUnmount(() => {
               <button v-if="manage" :class="dangerClass" @click="removeTask(s, t)">Remove</button>
             </li>
           </ol>
-          <p v-else class="text-xs text-ink-400">No steps yet. An automation without steps does nothing.</p>
+          <p v-else class="text-xs text-ink-400">No tasks yet. An automation without tasks does nothing.</p>
         </div>
       </li>
     </ul>
@@ -408,37 +486,81 @@ onBeforeUnmount(() => {
           <input id="s-name" v-model="form.name" required maxlength="64" placeholder="Nightly restart" :class="inputClass" />
         </div>
         <div>
-          <p class="mb-1.5 text-sm text-ink-300">When should it run?</p>
-          <div class="grid grid-cols-2 gap-2 sm:grid-cols-5">
+          <label for="s-preset" class="mb-1.5 block text-sm text-ink-300">How often?</label>
+          <select id="s-preset" v-model="preset" :class="inputClass">
+            <option value="daily">Every day</option>
+            <option value="weekly">Every week</option>
+            <option value="hourly">Every hour</option>
+            <option value="minutes">Every few minutes</option>
+            <option value="custom">Custom</option>
+          </select>
+
+          <div v-if="preset !== 'custom'" class="mt-3 grid gap-3 sm:grid-cols-2">
+            <div v-if="preset === 'weekly'">
+              <label for="s-weekday" class="mb-1.5 block text-xs text-ink-400">On which day?</label>
+              <select id="s-weekday" v-model="weekday" :class="inputClass">
+                <option value="1">Monday</option>
+                <option value="2">Tuesday</option>
+                <option value="3">Wednesday</option>
+                <option value="4">Thursday</option>
+                <option value="5">Friday</option>
+                <option value="6">Saturday</option>
+                <option value="0">Sunday</option>
+              </select>
+            </div>
+            <div v-if="preset === 'daily' || preset === 'weekly'">
+              <label for="s-time" class="mb-1.5 block text-xs text-ink-400">At what time?</label>
+              <input id="s-time" v-model="time" type="time" required :class="[inputClass, '[color-scheme:dark]']" />
+            </div>
+            <div v-if="preset === 'hourly'">
+              <label for="s-hmin" class="mb-1.5 block text-xs text-ink-400">Minutes past the hour</label>
+              <input id="s-hmin" v-model="hourlyMinute" type="number" min="0" max="59" :class="inputClass" />
+            </div>
+            <div v-if="preset === 'minutes'">
+              <label for="s-every" class="mb-1.5 block text-xs text-ink-400">Run every</label>
+              <select id="s-every" v-model="everyMinutes" :class="inputClass">
+                <option value="5">5 minutes</option>
+                <option value="10">10 minutes</option>
+                <option value="15">15 minutes</option>
+                <option value="30">30 minutes</option>
+              </select>
+            </div>
+          </div>
+
+          <div v-else class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
             <div>
               <label for="s-min" class="mb-1.5 block text-xs text-ink-400">Minute</label>
-              <input id="s-min" v-model="form.minute" maxlength="32" :class="[inputClass, 'font-mono']" />
+              <input id="s-min" v-model="form.minute" maxlength="32" placeholder="*" :class="[inputClass, 'font-mono']" />
             </div>
             <div>
               <label for="s-hour" class="mb-1.5 block text-xs text-ink-400">Hour</label>
-              <input id="s-hour" v-model="form.hour" maxlength="32" :class="[inputClass, 'font-mono']" />
+              <input id="s-hour" v-model="form.hour" maxlength="32" placeholder="*" :class="[inputClass, 'font-mono']" />
             </div>
             <div>
               <label for="s-dom" class="mb-1.5 block text-xs text-ink-400">Day of month</label>
-              <input id="s-dom" v-model="form.day_of_month" maxlength="32" :class="[inputClass, 'font-mono']" />
+              <input id="s-dom" v-model="form.day_of_month" maxlength="32" placeholder="*" :class="[inputClass, 'font-mono']" />
             </div>
             <div>
               <label for="s-mon" class="mb-1.5 block text-xs text-ink-400">Month</label>
-              <input id="s-mon" v-model="form.month" maxlength="32" :class="[inputClass, 'font-mono']" />
+              <input id="s-mon" v-model="form.month" maxlength="32" placeholder="*" :class="[inputClass, 'font-mono']" />
             </div>
             <div>
               <label for="s-dow" class="mb-1.5 block text-xs text-ink-400">Day of week</label>
-              <input id="s-dow" v-model="form.day_of_week" maxlength="32" :class="[inputClass, 'font-mono']" />
+              <input id="s-dow" v-model="form.day_of_week" maxlength="32" placeholder="*" :class="[inputClass, 'font-mono']" />
             </div>
           </div>
+
           <div
             class="mt-3 rounded-md border border-ink-700 bg-ink-800 px-3 py-2 text-sm"
-            :class="liveDescription.ok ? 'text-ink-100' : 'text-ink-400'"
+            :class="timingOk ? 'text-ink-100' : 'text-ink-400'"
           >
-            {{ liveDescription.text }}
+            {{ timingOk ? liveDescription.text : preset === "custom" ? liveDescription.text : "Pick a time to continue." }}
           </div>
           <p class="mt-1.5 text-xs text-ink-400">
-            Use * for "every". Day of week starts at 0 for Sunday. Times follow {{ zoneName }}.
+            Times follow {{ zoneName }}.
+            <span v-if="preset === 'custom'">
+              An empty field counts as *, which means "every". Day of week starts at 0 for Sunday.
+            </span>
           </p>
         </div>
         <label class="flex cursor-pointer items-center justify-between gap-4 rounded-md border border-ink-700 bg-ink-800 px-4 py-3">
@@ -458,13 +580,13 @@ onBeforeUnmount(() => {
       </form>
       <template #footer>
         <button type="button" :class="cancelClass" @click="closeForm">Cancel</button>
-        <button type="submit" form="schedule-form" :class="primaryClass" :disabled="busy || !form.name.trim()">
+        <button type="submit" form="schedule-form" :class="primaryClass" :disabled="busy || !form.name.trim() || !timingOk">
           <span v-if="busy" class="spinner mr-2"></span>{{ editing ? "Save changes" : "Create" }}
         </button>
       </template>
     </Modal>
 
-    <Modal v-model="taskOpen" title="Add step">
+    <Modal v-model="taskOpen" title="Add task">
       <form id="task-form" class="grid gap-4" @submit.prevent="addTask">
         <p v-if="formError" role="alert" class="rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">{{ formError }}</p>
         <div>
@@ -496,12 +618,12 @@ onBeforeUnmount(() => {
         <div>
           <label for="t-off" class="mb-1.5 block text-sm text-ink-300">Wait first (seconds)</label>
           <input id="t-off" v-model.number="taskForm.time_offset" type="number" min="0" :class="inputClass" />
-          <p class="mt-1.5 text-xs text-ink-400">A pause before this step starts. It has no effect on the first step.</p>
+          <p class="mt-1.5 text-xs text-ink-400">A pause before this task starts. It has no effect on the first task.</p>
         </div>
         <label class="flex cursor-pointer items-center justify-between gap-4 rounded-md border border-ink-700 bg-ink-800 px-4 py-3">
           <span>
             <span class="block text-sm font-medium">Keep going if this fails</span>
-            <span class="block text-xs text-ink-400">The next steps still run when this one fails.</span>
+            <span class="block text-xs text-ink-400">The next tasks still run when this one fails.</span>
           </span>
           <input v-model="taskForm.continue_on_failure" type="checkbox" class="h-4 w-4 shrink-0 accent-accent-500" />
         </label>
@@ -509,7 +631,7 @@ onBeforeUnmount(() => {
       <template #footer>
         <button type="button" :class="cancelClass" @click="taskOpen = false">Cancel</button>
         <button type="submit" form="task-form" :class="primaryClass" :disabled="busy">
-          <span v-if="busy" class="spinner mr-2"></span>Add step
+          <span v-if="busy" class="spinner mr-2"></span>Add task
         </button>
       </template>
     </Modal>
