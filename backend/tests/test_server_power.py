@@ -1,3 +1,4 @@
+import asyncio
 import importlib
 import uuid
 from types import SimpleNamespace
@@ -6,6 +7,7 @@ import pytest
 
 from app.agentlink.commands import AgentOffline
 from app.agentlink.protocol import CommandResult
+from app.models import Egg, Server
 from app.services import lifecycle
 from tests.factories import make_allocations, make_egg, make_nest
 from tests.test_nodes_detail import _create, _login
@@ -183,3 +185,117 @@ def test_build_spec_protects_reserved_names():
 def test_build_spec_without_startup_leaves_the_image_default():
     server = SimpleNamespace(id=uuid.uuid4(), image="img:1", startup="", memory_mb=512, cpus=1)
     assert "STARTUP" not in lifecycle.build_spec(server, [], {}, None)["env"]
+
+
+def test_restart_stops_then_starts(client, server, broker):
+    _post(client, server, "/install")
+    _power(client, server, "start")
+    broker.calls.clear()
+    response = _power(client, server, "restart")
+    assert response.status_code == 200, response.text
+    assert response.json()["status"] == "starting"
+    assert broker.actions() == ["container.stop", "container.start"]
+
+
+def test_restart_reports_stopping_while_the_container_stops(client, server, broker, db_session):
+    _post(client, server, "/install")
+    _power(client, server, "start")
+    seen = []
+    original = broker.send
+
+    async def spy(node_id, action, params, timeout=90):
+        seen.append((action, db_session.get(Server, uuid.UUID(server.id)).status))
+        return await original(node_id, action, params, timeout)
+
+    broker.send = spy
+    assert _power(client, server, "restart").status_code == 200
+    assert seen == [("container.stop", "stopping"), ("container.start", "starting")]
+
+
+def test_offline_node_keeps_the_status(client, server, broker):
+    _post(client, server, "/install")
+    _power(client, server, "start")
+    broker.offline = True
+    response = _power(client, server, "restart")
+    assert response.status_code == 409
+    assert response.json()["detail"] == "The node is offline."
+    body = client.get(server.url).json()
+    assert (body["status"], body["last_error"]) == ("starting", None)
+
+
+def test_second_action_is_refused_while_one_runs(client, server, broker):
+    _post(client, server, "/install")
+    _power(client, server, "start")
+    module = importlib.import_module("app.api.servers")
+    lock = asyncio.Lock()
+    asyncio.run(lock.acquire())
+    module._locks[uuid.UUID(server.id)] = lock
+    try:
+        assert _power(client, server, "restart").status_code == 409
+        assert _power(client, server, "stop").status_code == 409
+        assert _power(client, server, "kill").status_code == 200
+    finally:
+        module._locks.pop(uuid.UUID(server.id), None)
+
+
+def _set_stop_command(db_session, server, command):
+    row = db_session.get(Server, uuid.UUID(server.id))
+    egg = db_session.get(Egg, row.egg_id)
+    egg.stop_command = command
+    db_session.commit()
+
+
+def _running(client, server):
+    _post(client, server, "/install")
+    assert _power(client, server, "start").json()["status"] == "starting"
+
+
+def test_stop_sends_the_egg_stop_command(client, server, broker, db_session):
+    _running(client, server)
+    _set_stop_command(db_session, server, "EXIT")
+    broker.calls.clear()
+    assert _power(client, server, "stop").json()["status"] == "offline"
+    assert broker.calls == [("container.stop", {"name": server.id, "command": "EXIT"})]
+
+
+def test_stop_without_stop_command_sends_only_the_name(client, server, broker, db_session):
+    _running(client, server)
+    _set_stop_command(db_session, server, "")
+    broker.calls.clear()
+    assert _power(client, server, "stop").status_code == 200
+    assert broker.calls == [("container.stop", {"name": server.id})]
+
+
+def test_restart_sends_the_stop_command_then_starts(client, server, broker, db_session):
+    _running(client, server)
+    _set_stop_command(db_session, server, "EXIT")
+    broker.calls.clear()
+    assert _power(client, server, "restart").status_code == 200
+    assert broker.calls == [
+        ("container.stop", {"name": server.id, "command": "EXIT"}),
+        ("container.start", {"name": server.id}),
+    ]
+
+
+def test_kill_never_sends_the_stop_command(client, server, broker, db_session):
+    _running(client, server)
+    _set_stop_command(db_session, server, "EXIT")
+    broker.calls.clear()
+    assert _power(client, server, "kill").status_code == 200
+    assert broker.calls == [("container.kill", {"name": server.id})]
+
+
+def test_start_never_sends_the_stop_command(client, server, broker, db_session):
+    _post(client, server, "/install")
+    _set_stop_command(db_session, server, "EXIT")
+    broker.calls.clear()
+    assert _power(client, server, "start").status_code == 200
+    assert broker.calls == [("container.start", {"name": server.id})]
+
+
+def test_stop_command_is_trimmed(client, server, broker, db_session):
+    _running(client, server)
+    _set_stop_command(db_session, server, "  EXIT  ")
+    broker.calls.clear()
+    assert _power(client, server, "stop").status_code == 200
+    assert broker.calls[0][1]["command"] == "EXIT"

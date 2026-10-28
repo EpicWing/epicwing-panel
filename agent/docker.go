@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -79,6 +80,10 @@ type containerManager struct {
 	run      dockerRunner
 	mkdir    func(path string, perm os.FileMode) error
 	uid, gid int
+	// inputWriter, stopPoll and stopWait are only set in tests; zero values mean the defaults.
+	inputWriter func(ctx context.Context, name, line string) error
+	stopPoll    time.Duration
+	stopWait    time.Duration
 }
 
 func newContainerManager(policy ContainerPolicy) *containerManager {
@@ -404,12 +409,84 @@ func (m *containerManager) Start(ctx context.Context, name string) error {
 	return err
 }
 
+const (
+	stopFallbackSecs = 10
+	defaultStopWait  = 30 * time.Second
+	defaultStopPoll  = 500 * time.Millisecond
+)
+
+// Stop stops the container with docker stop (SIGTERM, SIGKILL after the grace period).
 func (m *containerManager) Stop(ctx context.Context, name string) error {
+	return m.StopWithCommand(ctx, name, "")
+}
+
+// StopWithCommand sends the egg's stop command into the console and waits for the
+// container to exit. If it keeps running or the command cannot be written, it falls
+// back to docker stop. Without a usable command it behaves like Stop.
+func (m *containerManager) StopWithCommand(ctx context.Context, name, command string) error {
 	if err := m.requireManaged(ctx, name); err != nil {
 		return err
 	}
-	_, err := m.run(ctx, "stop", "-t", strconv.Itoa(stopGraceSecs), name)
+	grace := stopGraceSecs
+	if command != "" {
+		if !validConsoleInput(command) {
+			log.Printf("invalid stop command for %s, using docker stop", name)
+		} else {
+			if m.stopViaCommand(ctx, name, command) {
+				return nil
+			}
+			grace = stopFallbackSecs
+		}
+	}
+	_, err := m.run(ctx, "stop", "-t", strconv.Itoa(grace), name)
 	return err
+}
+
+func (m *containerManager) writeLine(ctx context.Context, name, line string) error {
+	if m.inputWriter != nil {
+		return m.inputWriter(ctx, name, line)
+	}
+	return attachWrite(ctx, dockerSocket, name, line+"\n")
+}
+
+// stopViaCommand reports whether the container is stopped after the command.
+func (m *containerManager) stopViaCommand(ctx context.Context, name, command string) bool {
+	state, _, err := m.Status(ctx, name)
+	if err != nil {
+		return false
+	}
+	if state != "running" {
+		return true
+	}
+	if err := m.writeLine(ctx, name, command); err != nil {
+		log.Printf("stop command for %s failed: %v", name, err)
+		return false
+	}
+	wait, poll := m.stopWait, m.stopPoll
+	if wait <= 0 {
+		wait = defaultStopWait
+	}
+	if poll <= 0 {
+		poll = defaultStopPoll
+	}
+	begin := time.Now()
+	deadline := begin.Add(wait)
+	for time.Now().Before(deadline) {
+		sleepCtx(ctx, poll)
+		if ctx.Err() != nil {
+			return false
+		}
+		state, _, err := m.Status(ctx, name)
+		if err != nil {
+			return false
+		}
+		if state != "running" {
+			log.Printf("%s stopped via console command in %s", name, time.Since(begin).Round(time.Millisecond))
+			return true
+		}
+	}
+	log.Printf("%s did not stop within %s after the stop command, falling back to docker stop", name, wait)
+	return false
 }
 
 func (m *containerManager) Kill(ctx context.Context, name string) error {

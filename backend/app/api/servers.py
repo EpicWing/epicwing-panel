@@ -1,6 +1,8 @@
+import asyncio
+import contextlib
 import uuid
 from collections import defaultdict
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -36,6 +38,30 @@ def _conflict(message: str) -> HTTPException:
 
 def _not_found(message: str) -> HTTPException:
     return HTTPException(status.HTTP_404_NOT_FOUND, message)
+
+
+class NodeOffline(HTTPException):
+    """Die Node hat keine Verbindung. Auf der Node wurde nichts ausgeführt."""
+
+    def __init__(self) -> None:
+        super().__init__(status.HTTP_409_CONFLICT, "The node is offline.")
+
+
+# Pro Server läuft immer nur eine Aktion. Gilt für einen Prozess; bei mehreren Workern
+# braucht es später eine Sperre in der Datenbank.
+_locks: dict[uuid.UUID, asyncio.Lock] = {}
+
+
+@contextlib.asynccontextmanager
+async def _exclusive(server_id: uuid.UUID) -> AsyncIterator[None]:
+    lock = _locks.setdefault(server_id, asyncio.Lock())
+    if lock.locked():
+        raise _conflict("Another action is already running for this server.")
+    try:
+        async with lock:
+            yield
+    finally:
+        _locks.pop(server_id, None)
 
 
 def _get(db: Session, server_id: uuid.UUID) -> Server:
@@ -270,7 +296,7 @@ POWER_FROM = {
     "stop": {"running", "starting"},
     "kill": {"running", "starting", "stopping", "error"},
 }
-POWER_BUSY = {"start": "starting", "restart": "starting", "stop": "stopping", "kill": "stopping"}
+POWER_BUSY = {"start": "starting", "restart": "stopping", "stop": "stopping", "kill": "stopping"}
 # Nach dem Start meldet der Agent selbst "running", sobald der Container wirklich läuft.
 POWER_DONE = {"start": None, "restart": None, "stop": "offline", "kill": "offline"}
 INSTALL_FROM = {"new", "offline", "error"}
@@ -290,7 +316,7 @@ async def _send(
     try:
         return await broker.send(server.node_id, action, params)
     except AgentOffline:
-        raise _conflict("The node is offline.") from None
+        raise NodeOffline() from None
     except TimeoutError:
         raise HTTPException(
             status.HTTP_504_GATEWAY_TIMEOUT, "The node did not answer in time."
@@ -325,12 +351,19 @@ async def _transition(
     busy: str,
     done: str | None,
     work: Callable[[], Awaitable[None]],
+    keep_on_offline: bool = False,
 ) -> None:
+    previous, previous_error = server.status, server.last_error
     _set_status(db, server, busy)
     try:
         await work()
     except HTTPException as exc:
-        _set_status(db, server, "error", str(exc.detail))
+        if keep_on_offline and isinstance(exc, NodeOffline):
+            # Die Node war nicht erreichbar, der Zustand des Servers ist unverändert. Nach dem
+            # Verbindungsaufbau meldet der Agent den echten Zustand ohnehin.
+            _set_status(db, server, previous, previous_error)
+        else:
+            _set_status(db, server, "error", str(exc.detail))
         raise
     if done is not None:
         _set_status(db, server, done)
@@ -391,17 +424,43 @@ async def power_server(
     db: DbSession,
 ) -> ServerOut:
     server = _get(db, server_id)
-    if server.status not in POWER_FROM[body.action]:
-        raise _conflict(f"Not possible while the server is {server.status}.")
+    # Kill ist der Notausgang und darf auch laufen, während ein Stop noch wartet.
+    guard = contextlib.nullcontext() if body.action == "kill" else _exclusive(server.id)
+    async with guard:
+        db.refresh(server)
+        if server.status not in POWER_FROM[body.action]:
+            raise _conflict(f"Not possible while the server is {server.status}.")
 
-    async def work() -> None:
-        if body.action == "restart":
-            await _agent(server, "container.stop")
-            await _agent(server, "container.start")
-        else:
-            await _agent(server, f"container.{body.action}")
+        # Mit stop_command im Egg stoppt der Agent über die Konsole und fällt sonst auf
+        # docker stop zurück. Pterodactyl-Signale (^C) stehen leer in der DB.
+        stop_params = None
+        if body.action in ("stop", "restart"):
+            egg = db.get(Egg, server.egg_id)
+            command = (egg.stop_command or "").strip() if egg else ""
+            if command:
+                stop_params = {
+                    "name": lifecycle.container_name(server.id),
+                    "command": command,
+                }
 
-    await _transition(db, server, POWER_BUSY[body.action], POWER_DONE[body.action], work)
+        async def work() -> None:
+            if body.action == "restart":
+                await _agent(server, "container.stop", stop_params)
+                _set_status(db, server, "starting")
+                await _agent(server, "container.start")
+            elif body.action == "stop":
+                await _agent(server, "container.stop", stop_params)
+            else:
+                await _agent(server, f"container.{body.action}")
+
+        await _transition(
+            db,
+            server,
+            POWER_BUSY[body.action],
+            POWER_DONE[body.action],
+            work,
+            keep_on_offline=True,
+        )
     audit.record(
         db,
         "server.power",
