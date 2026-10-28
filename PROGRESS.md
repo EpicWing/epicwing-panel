@@ -32,3 +32,8 @@ Repo: /home/epicdev/forge, Branch: feature/server-install
 ## Entscheidungen
 - S-01: run_command auf AdminAuth beschränken (einfacher und sicherer als server_access pro Containername; UI nutzt Server-Routen für Power-Aktionen)
 - Tests laufen gegen SQLite im Speicher (conftest), Dummy-DATABASE_URL ist Absicht
+
+## Update 2026-10-18
+- Fertig und getestet: Backup-Transfer zwischen Servern derselben Node (Agent backup.copy, Route /transfer, Dialog), Avatar (Migration 0012, Settings, Seitenleiste, Timeline), Copyright-Footer, Admin-Navigation, Admin-Overview mit echten Daten, Locations.
+- Live im Panel: Backend mit Migration 0012 und Frontend. Der Agent läuft noch ohne backup.copy (Rollout offen).
+- Als Nächstes: Panel Settings (2FA-Pflicht), Monitoring-Reiter, Webhook-Benachrichtigungen mit Feed, API Keys.
