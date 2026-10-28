@@ -220,9 +220,6 @@ class Detector:
         while state.points and now - state.points[0][0] > HISTORY_SECONDS:
             state.points.popleft()
         bytes_index, usual, factor = state.bytes.add(rx_rate, BYTES_WATCH, BYTES_ATTACK)
-        if bytes_index >= 2:
-            found.append((bytes_index, f"Incoming traffic is {factor:.0f}x the usual rate"))
-
         pps: float | None = None
         packets_index = 1
         if "rx_packets" in net and "rx_packets" in before:
@@ -257,6 +254,13 @@ class Detector:
                         f"from about {sources_rate:.0f} sources/s",
                     )
                 )
+
+        # Volume alone can be a legitimate download (e.g. Steam Workshop on an idle
+        # server). "attack" needs a second signal: packets, drops or a console flood.
+        if bytes_index >= 3 and max(packets_index, dropped_index, console_index) < 2:
+            bytes_index = 2
+        if bytes_index >= 2:
+            found.append((bytes_index, f"Incoming traffic is {factor:.0f}x the usual rate"))
 
         index = max(1, bytes_index, packets_index, dropped_index, console_index)
         if index < 2 and bytes_index == 0:
