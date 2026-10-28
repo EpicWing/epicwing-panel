@@ -99,3 +99,11 @@ def test_unknown_server_gives_404(client, server):
 
 def test_limit_must_be_positive(client, server):
     assert _get(client, server, limit=0).status_code == 422
+
+
+def test_console_opens_are_not_listed(client, db_session, server):
+    _add(db_session, server, 1, action="server.console_open")
+    _add(db_session, server, 2)
+    actions = [item["action"] for item in _get(client, server, limit=100).json()["items"]]
+    assert "server.console_open" not in actions
+    assert MARK in actions

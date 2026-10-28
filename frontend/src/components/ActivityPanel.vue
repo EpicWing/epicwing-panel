@@ -30,28 +30,34 @@ const canView = computed(() => props.permissions.includes("settings.view"));
 
 const LABELS: Record<string, string> = {
   "server.create": "created the server",
-  "server.file.download": "downloaded a file",
+  "server.update": "updated the server settings",
+  "server.delete": "deleted the server",
+  "server.install": "started the installation",
   "server.file.write": "saved a file",
   "server.file.delete": "deleted a file or folder",
-  "server.file.rename": "renamed or moved a file",
-  "server.file.folder": "created a folder",
   "server.backup.create": "created a backup",
-  "server.backup.delete": "deleted a backup",
-  "server.backup.restore": "restored a backup",
   "server.backup.download": "downloaded a backup",
+  "server.allocation.add": "added a port",
+  "server.allocation.remove": "removed a port",
+  "server.allocation.primary": "changed the primary port",
 };
 
-function label(action: string): string {
-  return LABELS[action] ?? action.replace(/^server\./, "").replace(/[._]/g, " ");
+function label(item: Item): string {
+  if (item.action === "server.power") {
+    const data = item.details ?? {};
+    const mode = [data.action, data.signal, data.power].find((value) => typeof value === "string");
+    return mode ? `sent the power action “${mode}”` : "sent a power action";
+  }
+  return LABELS[item.action] ?? item.action.replace(/^server\./, "").replace(/[._]/g, " ");
 }
 
 function detail(item: Item): string {
   const data = item.details;
   if (!data) return "";
   const parts: string[] = [];
-  for (const key of ["path", "to", "backup"]) {
+  for (const key of ["path", "to", "backup", "port"]) {
     const value = data[key];
-    if (typeof value === "string" && value) parts.push(value);
+    if ((typeof value === "string" && value) || typeof value === "number") parts.push(String(value));
   }
   return parts.join(" → ");
 }
@@ -116,7 +122,7 @@ onMounted(load);
     <ul v-else class="divide-y divide-ink-800">
       <li v-for="item in items" :key="item.id" class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-5 py-3 text-sm">
         <div class="min-w-0">
-          <p class="text-ink-100"><span class="font-semibold">{{ item.actor ?? "Unknown user" }}</span> <span class="text-ink-300">{{ label(item.action) }}</span></p>
+          <p class="text-ink-100"><span class="font-semibold">{{ item.actor ?? "Unknown user" }}</span> <span class="text-ink-300">{{ label(item) }}</span></p>
           <p v-if="detail(item)" class="mt-0.5 truncate font-mono text-xs text-ink-400">{{ detail(item) }}</p>
         </div>
         <p class="shrink-0 text-xs text-ink-400">{{ when(item.created_at) }}<span v-if="item.ip" class="ml-3 font-mono">{{ item.ip }}</span></p>
