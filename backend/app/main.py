@@ -63,7 +63,7 @@ def create_app() -> FastAPI:
 
     @app.middleware("http")
     async def check_origin(request: Request, call_next):
-        # Schreibende Requests mit fremdem Origin-Header werden abgelehnt.
+        # Reject state-changing requests whose Origin header is not allowed.
         origin = request.headers.get("origin")
         if (
             request.method not in _SAFE_METHODS
@@ -71,8 +71,8 @@ def create_app() -> FastAPI:
             and origin not in settings.allowed_origins
         ):
             logging.getLogger("uvicorn.error").warning(
-                "Origin %s abgelehnt (erlaubt: %s). "
-                "EPICWING_PUBLIC_URL in der .env auf die Adresse des Panels setzen.",
+                "Origin %s rejected (allowed: %s). "
+                "Set EPICWING_PUBLIC_URL in .env to the address of the panel.",
                 origin,
                 ", ".join(settings.allowed_origins) or "-",
             )
