@@ -16,13 +16,14 @@ interface DdosStatus {
   reasons: string[];
   samples: number;
   rates: Record<string, number | null>;
+  history: { step_seconds: number; rx: number[]; tx: number[] };
 }
 
-const POLL_MS = 4000;
+const POLL_MS = 3000;
 
 const WIDTH = 300;
 const HEIGHT = 72;
-const POINTS = 60;
+const POINTS = 360; // 60 min bei 10 s
 const RX_COLOR = "#49c58a";
 const TX_COLOR = "#f778ba";
 
@@ -106,10 +107,14 @@ const factor = computed(() => {
   return now / Math.max(usual.value, 1);
 });
 
-const latest = computed(() => props.rx[props.rx.length - 1] ?? 0);
-const latestTx = computed(() => props.tx[props.tx.length - 1] ?? 0);
-const peakIn = computed(() => Math.max(...props.rx, 0));
-const peak = computed(() => Math.max(...props.rx, ...props.tx, 1024));
+const chartRx = computed(() => status.value?.history.rx ?? []);
+const chartTx = computed(() => status.value?.history.tx ?? []);
+
+const latest = computed(() => props.rx[props.rx.length - 1] ?? rates.value.rx_bytes_per_s ?? 0);
+const latestTx = computed(() => props.tx[props.tx.length - 1] ?? rates.value.tx_bytes_per_s ?? 0);
+// Peak der letzten 2 Minuten = letzte 12 Buckets
+const peakIn = computed(() => Math.max(...chartRx.value.slice(-12), latest.value, 0));
+const peak = computed(() => Math.max(...chartRx.value, ...chartTx.value, 1024));
 
 function axis(fraction: number): string {
   if (!props.online) return fraction === 0 ? "0 B/s" : "";
@@ -208,10 +213,10 @@ function area(values: number[]): string {
           <span>{{ axis(1) }}</span><span>{{ axis(0.5) }}</span><span>{{ axis(0) }}</span>
         </div>
         <svg viewBox="0 0 300 80" class="h-40 min-w-0 flex-1" preserveAspectRatio="none" aria-hidden="true">
-          <path :d="area(rx)" :fill="RX_COLOR" fill-opacity="0.2" />
-          <path :d="line(rx)" fill="none" :stroke="RX_COLOR" stroke-width="2" vector-effect="non-scaling-stroke" />
-          <path :d="area(tx)" :fill="TX_COLOR" fill-opacity="0.2" />
-          <path :d="line(tx)" fill="none" :stroke="TX_COLOR" stroke-width="2" vector-effect="non-scaling-stroke" />
+          <path :d="area(chartRx)" :fill="RX_COLOR" fill-opacity="0.2" />
+          <path :d="line(chartRx)" fill="none" :stroke="RX_COLOR" stroke-width="2" vector-effect="non-scaling-stroke" />
+          <path :d="area(chartTx)" :fill="TX_COLOR" fill-opacity="0.2" />
+          <path :d="line(chartTx)" fill="none" :stroke="TX_COLOR" stroke-width="2" vector-effect="non-scaling-stroke" />
         </svg>
       </div>
     </div>
