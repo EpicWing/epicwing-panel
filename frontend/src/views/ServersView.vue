@@ -4,6 +4,7 @@ import { useI18n } from "vue-i18n";
 
 import { api } from "../api/client";
 import AppLayout from "../components/AppLayout.vue";
+import ContainerPanel from "../components/ContainerPanel.vue";
 import ServerCard, { type ServerItem } from "../components/ServerCard.vue";
 import { auth } from "../stores/auth";
 
@@ -95,6 +96,8 @@ onMounted(async () => {
         :layout="layout"
       />
     </div>
+
+    <ContainerPanel v-else-if="auth.state.user?.is_admin" />
 
     <div v-else class="rounded-lg border border-dashed border-ink-700 px-6 py-14 text-center">
       <p class="font-medium">{{ t("servers.emptyTitle") }}</p>
