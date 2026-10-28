@@ -156,7 +156,7 @@ func (d *commandDispatcher) execute(ctx context.Context, action string, params j
 		switch action {
 		case "container.start":
 			if bkJobs.isBusy(p.Name) {
-				return nil, errors.New("a backup operation is running for this server")
+				return nil, &agentError{Code: codeBackupRunning, Msg: "a backup operation is running for this server"}
 			}
 			d.announce(p.Name, "Server marked as starting...")
 			return nil, d.containers.Start(ctx, p.Name)
@@ -185,6 +185,7 @@ func lockFree(action string) bool {
 }
 
 func resultFrame(id string, data map[string]any, err error) map[string]any {
+	err = classifyDockerError(err)
 	frame := map[string]any{"type": "result", "id": id, "ok": err == nil}
 	if err != nil {
 		msg := err.Error()
@@ -192,6 +193,9 @@ func resultFrame(id string, data map[string]any, err error) map[string]any {
 			msg = strings.ToValidUTF8(msg[:maxResultErrorLen], "")
 		}
 		frame["error"] = msg
+		if code := errorCode(err); code != "" {
+			frame["code"] = code
+		}
 	} else if data != nil {
 		frame["data"] = data
 	}
@@ -221,7 +225,7 @@ func (d *commandDispatcher) run(ctx context.Context, conn *websocket.Conn, f pan
 		}
 		frame = resultFrame(f.ID, data, err)
 	default:
-		frame = resultFrame(f.ID, nil, errors.New("too many open commands"))
+		frame = resultFrame(f.ID, nil, &agentError{Code: codeBusy, Msg: "too many open commands"})
 	}
 	if err := writeJSON(ctx, conn, ioTimeout, frame); err != nil {
 		log.Printf("sending result for %s: %v", f.ID, err)

@@ -94,6 +94,8 @@ class CommandResult(BaseModel):
     ok: bool
     data: dict[str, Any] | None = None
     error: str | None = Field(default=None, max_length=1024)
+    # Stabiler Fehlercode des Agents (z. B. PORT_IN_USE). Ältere Agents senden keinen.
+    code: str | None = Field(default=None, max_length=64)
 
 
 class ConsoleFrame(BaseModel):

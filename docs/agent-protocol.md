@@ -38,8 +38,10 @@ leaves the node. The token is single use and valid for one hour.
    with `action` one of `container.create`, `container.start`, `container.stop`,
    `container.remove`. The agent validates `params` itself and never runs anything else.
 2. Agent to panel: `{"type": "result", "id": "<same id>", "ok": true, "data": {...}}`
-   or `{"type": "result", "id": "...", "ok": false, "error": "<reason>"}`. The panel does
-   not acknowledge results.
+   or `{"type": "result", "id": "...", "ok": false, "error": "<reason>", "code": "<CODE>"}`.
+   `code` is optional and stable (`PORT_IN_USE`, `CONTAINER_MISSING`, `BACKUP_RUNNING`,
+   `NODE_BUSY`); the panel turns it into a short message for users and keeps `error` (the raw
+   text) for the logs and for admins. The panel does not acknowledge results.
 
 - The panel accepts a result only from the node the command was sent to and waits at most
   90 seconds. A closed or replaced connection fails all open commands of that node.

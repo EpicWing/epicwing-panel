@@ -30,6 +30,7 @@ from app.api.schedules import router as schedules_router
 from app.api.server_databases import router as server_databases_router
 from app.api.ssh_keys import router as ssh_keys_router
 from app.config import get_settings
+from app.services.agent_errors import AgentFailure, agent_failure_handler
 from app.services.scheduler import lifespan
 
 _SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
@@ -47,6 +48,8 @@ def create_app() -> FastAPI:
         redoc_url=None,
         openapi_url=None if settings.is_production else "/openapi.json",
     )
+
+    app.add_exception_handler(AgentFailure, agent_failure_handler)
 
     app.add_middleware(
         CORSMiddleware,

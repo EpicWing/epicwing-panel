@@ -1,9 +1,15 @@
 export class ApiError extends Error {
   status: number;
+  // Stable error code from the backend (for example PORT_IN_USE), if there is one.
+  code?: string;
+  // Raw text from the node. The backend only sends it to admins.
+  technical?: string;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, code?: string, technical?: string) {
     super(message);
     this.status = status;
+    this.code = code;
+    this.technical = technical;
   }
 }
 
@@ -38,6 +44,8 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
 
   if (!response.ok) {
     let detail = `Error ${response.status}`;
+    let code: string | undefined;
+    let technical: string | undefined;
     try {
       const data = await response.json();
       if (typeof data.detail === "string") {
@@ -46,10 +54,12 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
         // FastAPI validation error: first message without the technical prefix.
         detail = data.detail[0].msg.replace(/^Value error, /, "");
       }
+      if (typeof data.code === "string") code = data.code;
+      if (typeof data.technical === "string") technical = data.technical;
     } catch {
       // Response without a JSON body, the generic message stays.
     }
-    throw new ApiError(response.status, detail);
+    throw new ApiError(response.status, detail, code, technical);
   }
 
   if (response.status === 204) {

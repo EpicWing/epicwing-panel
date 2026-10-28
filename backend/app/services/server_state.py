@@ -21,6 +21,13 @@ def next_status(
         if status in {"running", "starting"}:
             if exit_code in (0, None):
                 return "offline", None
+            if exit_code in (126, 127):
+                # Der Startbefehl fehlt oder lässt sich nicht ausführen: meist fehlen die
+                # Serverdateien (leere oder unvollständige Installation).
+                return "error", (
+                    "The server stopped right after starting: the startup command was not found. "
+                    "The server files may be missing. Try reinstalling the server."
+                )
             return "error", f"The container exited with code {exit_code}."
         return None, None
     if state == "created":
