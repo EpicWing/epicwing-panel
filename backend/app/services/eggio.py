@@ -9,6 +9,8 @@ from app.services import rules as rule_engine
 
 SUPPORTED = {"PTDL_v1", "PTDL_v2"}
 CONFIG_KEYS = ("files", "startup", "logs")
+# Features, die das Panel selbst umsetzt. eula: die Oberfläche erkennt die Meldung in der Konsole.
+SUPPORTED_FEATURES = frozenset({"eula"})
 MAX_CONFIG_CHARS = 65_535
 AUTHOR = "noreply@epicwing.invalid"
 DEFAULT_INSTALLER = "ghcr.io/pterodactyl/installers:alpine"
@@ -105,10 +107,13 @@ def import_egg(data: dict[str, Any]) -> tuple[dict[str, Any], str, list[str]]:
         raise ValueError("The egg does not contain a Docker image.")
     if len(images) > 1:
         warnings.append(f"Only the first Docker image is used: {images[0]}.")
-    features = data.get("features")
-    if isinstance(features, list) and features:
-        names = ", ".join(map(str, features))
-        warnings.append(f"Egg features are not supported and were ignored: {names}.")
+    raw_features = data.get("features")
+    features = (
+        [f for f in raw_features if isinstance(f, str)] if isinstance(raw_features, list) else []
+    )
+    ignored = [f for f in features if f not in SUPPORTED_FEATURES]
+    if ignored:
+        warnings.append(f"Egg features are not supported and were ignored: {', '.join(ignored)}.")
 
     variables: list[dict[str, Any]] = []
     seen: set[str] = set()
@@ -122,6 +127,8 @@ def import_egg(data: dict[str, Any]) -> tuple[dict[str, Any], str, list[str]]:
 
     source = data.get("config") if isinstance(data.get("config"), dict) else {}
     config: dict[str, Any] = {k: source[k] for k in CONFIG_KEYS if k in source}
+    if features:
+        config["features"] = features
     install = (data.get("scripts") or {}).get("installation") or {}
     if not isinstance(install, dict):
         install = {}
@@ -164,6 +171,12 @@ def export_egg(egg: Any, variables: list[Any]) -> dict[str, Any]:
     install = stored.get("install") if isinstance(stored.get("install"), dict) else {}
     config = {key: _text(stored.get(key)) for key in CONFIG_KEYS}
     config["stop"] = egg.stop_command or "^C"
+    stored_features = stored.get("features")
+    features = (
+        [f for f in stored_features if isinstance(f, str)]
+        if isinstance(stored_features, list)
+        else []
+    )
     return {
         "_comment": "Exported by EpicWing in the Pterodactyl egg format.",
         "meta": {"version": "PTDL_v2"},
@@ -171,7 +184,7 @@ def export_egg(egg: Any, variables: list[Any]) -> dict[str, Any]:
         "name": egg.name,
         "author": AUTHOR,
         "description": egg.description,
-        "features": None,
+        "features": features or None,
         "docker_images": {egg.docker_image: egg.docker_image},
         "file_denylist": [],
         "startup": egg.startup,

@@ -73,7 +73,8 @@ def test_import_maps_the_fields():
     assert "stop" not in saved
     assert any("MAX_PLAYERS" in w and "url" in w for w in warnings)
     assert any("first Docker image" in w for w in warnings)
-    assert any("eula" in w for w in warnings)
+    assert not any("eula" in w for w in warnings)
+    assert "eula" in saved["features"]
 
 
 def test_import_cleans_names_and_defaults():
