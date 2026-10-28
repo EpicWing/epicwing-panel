@@ -19,6 +19,7 @@ from app.security.ratelimit import (  # noqa: E402
     login_email_limiter,
     login_ip_limiter,
     password_change_limiter,
+    totp_limiter,
 )
 
 TEST_PASSWORD = "correct-horse-battery"
@@ -48,6 +49,7 @@ def client(db_session):
     login_ip_limiter.clear()
     login_email_limiter.clear()
     password_change_limiter.clear()
+    totp_limiter.clear()
     enroll_limiter.clear()
     with TestClient(app) as test_client:
         yield test_client
