@@ -36,6 +36,7 @@ from app.security.sessions import AuthContext
 from app.services import audit, lifecycle, server_databases, transfer
 from app.services import rules as rule_engine
 from app.services import startup as startup_service
+from app.services.agent_errors import AgentFailure
 
 router = APIRouter(prefix="/servers", tags=["servers"])
 
@@ -55,6 +56,15 @@ DELETABLE = {"new", "offline", "error"}
 
 def _conflict(message: str) -> HTTPException:
     return HTTPException(status.HTTP_409_CONFLICT, message)
+
+
+def _not_possible(server: Server) -> HTTPException:
+    """409 für eine Aktion, die im aktuellen Zustand nicht geht, mit passender Erklärung."""
+    if server.status == "new":
+        return _conflict("This server has not been installed yet. Install it first.")
+    if server.status == "installing":
+        return _conflict("The server is being installed right now.")
+    return _conflict(f"Not possible while the server is {server.status}.")
 
 
 def _not_found(message: str) -> HTTPException:
@@ -422,9 +432,7 @@ async def _agent(
 ) -> None:
     result = await _send(server, action, params, timeout)
     if not result.ok:
-        raise HTTPException(
-            status.HTTP_502_BAD_GATEWAY, result.error or "The node reported an error."
-        )
+        raise AgentFailure(result.code, result.error)
 
 
 async def _remove_container(server: Server, skip_offline: bool = False) -> None:
@@ -436,9 +444,7 @@ async def _remove_container(server: Server, skip_offline: bool = False) -> None:
             return
         raise
     if not result.ok and "no such" not in (result.error or "").lower():
-        raise HTTPException(
-            status.HTTP_502_BAD_GATEWAY, result.error or "The node reported an error."
-        )
+        raise AgentFailure(result.code, result.error)
 
 
 async def _transition(
@@ -507,7 +513,13 @@ async def install_server(
                 timeout=protocol.INSTALL_COMMAND_TIMEOUT_SECONDS,
             )
 
-    await _transition(db, server, "installing", "offline", work, timeout_status="installing")
+    try:
+        await _transition(db, server, "installing", "offline", work, timeout_status="installing")
+    except AgentFailure as exc:
+        _report_failure(
+            db, request, auth, server, "server.install_failed", exc, reinstall=reinstall
+        )
+        raise
     audit.record(
         db,
         "server.install",
@@ -520,6 +532,28 @@ async def install_server(
     return _outs(db, [server], auth.user)[0]
 
 
+def _report_failure(
+    db: Session,
+    request: Request,
+    auth: ServerAccess,
+    server: Server,
+    audit_action: str,
+    exc: AgentFailure,
+    **details: Any,
+) -> None:
+    """Rohtext des Agents ins Audit-Log. Admins sehen ihn zusätzlich in der Antwort."""
+    exc.expose_technical = is_server_admin(db, auth.user)
+    audit.record(
+        db,
+        audit_action,
+        actor_id=auth.user.id,
+        target_type="server",
+        target_id=str(server.id),
+        ip=audit.client_ip(request),
+        details={"name": server.name, "code": exc.code, "technical": exc.technical, **details},
+    )
+
+
 async def perform_power(db: Session, server: Server, action: str) -> None:
     """Führt eine Power-Aktion aus. Endpunkt und Zeitpläne nutzen dieselbe Logik."""
     # Kill ist der Notausgang und darf auch laufen, während ein Stop noch wartet.
@@ -527,7 +561,7 @@ async def perform_power(db: Session, server: Server, action: str) -> None:
     async with guard:
         db.refresh(server)
         if server.status not in POWER_FROM[action]:
-            raise _conflict(f"Not possible while the server is {server.status}.")
+            raise _not_possible(server)
 
         # Mit stop_command im Egg stoppt der Agent über die Konsole und fällt sonst auf
         # docker stop zurück. Pterodactyl-Signale (^C) stehen leer in der DB.
@@ -572,7 +606,11 @@ async def power_server(
 ) -> ServerOut:
     server = _get(db, server_id)
     auth.require(POWER_PERMISSION[body.action])
-    await perform_power(db, server, body.action)
+    try:
+        await perform_power(db, server, body.action)
+    except AgentFailure as exc:
+        _report_failure(db, request, auth, server, "server.power_failed", exc, action=body.action)
+        raise
     audit.record(
         db,
         "server.power",

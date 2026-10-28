@@ -119,8 +119,10 @@ func TestContainerActionsManaged(t *testing.T) {
 	if err := m.Remove(context.Background(), "web-1"); err != nil {
 		t.Fatal(err)
 	}
-	if len(*calls) != 6 {
-		t.Fatalf("expected 6 docker calls, got %d", len(*calls))
+	// Start: label check, port check, start. Stop: label check, stop. Remove: label check, rm.
+	// (the exact count is not the point, but an unexpected extra call should be noticed)
+	if len(*calls) != 7 {
+		t.Fatalf("expected 7 docker calls, got %d", len(*calls))
 	}
 }
 

@@ -85,6 +85,8 @@ type containerManager struct {
 	inputWriter func(ctx context.Context, name, line string) error
 	stopPoll    time.Duration
 	stopWait    time.Duration
+	// portProbe is only set in tests; nil means probePort.
+	portProbe portProbe
 }
 
 func newContainerManager(policy ContainerPolicy) *containerManager {
@@ -407,10 +409,15 @@ func (m *containerManager) ManagedNames(ctx context.Context) ([]string, error) {
 
 func (m *containerManager) Start(ctx context.Context, name string) error {
 	if err := m.requireManaged(ctx, name); err != nil {
+		return classifyDockerError(err)
+	}
+	// Check the host ports first: a busy port is common while a server is moved from
+	// another panel, and docker's own error text is not something users should see.
+	if err := m.checkPorts(ctx, name); err != nil {
 		return err
 	}
 	_, err := m.run(ctx, "start", name)
-	return err
+	return classifyDockerError(err)
 }
 
 const (

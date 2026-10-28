@@ -51,6 +51,8 @@ const permissions = ref<string[]>([]);
 const active = ref("home");
 const command = ref("");
 const error = ref("");
+// Raw node text for admins (the backend leaves it out for everyone else).
+const errorTechnical = ref("");
 const metrics = ref({ cpu: 0, ram: 0, disk: 0, rx: 0, tx: 0 });
 const startedAt = ref<string | null>(null);
 const nowTick = ref(Date.now());
@@ -89,6 +91,19 @@ function onAllocationsChanged(rows: Allocation[]): void {
 
 function message(cause: unknown): string {
   return cause instanceof ApiError ? cause.message : t("common.unreachable");
+}
+
+function technical(cause: unknown): string {
+  return cause instanceof ApiError ? (cause.technical ?? "") : "";
+}
+
+// The message under the console: a fresh error first, then the stored reason of an error state.
+function shownError(): string {
+  return (
+    error.value ||
+    consoleError.value ||
+    (server.value?.status === "error" ? (server.value.last_error ?? "") : "")
+  );
 }
 
 function formatBytes(value: number): string {
@@ -198,6 +213,7 @@ async function saveName(): Promise<void> {
 
 const reinstalling = ref(false);
 const reinstallError = ref("");
+const reinstallTechnical = ref("");
 
 function canReinstall(): boolean {
   return !reinstalling.value && ["new", "offline", "error"].includes(server.value?.status ?? "");
@@ -205,12 +221,16 @@ function canReinstall(): boolean {
 
 async function reinstall(): Promise<void> {
   if (!server.value || !canReinstall()) return;
-  const ok = window.confirm(
-    `Reinstall ${server.value.name}? The container is replaced and the installation script runs again. This can overwrite files.`,
-  );
+  // A server that was never installed has nothing to overwrite, so no confirmation.
+  const ok =
+    server.value.status === "new" ||
+    window.confirm(
+      `Reinstall ${server.value.name}? The container is replaced and the installation script runs again. This can overwrite files.`,
+    );
   if (!ok) return;
   reinstalling.value = true;
   reinstallError.value = "";
+  reinstallTechnical.value = "";
   try {
     const updated = await api<{ status: string; last_error: string | null }>(
       `/servers/${server.value.id}/install`,
@@ -220,6 +240,17 @@ async function reinstall(): Promise<void> {
     if (server.value) server.value.last_error = updated.last_error;
   } catch (cause) {
     reinstallError.value = message(cause);
+    reinstallTechnical.value = technical(cause);
+    // A failed install leaves the server in the error state.
+    try {
+      if (server.value) {
+        const fresh = await api<ServerData>(`/servers/${server.value.id}`);
+        setStatus(fresh.status);
+        server.value.last_error = fresh.last_error;
+      }
+    } catch {
+      // The old state stays on screen.
+    }
   } finally {
     reinstalling.value = false;
   }
@@ -351,6 +382,8 @@ async function power(action: "start" | "restart" | "stop" | "kill"): Promise<voi
     history.value = { cpu: [], ram: [], disk: [], rx: [], tx: [] }; metrics.value = { cpu: 0, ram: 0, disk: 0, rx: 0, tx: 0 };
   }
   powerBusy.value = action;
+  error.value = "";
+  errorTechnical.value = "";
   try {
     server.value = await api<ServerData>(`/servers/${server.value.id}/power`, {
       method: "POST",
@@ -358,6 +391,17 @@ async function power(action: "start" | "restart" | "stop" | "kill"): Promise<voi
     });
   } catch (cause) {
     error.value = message(cause);
+    errorTechnical.value = technical(cause);
+    // The backend may have moved the server to the error state; show its real state.
+    try {
+      if (server.value) {
+        const fresh = await api<ServerData>(`/servers/${server.value.id}`);
+        setStatus(fresh.status);
+        server.value.last_error = fresh.last_error;
+      }
+    } catch {
+      // The old state stays on screen.
+    }
   } finally {
     powerBusy.value = null;
   }
@@ -406,7 +450,7 @@ onMounted(async () => {
 
     <template #actions>
       <div v-if="active === 'home'" class="flex overflow-hidden rounded-xl border border-ink-700 shadow-lg shadow-black/20">
-        <button class="px-6 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40" :class="server?.status === 'running' || server?.status === 'starting' ? 'text-ink-300' : 'bg-accent-500 text-ink-950 hover:bg-accent-400'" :disabled="server?.status === 'running' || server?.status === 'starting' || powerBusy !== null" @click="power('start')"><span v-if="powerBusy === 'start'" class="spinner mr-2"></span>Start</button>
+        <button class="px-6 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40" :class="server?.status === 'running' || server?.status === 'starting' ? 'text-ink-300' : 'bg-accent-500 text-ink-950 hover:bg-accent-400'" :disabled="server?.status === 'running' || server?.status === 'starting' || server?.status === 'new' || server?.status === 'installing' || powerBusy !== null" :title="server?.status === 'new' ? 'This server has not been installed yet' : undefined" @click="power('start')"><span v-if="powerBusy === 'start'" class="spinner mr-2"></span>Start</button>
         <button class="border-l border-ink-700 px-6 py-3 text-sm font-semibold text-ink-100 transition hover:bg-ink-800 disabled:cursor-not-allowed disabled:opacity-40" :disabled="(server?.status !== 'running' && server?.status !== 'starting') || powerBusy !== null" @click="power('restart')"><span v-if="powerBusy === 'restart'" class="spinner mr-2"></span>Restart</button>
         <button class="border-l px-6 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40" :class="server?.status === 'running' || server?.status === 'starting' ? 'border-accent-400/30 bg-accent-500 text-ink-950 hover:bg-accent-400' : 'border-ink-700 text-ink-300'" :disabled="(server?.status !== 'running' && server?.status !== 'starting') || powerBusy !== null" @click="power('stop')"><span v-if="powerBusy === 'stop'" class="spinner mr-2"></span>Stop</button>
       </div>
@@ -418,7 +462,7 @@ onMounted(async () => {
           <div>
             <span class="inline-flex items-center gap-2 rounded-full border border-ink-700 bg-ink-900 px-3 py-1.5 text-sm font-medium text-ink-200 shadow-sm">
               <span class="h-2 w-2 rounded-full" :class="server.status === 'running' ? 'bg-ok' : server.status === 'starting' ? 'bg-warn' : 'bg-bad'" />
-              {{ server.status === 'running' ? 'Running' : server.status === 'starting' ? 'Starting' : server.status === 'error' ? 'Error' : 'Offline' }}
+              {{ server.status === 'running' ? 'Running' : server.status === 'starting' ? 'Starting' : server.status === 'error' ? 'Error' : server.status === 'new' ? 'Not installed' : server.status === 'installing' ? 'Installing' : 'Offline' }}
             </span>
           </div>
           <span class="inline-flex items-center rounded-full border border-ink-700 bg-ink-900 px-3 py-1.5 text-sm font-medium text-ink-200 shadow-sm">Uptime: {{ uptimeText() }}</span>
@@ -431,9 +475,12 @@ onMounted(async () => {
           <div class="rounded-xl border border-ink-700 bg-ink-900 p-4"><p class="text-xs uppercase text-ink-400">Storage usage</p><p class="mt-2 text-xl font-semibold">{{ formatBytes(metrics.disk) }}</p></div>
         </div>
 
+        <p v-if="active === 'home' && server.status === 'new'" class="rounded-xl border border-warn/40 bg-warn/10 px-4 py-3 text-sm text-ink-100">This server has not been installed yet. Open Settings and choose Install Server to set it up.</p>
+
         <section v-if="active === 'home'" class="overflow-hidden rounded-xl border border-ink-700 bg-ink-900">
           <ConsoleOutput :lines="lines" :placeholder="t('console.waiting')" :offline-text="server.status === 'running' || server.status === 'starting' ? undefined : server.status === 'installing' ? 'EpicWing container: Installing server, this can take a few minutes...' : 'EpicWing container: Server marked as offline...'" class="h-[min(34vh,28rem)] min-h-[17rem]" />
-          <p v-if="error || consoleError" class="border-t border-bad/30 bg-bad/10 px-4 py-2 text-xs text-bad">{{ error || consoleError }}</p>
+          <p v-if="shownError()" class="border-t border-bad/30 bg-bad/10 px-4 py-2 text-xs text-bad">{{ shownError() }}</p>
+          <details v-if="errorTechnical" class="border-t border-bad/30 bg-bad/10 px-4 py-2 text-xs text-bad"><summary class="cursor-pointer select-none">Technical details (visible to admins only)</summary><pre class="mt-2 whitespace-pre-wrap break-all font-mono">{{ errorTechnical }}</pre></details>
           <form class="flex gap-2 border-t border-ink-700 p-3" @submit.prevent="sendCommand">
             <input v-model="command" class="min-w-0 flex-1 rounded-md border border-ink-700 bg-ink-950 px-3 py-2 font-mono text-sm outline-none focus:border-accent-500" placeholder="Enter a command…" :disabled="connection !== 'connected' && connection !== 'running'" autocomplete="off" />
             <button class="rounded-md bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950 disabled:opacity-50" :disabled="!command.trim() || (connection !== 'connected' && connection !== 'running')">Send</button>
@@ -481,7 +528,7 @@ onMounted(async () => {
 
           <DdosPanel v-else-if="active === 'ddos'" :server-id="server.id" :online="isOnline()" :rx="history.rx" :tx="history.tx" />
 
-          <div v-else-if="active === 'settings'" class="space-y-6"><div><h2 class="text-2xl font-semibold">Settings</h2><p class="mt-2 text-sm text-ink-400">Configure your server settings and maintenance actions.</p></div><div class="rounded-xl border border-ink-700 bg-ink-900 p-6"><h3 class="text-lg font-semibold">Server Details</h3><label class="mt-5 block text-sm text-ink-400">Server Name</label><div class="mt-2 flex gap-3"><input :value="nameDraft ?? server.name" @input="nameDraft = ($event.target as HTMLInputElement).value; nameSaved = false" @keydown.enter.prevent="saveName()" class="w-full rounded-lg border border-ink-700 bg-ink-950 px-4 py-3 text-sm text-ink-100" /><button class="shrink-0 rounded-lg bg-accent-500 px-5 py-2 text-sm font-medium text-ink-950 transition hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-40" :disabled="!nameChanged() || savingName" @click="saveName()">{{ savingName ? "Saving…" : "Save" }}</button></div><p v-if="nameError" class="mt-3 text-sm text-bad">{{ nameError }}</p><p v-else-if="nameSaved" class="mt-3 text-sm text-ink-400">Saved.</p></div><div class="rounded-xl border border-ink-700 bg-ink-900 p-6"><h3 class="text-lg font-semibold">Reinstall Server</h3><p class="mt-2 text-sm text-ink-400">Reinstalling replaces the container and runs the installation script again. This can overwrite files.</p><button class="mt-5 rounded-lg border border-bad/50 px-4 py-2 text-sm text-bad transition hover:bg-bad/10 disabled:cursor-not-allowed disabled:opacity-40" :disabled="!canReinstall()" @click="reinstall()">{{ reinstalling ? "Reinstalling…" : "Reinstall Server" }}</button><p v-if="!canReinstall() && !reinstalling" class="mt-3 text-xs text-ink-400">Stop the server before reinstalling.</p><p v-if="reinstallError" class="mt-3 text-sm text-bad">{{ reinstallError }}</p></div><div v-if="sftp" class="rounded-xl border border-ink-700 bg-ink-900 p-6"><h3 class="text-lg font-semibold">SFTP</h3><p class="mt-2 text-sm text-ink-400">Open this server's files in any SFTP program with your SSH key. Add a key under <RouterLink to="/ssh-keys" class="underline hover:text-ink-100">SSH Keys</RouterLink>.<span v-if="!sftp.write"> Your access is read only.</span></p><code class="mt-4 block select-all break-all rounded-md border border-ink-700 bg-ink-950 px-3 py-2 font-mono text-xs">sftp -P {{ sftp.port }} {{ sftp.username }}@{{ sftp.host ?? "NODE-ADDRESS" }}</code></div><BackupLimitField v-if="auth.state.user?.is_admin" :server-id="server.id" :limit="server.backup_limit" @saved="server.backup_limit = $event" /></div>
+          <div v-else-if="active === 'settings'" class="space-y-6"><div><h2 class="text-2xl font-semibold">Settings</h2><p class="mt-2 text-sm text-ink-400">Configure your server settings and maintenance actions.</p></div><div class="rounded-xl border border-ink-700 bg-ink-900 p-6"><h3 class="text-lg font-semibold">Server Details</h3><label class="mt-5 block text-sm text-ink-400">Server Name</label><div class="mt-2 flex gap-3"><input :value="nameDraft ?? server.name" @input="nameDraft = ($event.target as HTMLInputElement).value; nameSaved = false" @keydown.enter.prevent="saveName()" class="w-full rounded-lg border border-ink-700 bg-ink-950 px-4 py-3 text-sm text-ink-100" /><button class="shrink-0 rounded-lg bg-accent-500 px-5 py-2 text-sm font-medium text-ink-950 transition hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-40" :disabled="!nameChanged() || savingName" @click="saveName()">{{ savingName ? "Saving…" : "Save" }}</button></div><p v-if="nameError" class="mt-3 text-sm text-bad">{{ nameError }}</p><p v-else-if="nameSaved" class="mt-3 text-sm text-ink-400">Saved.</p></div><div class="rounded-xl border border-ink-700 bg-ink-900 p-6"><h3 class="text-lg font-semibold">{{ server.status === 'new' ? 'Install Server' : 'Reinstall Server' }}</h3><p class="mt-2 text-sm text-ink-400">{{ server.status === 'new' ? 'Creates the container and runs the installation script.' : 'Reinstalling replaces the container and runs the installation script again. This can overwrite files.' }}</p><button class="mt-5 rounded-lg border border-bad/50 px-4 py-2 text-sm text-bad transition hover:bg-bad/10 disabled:cursor-not-allowed disabled:opacity-40" :disabled="!canReinstall()" @click="reinstall()">{{ reinstalling ? (server.status === 'new' ? "Installing…" : "Reinstalling…") : server.status === 'new' ? "Install Server" : "Reinstall Server" }}</button><p v-if="!canReinstall() && !reinstalling" class="mt-3 text-xs text-ink-400">Stop the server before reinstalling.</p><p v-if="reinstallError" class="mt-3 text-sm text-bad">{{ reinstallError }}</p><details v-if="reinstallTechnical" class="mt-3 text-xs text-bad"><summary class="cursor-pointer select-none">Technical details (visible to admins only)</summary><pre class="mt-2 whitespace-pre-wrap break-all font-mono">{{ reinstallTechnical }}</pre></details></div><div v-if="sftp" class="rounded-xl border border-ink-700 bg-ink-900 p-6"><h3 class="text-lg font-semibold">SFTP</h3><p class="mt-2 text-sm text-ink-400">Open this server's files in any SFTP program with your SSH key. Add a key under <RouterLink to="/ssh-keys" class="underline hover:text-ink-100">SSH Keys</RouterLink>.<span v-if="!sftp.write"> Your access is read only.</span></p><code class="mt-4 block select-all break-all rounded-md border border-ink-700 bg-ink-950 px-3 py-2 font-mono text-xs">sftp -P {{ sftp.port }} {{ sftp.username }}@{{ sftp.host ?? "NODE-ADDRESS" }}</code></div><BackupLimitField v-if="auth.state.user?.is_admin" :server-id="server.id" :limit="server.backup_limit" @saved="server.backup_limit = $event" /></div>
 
           <div v-else-if="active === 'activity'" class="space-y-6"><div><h2 class="text-2xl font-semibold">Timeline</h2><p class="mt-2 text-sm text-ink-400">Monitor server activity and track actions performed on this server.</p></div><ActivityPanel :server-id="server.id" :permissions="permissions" /></div>
         </div>
