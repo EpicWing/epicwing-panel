@@ -19,6 +19,7 @@ from app.security.sessions import (
     revoke_session,
     revoke_token,
 )
+from app.services import audit
 
 log = logging.getLogger("forge.auth")
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -54,6 +55,15 @@ def login(
         login_ip_limiter.add_failure(ip)
         login_email_limiter.add_failure(email)
         log.warning("Fehlgeschlagener Login von %s", ip)
+        # Die eingegebene E-Mail wird bewusst nicht gespeichert.
+        reason = "disabled" if user and valid else "invalid_credentials"
+        audit.record(
+            db,
+            "auth.login_failed",
+            actor_id=user.id if user else None,
+            ip=ip,
+            details={"reason": reason},
+        )
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "E-Mail oder Passwort falsch.")
 
     login_email_limiter.reset(email)
@@ -66,6 +76,7 @@ def login(
         revoke_token(db, old_token)
 
     token, session = create_session(db, user, ip, request.headers.get("user-agent"))
+    audit.record(db, "auth.login", actor_id=user.id, ip=ip)
     response.set_cookie(
         SESSION_COOKIE,
         token,
@@ -80,9 +91,13 @@ def login(
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout(
-    auth: CurrentAuth, response: Response, db: Annotated[Session, Depends(get_db)]
+    request: Request,
+    auth: CurrentAuth,
+    response: Response,
+    db: Annotated[Session, Depends(get_db)],
 ) -> None:
     revoke_session(db, auth.session)
+    audit.record(db, "auth.logout", actor_id=auth.user.id, ip=_client_ip(request))
     response.delete_cookie(SESSION_COOKIE, path="/")
 
 

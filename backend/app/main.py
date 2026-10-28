@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import auth, health
+from app.api import audit, auth, health, users
 from app.config import get_settings
 
 _SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
@@ -42,6 +42,8 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router, prefix="/api")
     app.include_router(auth.router, prefix="/api")
+    app.include_router(users.router, prefix="/api")
+    app.include_router(audit.router, prefix="/api")
     return app
 
 
