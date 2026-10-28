@@ -6,7 +6,7 @@ import AdminServersView from "../views/AdminServersView.vue";
 import UsersView from "../views/UsersView.vue";
 import EggsView from "../views/EggsView.vue";
 import AdminLocationsView from "../views/AdminLocationsView.vue";
-import AdminMailView from "../views/AdminMailView.vue";
+import AdminNotificationsView from "../views/AdminNotificationsView.vue";
 import LoginView from "../views/LoginView.vue";
 import NodeDetailView from "../views/NodeDetailView.vue";
 import NodesView from "../views/NodesView.vue";
@@ -52,9 +52,9 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresAdmin: true },
     },
     {
-      path: "/admin/mail",
+      path: "/admin/notifications",
       name: "admin-mail",
-      component: AdminMailView,
+      component: AdminNotificationsView,
       meta: { requiresAuth: true, requiresAdmin: true },
     },
     {
@@ -76,6 +76,7 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresAdmin: true },
     },
     { path: "/nodes", redirect: "/admin/nodes" },
+    { path: "/admin/mail", redirect: "/admin/notifications" },
     { path: "/login", name: "login", component: LoginView },
     { path: "/:pathMatch(.*)*", redirect: "/" },
   ],
