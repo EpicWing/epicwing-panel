@@ -128,6 +128,17 @@ func (d *commandDispatcher) execute(ctx context.Context, action string, params j
 			return nil, err
 		}
 		return map[string]any{"id": id}, nil
+	case "container.install":
+		var spec InstallSpec
+		if err := decodeParams(params, &spec); err != nil {
+			return nil, err
+		}
+		logs, err := d.containers.Install(ctx, spec)
+		data := map[string]any{}
+		if logs != "" {
+			data["output"] = logs
+		}
+		return data, err
 	case "container.start", "container.stop", "container.kill", "container.remove", "container.status":
 		var p struct {
 			Name string `json:"name"`

@@ -105,6 +105,50 @@ func TestDataNeedsAValidDirectory(t *testing.T) {
 	}
 }
 
+func TestInstallArgsUseBothDataMountsAndConfiguredShell(t *testing.T) {
+	m, _, _ := dataTestManager()
+	spec := InstallSpec{
+		Name:                "srv-1",
+		Image:               "nginx:1.27",
+		InstallerImage:      "nginx:1.27",
+		InstallerEntrypoint: "bash",
+		InstallScript:       "#!/bin/bash\nexit 0",
+	}
+	args := strings.Join(m.installArgs(spec), " ")
+
+	for _, want := range []string{
+		"--mount type=bind,src=/srv/data/srv-1,dst=/home/container",
+		"--mount type=bind,src=/srv/data/srv-1,dst=/mnt/server",
+		"--workdir /home/container",
+		"--entrypoint bash",
+		installWrapper,
+		"--cap-add CHOWN --cap-add DAC_OVERRIDE --cap-add FOWNER",
+		"bash /tmp/epicwing-install.sh 993:983 /mnt/server",
+	} {
+		if !strings.Contains(args, want) {
+			t.Errorf("missing %q in %q", want, args)
+		}
+	}
+
+	if strings.Contains(args, "/bin/sh /tmp/epicwing-install.sh") {
+		t.Fatalf("installer must not force scripts through /bin/sh: %q", args)
+	}
+}
+
+func TestInstallRejectsUnsafeEntrypoint(t *testing.T) {
+	m, _, _ := dataTestManager()
+	spec := InstallSpec{
+		Name:                "srv-1",
+		Image:               "nginx:1.27",
+		InstallerImage:      "nginx:1.27",
+		InstallerEntrypoint: "bash; touch /tmp/unexpected",
+		InstallScript:       "exit 0",
+	}
+	if err := m.validateInstall(spec); err == nil {
+		t.Fatal("expected unsafe installer entrypoint to be rejected")
+	}
+}
+
 func TestStatus(t *testing.T) {
 	cases := []struct {
 		out   string
