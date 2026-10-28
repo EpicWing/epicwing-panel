@@ -44,15 +44,13 @@ for large or multi-tenant hosting. See [Limitations](#limitations).
 
 ## Development
 
-```bash
-cd backend && python -m venv .venv && .venv/bin/pip install -e ".[dev]"
-.venv/bin/python -m pytest -q
-cd ../agent && go vet ./... && go test ./...
-cd ../frontend && npm ci && npx vue-tsc --noEmit && npm run build
-```
+See `scripts/dev.sh` for local work. Checks that CI runs:
 
-Copy `.env.example` to `.env` and adjust it. `scripts/dev.sh` starts backend
-and frontend for local work.
+- Backend: `ruff check .`, `ruff format --check .`, `python -m pytest -q`
+- Agent: `go vet ./...`, `go test ./...`
+- Frontend: `npx vue-tsc --noEmit`, `npm run build`
+
+Copy `.env.example` to `.env` and adjust it.
 
 ## Security
 
