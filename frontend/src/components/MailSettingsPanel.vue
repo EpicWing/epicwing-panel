@@ -3,7 +3,6 @@ import { onMounted, reactive, ref } from "vue";
 import { useI18n } from "vue-i18n";
 
 import { ApiError, api } from "../api/client";
-import AppLayout from "../components/AppLayout.vue";
 
 type Provider = "resend" | "smtp";
 type Security = "starttls" | "ssl" | "none";
@@ -132,7 +131,6 @@ onMounted(() => void load());
 </script>
 
 <template>
-  <AppLayout area="admin" :title="t('mail.title')" :subtitle="t('mail.subtitle')">
     <p v-if="error" role="alert" class="mb-6 rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">
       {{ error }}
     </p>
@@ -140,7 +138,7 @@ onMounted(() => void load());
       {{ notice }}
     </p>
     <p v-if="loading" class="text-sm text-ink-400">…</p>
-    <div v-else class="max-w-2xl space-y-6">
+    <div v-else class="space-y-6">
       <form class="space-y-5 rounded-xl border border-ink-700 bg-ink-900 p-6" @submit.prevent="save">
         <p class="text-sm text-ink-400">
           {{ configured ? t("mail.configured") : t("mail.notConfigured") }}
@@ -243,5 +241,4 @@ onMounted(() => void load());
         </p>
       </form>
     </div>
-  </AppLayout>
 </template>

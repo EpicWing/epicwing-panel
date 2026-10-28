@@ -6,6 +6,7 @@ import { useRouter } from "vue-router";
 import { loadPanel, panelState } from "../lib/panel";
 import { auth } from "../stores/auth";
 import LogoMark from "./LogoMark.vue";
+import NavIcon from "./NavIcon.vue";
 import CopyrightFooter from "./CopyrightFooter.vue";
 
 const props = withDefaults(
@@ -17,6 +18,7 @@ interface NavItem {
   label: string;
   to: string | null;
   badge?: string;
+  icon?: string;
 }
 
 interface NavSection {
@@ -35,19 +37,29 @@ const sections = computed<NavSection[]>(() => {
       {
         heading: t("nav.administration"),
         items: [
-          { label: t("nav.overview"), to: "/admin" },
+          { label: t("nav.overview"), to: "/admin", icon: "overview" },
         ],
       },
       {
-        heading: t("nav.management"),
+        heading: t("nav.infrastructure"),
         items: [
-          { label: t("nav.nodes"), to: "/admin/nodes" },
-          { label: t("nav.locations"), to: "/admin/locations" },
-          { label: t("nav.eggs"), to: "/admin/eggs" },
-          { label: t("nav.allServers"), to: "/admin/servers" },
-          { label: t("nav.databaseHosts"), to: "/admin/databases" },
-          { label: t("nav.users"), to: "/admin/users" },
-          { label: t("nav.mail"), to: "/admin/mail" },
+          { label: t("nav.nodes"), to: "/admin/nodes", icon: "nodes" },
+          { label: t("nav.locations"), to: "/admin/locations", icon: "locations" },
+          { label: t("nav.databaseHosts"), to: "/admin/databases", icon: "database" },
+        ],
+      },
+      {
+        heading: t("nav.groupServers"),
+        items: [
+          { label: t("nav.allServers"), to: "/admin/servers", icon: "servers" },
+          { label: t("nav.eggs"), to: "/admin/eggs", icon: "egg" },
+        ],
+      },
+      {
+        heading: t("nav.system"),
+        items: [
+          { label: t("nav.users"), to: "/admin/users", icon: "users" },
+          { label: t("nav.notifications"), to: "/admin/notifications", icon: "bell" },
         ],
       },
     ];
@@ -56,11 +68,11 @@ const sections = computed<NavSection[]>(() => {
     {
       heading: t("nav.account"),
       items: [
-        { label: t("nav.servers"), to: "/" },
-        { label: t("nav.apiKeys"), to: null },
-        { label: t("nav.sshKeys"), to: null },
+        { label: t("nav.servers"), to: "/", icon: "servers" },
+        { label: t("nav.apiKeys"), to: null, icon: "key" },
+        { label: t("nav.sshKeys"), to: null, icon: "terminal" },
         ...(auth.state.user?.is_admin
-          ? [{ label: t("nav.adminPanel"), to: "/admin", badge: t("nav.adminBadge") }]
+          ? [{ label: t("nav.adminPanel"), to: "/admin", badge: t("nav.adminBadge"), icon: "shield" }]
           : []),
       ],
     },
@@ -128,7 +140,7 @@ async function logout() {
               exact-active-class="!border-accent-500 !bg-accent-500/10 !text-accent-400"
             >
               <span class="flex items-center justify-between gap-2">
-                <span>{{ item.label }}</span>
+                <span class="flex items-center gap-2.5"><NavIcon v-if="item.icon" :name="item.icon" />{{ item.label }}</span>
                 <span
                   v-if="item.badge"
                   class="rounded bg-accent-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent-400"
@@ -139,7 +151,7 @@ async function logout() {
               v-else
               class="mb-0.5 flex cursor-not-allowed items-center justify-between border-l-2 border-transparent px-3 py-1.5 text-sm text-ink-600"
             >
-              <span>{{ item.label }}</span>
+              <span class="flex items-center gap-2.5"><NavIcon v-if="item.icon" :name="item.icon" />{{ item.label }}</span>
               <span class="text-[10px] uppercase tracking-wide">{{ t("common.soon") }}</span>
             </div>
           </template>
