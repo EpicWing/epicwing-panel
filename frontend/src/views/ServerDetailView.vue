@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, ref } from "vue";
+import { stripAnsi } from "../utils/ansi";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 
@@ -61,7 +62,7 @@ function message(cause: unknown): string {
 }
 
 function append(value: string): void {
-  output.value += value;
+  output.value += stripAnsi(value);
   void nextTick(() => {
     if (terminal.value) terminal.value.scrollTop = terminal.value.scrollHeight;
   });
@@ -171,6 +172,24 @@ function sendCommand(): void {
   command.value = "";
 }
 
+let statusTimer: number | undefined;
+
+// Polls the stored status so the buttons never depend on a single websocket event.
+async function refreshStatus(): Promise<void> {
+  if (!server.value) return;
+  try {
+    const fresh = await api<ServerData>(`/servers/${server.value.id}`);
+    if (server.value && server.value.id === fresh.id) server.value.status = fresh.status;
+  } catch {
+    // The next poll tries again.
+  }
+}
+
+onMounted(() => {
+  statusTimer = window.setInterval(() => void refreshStatus(), 3000);
+});
+onBeforeUnmount(() => window.clearInterval(statusTimer));
+
 async function power(action: "start" | "restart" | "stop" | "kill"): Promise<void> {
   if (!server.value) return;
   try {
@@ -223,8 +242,8 @@ onBeforeUnmount(() => socket?.close());
     <template #actions>
       <div v-if="active === 'home'" class="flex overflow-hidden rounded-xl border border-ink-700 shadow-lg shadow-black/20">
         <button class="px-6 py-3 text-sm font-semibold text-ink-300 transition hover:bg-ink-800 disabled:cursor-not-allowed disabled:opacity-40" :disabled="server?.status === 'running' || server?.status === 'starting'" @click="power('start')">Start</button>
-        <button class="border-l border-ink-700 px-6 py-3 text-sm font-semibold text-ink-100 transition hover:bg-ink-800 disabled:cursor-not-allowed disabled:opacity-40" :disabled="server?.status !== 'running'" @click="power('restart')">Restart</button>
-        <button class="border-l border-accent-400/30 bg-accent-500 px-6 py-3 text-sm font-semibold text-ink-950 transition hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-40" :disabled="server?.status !== 'running'" @click="power('stop')">Stop</button>
+        <button class="border-l border-ink-700 px-6 py-3 text-sm font-semibold text-ink-100 transition hover:bg-ink-800 disabled:cursor-not-allowed disabled:opacity-40" :disabled="server?.status !== 'running' && server?.status !== 'starting'" @click="power('restart')">Restart</button>
+        <button class="border-l border-accent-400/30 bg-accent-500 px-6 py-3 text-sm font-semibold text-ink-950 transition hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-40" :disabled="server?.status !== 'running' && server?.status !== 'starting'" @click="power('stop')">Stop</button>
       </div>
     </template>
 

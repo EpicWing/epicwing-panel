@@ -3,6 +3,7 @@ import { nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 
 import { ApiError, api } from "../api/client";
+import { stripAnsi } from "../utils/ansi";
 
 const props = defineProps<{
   serverId: string;
@@ -20,7 +21,7 @@ const terminal = ref<HTMLElement | null>(null);
 let socket: WebSocket | null = null;
 
 function append(value: string): void {
-  output.value += value;
+  output.value += stripAnsi(value);
   void nextTick(() => {
     if (terminal.value) {
       terminal.value.scrollTop = terminal.value.scrollHeight;
