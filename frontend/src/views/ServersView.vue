@@ -12,6 +12,7 @@ const { t } = useI18n();
 // Real servers do not exist yet, the list stays empty until the agent is built.
 const servers = ref<ServerItem[]>([]);
 const nodeCount = ref<number | null>(null);
+const layout = ref<"grid" | "list">("grid");
 
 // Demo data is only available in development and always labelled as such.
 const demoAllowed = import.meta.env.DEV;
@@ -22,6 +23,10 @@ const demoServers: ServerItem[] = [
   { id: "d3", name: "Discord Bot", address: "203.0.113.10:6000", status: "starting", cpu: "0.2%", ram: "299 MiB", storage: "57 MiB" },
   { id: "d4", name: "Test World", address: "203.0.113.10:27015", status: "offline", cpu: "0%", ram: "0 B", storage: "3 GiB" },
 ];
+
+function toggleClass(active: boolean): string {
+  return active ? "bg-ink-800 text-accent-400" : "text-ink-400 hover:text-ink-100";
+}
 
 onMounted(async () => {
   if (!auth.state.user?.is_admin) {
@@ -38,23 +43,56 @@ onMounted(async () => {
 <template>
   <AppLayout :title="t('servers.title')" :subtitle="t('servers.subtitle')">
     <template #actions>
-      <button
-        v-if="demoAllowed"
-        class="rounded-md border border-ink-700 px-3 py-1.5 text-xs text-ink-300 transition hover:border-ink-600 hover:text-ink-100"
-        @click="showDemo = !showDemo"
-      >
-        {{ showDemo ? t("servers.hideDemo") : t("servers.showDemo") }}
-      </button>
+      <div class="flex items-center gap-2">
+        <button
+          v-if="demoAllowed"
+          class="rounded-md border border-ink-700 px-3 py-1.5 text-xs text-ink-300 transition hover:border-ink-600 hover:text-ink-100"
+          @click="showDemo = !showDemo"
+        >
+          {{ showDemo ? t("servers.hideDemo") : t("servers.showDemo") }}
+        </button>
+        <div class="flex overflow-hidden rounded-md border border-ink-700">
+          <button
+            class="px-2.5 py-1.5 transition"
+            :class="toggleClass(layout === 'grid')"
+            :title="t('servers.viewGrid')"
+            :aria-label="t('servers.viewGrid')"
+            @click="layout = 'grid'"
+          >
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" />
+              <rect x="14" y="14" width="7" height="7" rx="1" />
+            </svg>
+          </button>
+          <button
+            class="border-l border-ink-700 px-2.5 py-1.5 transition"
+            :class="toggleClass(layout === 'list')"
+            :title="t('servers.viewList')"
+            :aria-label="t('servers.viewList')"
+            @click="layout = 'list'"
+          >
+            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 6h16M4 12h16M4 18h16" stroke-linecap="round" />
+            </svg>
+          </button>
+        </div>
+      </div>
     </template>
 
     <p v-if="showDemo" class="mb-4 text-xs text-ink-400">{{ t("servers.demoNotice") }}</p>
 
-    <div v-if="showDemo || servers.length > 0" class="grid gap-4 md:grid-cols-2">
+    <div
+      v-if="showDemo || servers.length > 0"
+      :class="layout === 'grid' ? 'grid gap-4 md:grid-cols-2' : 'flex flex-col gap-3'"
+    >
       <ServerCard
         v-for="server in showDemo ? demoServers : servers"
         :key="server.id"
         :server="server"
         :demo="showDemo"
+        :layout="layout"
       />
     </div>
 

@@ -90,11 +90,8 @@ async function logout() {
       </nav>
 
       <div class="border-t border-ink-700 p-4">
-        <p class="truncate text-xs text-ink-400" :title="auth.state.user?.email">
-          {{ auth.state.user?.email }}
-        </p>
         <button
-          class="mt-2 text-sm text-ink-300 transition hover:text-accent-400"
+          class="text-sm text-ink-300 transition hover:text-accent-400"
           @click="logout"
         >
           {{ t("common.signOut") }}

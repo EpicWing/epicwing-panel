@@ -23,14 +23,24 @@ interface Enrollment {
   expires_at: string;
 }
 
+interface NodeForm {
+  name: string;
+  location: string;
+  fqdn: string;
+  portStart: number | "";
+  portEnd: number | "";
+}
+
 const { t, te } = useI18n();
+
+const emptyForm = (): NodeForm => ({ name: "", location: "", fqdn: "", portStart: "", portEnd: "" });
 
 const nodes = ref<NodeItem[]>([]);
 const loading = ref(true);
 const error = ref("");
 const showForm = ref(false);
 const busy = ref(false);
-const form = ref({ name: "", location: "", fqdn: "" });
+const form = ref<NodeForm>(emptyForm());
 const issued = ref<{ nodeName: string; enrollment: Enrollment } | null>(null);
 const copied = ref(false);
 
@@ -85,21 +95,34 @@ async function load() {
 
 async function create() {
   error.value = "";
+  const start = form.value.portStart;
+  const end = form.value.portEnd;
+  if ((start === "") !== (end === "")) {
+    error.value = t("nodes.portsBoth");
+    return;
+  }
+
+  const body: Record<string, unknown> = {
+    name: form.value.name,
+    location: form.value.location,
+    fqdn: form.value.fqdn.trim() || null,
+  };
+  if (start !== "" && end !== "") {
+    body.port_range_start = start;
+    body.port_range_end = end;
+  }
+
   busy.value = true;
   try {
     const result = await api<{ node: NodeItem; enrollment: Enrollment }>("/nodes", {
       method: "POST",
-      body: {
-        name: form.value.name,
-        location: form.value.location,
-        fqdn: form.value.fqdn.trim() || null,
-      },
+      body,
     });
     nodes.value.push(result.node);
     issued.value = { nodeName: result.node.name, enrollment: result.enrollment };
     copied.value = false;
     showForm.value = false;
-    form.value = { name: "", location: "", fqdn: "" };
+    form.value = emptyForm();
   } catch (e) {
     error.value = message(e);
   } finally {
@@ -183,15 +206,14 @@ onMounted(load);
         <input id="name" v-model="form.name" required maxlength="64" :class="inputClass" />
       </div>
       <div>
-        <label for="fqdn" class="mb-1.5 block text-sm text-ink-300">
-          {{ t("nodes.hostname") }}
-        </label>
+        <label for="fqdn" class="mb-1.5 block text-sm text-ink-300">{{ t("nodes.address") }}</label>
         <input
           id="fqdn"
           v-model="form.fqdn"
-          :placeholder="t('nodes.hostnamePlaceholder')"
+          :placeholder="t('nodes.addressPlaceholder')"
           :class="inputClass"
         />
+        <p class="mt-1.5 text-xs text-ink-400">{{ t("nodes.addressHint") }}</p>
       </div>
       <div>
         <label for="location" class="mb-1.5 block text-sm text-ink-300">
@@ -205,6 +227,44 @@ onMounted(load);
           :class="inputClass"
         />
       </div>
+
+      <details class="rounded-md border border-ink-700 bg-ink-950/40 px-4 py-3 sm:col-span-2">
+        <summary class="cursor-pointer select-none text-sm text-ink-300">
+          {{ t("nodes.advanced") }}
+        </summary>
+        <div class="mt-3 grid gap-4 sm:grid-cols-2">
+          <div>
+            <label for="port-start" class="mb-1.5 block text-sm text-ink-300">
+              {{ t("nodes.portStart") }}
+            </label>
+            <input
+              id="port-start"
+              v-model.number="form.portStart"
+              type="number"
+              min="1024"
+              max="65535"
+              placeholder="25000"
+              :class="inputClass"
+            />
+          </div>
+          <div>
+            <label for="port-end" class="mb-1.5 block text-sm text-ink-300">
+              {{ t("nodes.portEnd") }}
+            </label>
+            <input
+              id="port-end"
+              v-model.number="form.portEnd"
+              type="number"
+              min="1024"
+              max="65535"
+              placeholder="25999"
+              :class="inputClass"
+            />
+          </div>
+          <p class="text-xs text-ink-400 sm:col-span-2">{{ t("nodes.advancedHint") }}</p>
+        </div>
+      </details>
+
       <p class="text-xs text-ink-400 sm:col-span-2">{{ t("nodes.formHint") }}</p>
       <div class="sm:col-span-2">
         <button
