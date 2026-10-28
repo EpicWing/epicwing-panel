@@ -48,7 +48,7 @@ function message(cause: unknown): string {
 }
 
 function formatDate(value: string | null, empty: string): string {
-  return value ? new Date(value).toLocaleString() : empty;
+  return value ? new Date(value).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" }) : empty;
 }
 
 async function load(): Promise<void> {

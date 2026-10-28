@@ -157,7 +157,7 @@ function formatDate(seconds: number): string {
     const days = Math.floor(diff / 86400);
     return `${days} ${days === 1 ? "day" : "days"} ago`;
   }
-  return new Date(seconds * 1000).toLocaleDateString([], {
+  return new Date(seconds * 1000).toLocaleDateString("en-GB", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -165,7 +165,7 @@ function formatDate(seconds: number): string {
 }
 
 function formatFull(seconds: number): string {
-  return new Date(seconds * 1000).toLocaleString();
+  return new Date(seconds * 1000).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
 }
 
 function toBase64(bytes: Uint8Array): string {

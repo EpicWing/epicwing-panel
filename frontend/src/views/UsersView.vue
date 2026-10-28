@@ -139,7 +139,7 @@ async function toggleDisabled(user: UserRow): Promise<void> {
 }
 
 function formatDate(value: string): string {
-  return new Date(value).toLocaleDateString();
+  return new Date(value).toLocaleDateString("en-GB", { dateStyle: "medium" });
 }
 
 const inputClass =

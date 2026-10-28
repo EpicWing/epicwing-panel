@@ -78,7 +78,7 @@ function size(bytes: number): string {
 }
 
 function when(iso: string): string {
-  return new Date(iso).toLocaleString();
+  return new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
 }
 
 function statusClass(s: string): string {

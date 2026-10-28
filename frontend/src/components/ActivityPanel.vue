@@ -104,12 +104,12 @@ function details(item: Item): string[] {
 }
 
 function when(value: string): string {
-  return new Date(value).toLocaleString();
+  return new Date(value).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
 }
 
 function ago(value: string): string {
   const seconds = Math.round((new Date(value).getTime() - Date.now()) / 1000);
-  if (Math.abs(seconds) >= 30 * 86400) return new Date(value).toLocaleDateString();
+  if (Math.abs(seconds) >= 30 * 86400) return new Date(value).toLocaleDateString("en-GB", { dateStyle: "medium" });
   const units: [Intl.RelativeTimeFormatUnit, number][] = [
     ["day", 86400],
     ["hour", 3600],
