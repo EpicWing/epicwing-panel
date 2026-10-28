@@ -56,6 +56,7 @@ while [ "$#" -gt 0 ]; do
     --token) need_value "$@"; TOKEN="$2"; shift 2 ;;
     --bind-ip) need_value "$@"; BIND_IP="$2"; shift 2 ;;
     --force) FORCE=1; shift ;;
+    --insecure) INSECURE=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) usage >&2; die "Unknown option: $1" ;;
   esac
@@ -64,8 +65,11 @@ done
 [ "$(id -u)" -eq 0 ] || die "Run this script as root."
 [ -n "$PANEL" ] || { usage >&2; die "--panel is required."; }
 case "$PANEL" in
-  http://*|https://*) ;;
-  *) die "--panel must start with http:// or https://" ;;
+  https://*) ;;
+  http://*)
+    [ "${INSECURE:-0}" = "1" ] || die "--panel must use https://. Use --insecure only for local tests: http:// sends commands and secrets unencrypted."
+    echo "WARNING: using http:// without encryption (--insecure)." >&2 ;;
+  *) die "--panel must start with https://" ;;
 esac
 PANEL="${PANEL%/}"
 if [ -z "$BINARY" ] && [ -z "$URL" ] && [ ! -x "$BIN_DIR/epicwing-agent" ]; then
