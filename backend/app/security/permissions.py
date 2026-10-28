@@ -44,3 +44,13 @@ def require(permission: Permission) -> Callable[..., AuthContext]:
         return auth
 
     return dependency
+
+
+def require_admin(auth: CurrentAuth) -> AuthContext:
+    """Dependency: nur globale Administratoren, kein übertragbares Recht."""
+    if not auth.user.is_admin:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Administrator rights required.")
+    return auth
+
+
+AdminAuth = Annotated[AuthContext, Depends(require_admin)]

@@ -22,7 +22,7 @@ from app.schemas.egg import (
     NestOut,
     NestUpdate,
 )
-from app.security.permissions import Permission, require
+from app.security.permissions import AdminAuth, Permission, require
 from app.security.sessions import AuthContext
 from app.services import audit, eggio
 from app.services import startup as startup_service
@@ -268,7 +268,7 @@ def _insert_egg(
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
-def create_egg(body: EggCreate, request: Request, auth: ManageNodes, db: DbSession) -> EggOut:
+def create_egg(body: EggCreate, request: Request, auth: AdminAuth, db: DbSession) -> EggOut:
     _check_startup(body.startup, [v.env_variable for v in body.variables])
     egg = _insert_egg(body, "{}", request, auth, db)
     return _egg_outs(db, [egg])[0]
@@ -276,7 +276,7 @@ def create_egg(body: EggCreate, request: Request, auth: ManageNodes, db: DbSessi
 
 @router.post("/import", status_code=status.HTTP_201_CREATED)
 def import_egg(
-    body: EggImport, request: Request, auth: ManageNodes, db: DbSession
+    body: EggImport, request: Request, auth: AdminAuth, db: DbSession
 ) -> EggImported:
     try:
         data, config, warnings = eggio.import_egg(body.egg)
@@ -311,7 +311,7 @@ def export_egg(egg_id: uuid.UUID, _auth: ManageNodes, db: DbSession) -> dict[str
 
 @router.patch("/{egg_id}")
 def update_egg(
-    egg_id: uuid.UUID, body: EggUpdate, request: Request, auth: ManageNodes, db: DbSession
+    egg_id: uuid.UUID, body: EggUpdate, request: Request, auth: AdminAuth, db: DbSession
 ) -> EggOut:
     egg = _get_egg(db, egg_id)
     data = body.model_dump(exclude_unset=True, exclude={"variables"})
@@ -349,7 +349,7 @@ def update_egg(
 
 
 @router.delete("/{egg_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_egg(egg_id: uuid.UUID, request: Request, auth: ManageNodes, db: DbSession) -> None:
+def delete_egg(egg_id: uuid.UUID, request: Request, auth: AdminAuth, db: DbSession) -> None:
     egg = _get_egg(db, egg_id)
     used = db.scalar(select(func.count()).select_from(Server).where(Server.egg_id == egg.id))
     if used:
