@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -68,6 +70,12 @@ def create_app() -> FastAPI:
             and origin
             and origin not in settings.allowed_origins
         ):
+            logging.getLogger("uvicorn.error").warning(
+                "Origin %s abgelehnt (erlaubt: %s). "
+                "EPICWING_PUBLIC_URL in der .env auf die Adresse des Panels setzen.",
+                origin,
+                ", ".join(settings.allowed_origins) or "-",
+            )
             return JSONResponse({"detail": "Origin not allowed."}, status_code=403)
         return await call_next(request)
 
