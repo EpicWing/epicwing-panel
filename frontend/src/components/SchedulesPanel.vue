@@ -84,7 +84,7 @@ function message(e: unknown): string {
 function when(iso: string | null): string {
   if (!iso) return "-";
   const fixed = /(Z|[+-]\d\d:?\d\d)$/.test(iso) ? iso : `${iso}Z`;
-  return new Date(fixed).toLocaleString();
+  return new Date(fixed).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
 }
 
 const zoneName = computed(() => rows.value[0]?.timezone ?? "the panel time zone");

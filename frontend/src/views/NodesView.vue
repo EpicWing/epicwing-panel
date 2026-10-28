@@ -60,7 +60,7 @@ function message(e: unknown): string {
 }
 
 function formatDate(value: string): string {
-  return new Date(value).toLocaleString();
+  return new Date(value).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
 }
 
 function statusLabel(status: string): string {

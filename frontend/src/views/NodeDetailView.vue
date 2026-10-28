@@ -94,7 +94,7 @@ function statusLabel(status: string): string {
 }
 
 function formatDate(value: string | null): string {
-  return value ? new Date(value).toLocaleString() : t("nodeDetail.never");
+  return value ? new Date(value).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" }) : t("nodeDetail.never");
 }
 
 function fillForm(n: NodeDetail) {
