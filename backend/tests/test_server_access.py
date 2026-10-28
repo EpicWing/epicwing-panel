@@ -96,6 +96,7 @@ DENIED_FOR_VIEWERS = [
     ("POST", "/access", {}),
     ("PUT", "/access/00000000-0000-4000-8000-000000000002", {}),
     ("DELETE", "/access/00000000-0000-4000-8000-000000000002", None),
+    ("GET", "/access/candidates", None),
 ]
 
 # Routen mit Server-ID, die absichtlich nicht in der Matrix stehen.
@@ -349,3 +350,21 @@ def test_allocation_rights_split_view_and_manage(client, db_session, world):
     assert client.get(world.url + "/allocations/free", headers=headers).status_code == 200
     # 422 statt 403: Das Recht greift, die Allocation gibt es nur nicht.
     assert client.post(world.url + "/allocations", json=unknown, headers=headers).status_code == 422
+
+
+def test_access_candidates_exclude_owner_members_and_self(client, db_session, world):
+    manager = _user(db_session, "manager@example.test")
+    _grant(db_session, world, manager, P.ACCESS_MANAGE)
+    headers = _login(client, manager)
+    response = client.get(world.url + "/access/candidates", headers=headers)
+    assert response.status_code == 200, response.text
+    emails = {row["email"] for row in response.json()}
+    assert "stranger@example.test" in emails
+    assert "member@example.test" in emails
+    assert "owner@example.test" not in emails
+    assert "manager@example.test" not in emails
+    found = client.get(world.url + "/access/candidates?q=STRANG", headers=headers).json()
+    assert [row["email"] for row in found] == ["stranger@example.test"]
+    _grant(db_session, world, world.member)
+    again = client.get(world.url + "/access/candidates", headers=headers).json()
+    assert "member@example.test" not in {row["email"] for row in again}

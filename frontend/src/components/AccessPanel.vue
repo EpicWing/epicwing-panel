@@ -20,6 +20,11 @@ interface AccessData {
   can_manage: boolean;
 }
 
+interface Candidate {
+  id: string;
+  email: string;
+}
+
 type Dialog = { kind: "add" } | { kind: "edit"; member: Member } | { kind: "remove"; member: Member };
 
 const props = defineProps<{ serverId: string; permissions: string[] }>();
@@ -27,18 +32,40 @@ const { t, te } = useI18n();
 
 const ORDER = ["console", "power", "files", "startup", "settings", "backups", "databases", "allocations", "schedules", "access"];
 
+// Einfache Linien-Icons (24x24), damit keine zusätzliche Bibliothek nötig ist.
+const ICONS: Record<string, string> = {
+  console: "M4 17l6-6-6-6 M12 19h8",
+  power: "M18.36 6.64a9 9 0 1 1-12.73 0 M12 2v10",
+  files: "M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9l-.8-1.2A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z",
+  startup: "M5 3l14 9-14 9V3z",
+  settings: "M4 21v-7 M4 10V3 M12 21v-9 M12 8V3 M20 21v-5 M20 12V3 M1 14h6 M9 8h6 M17 16h6",
+  backups: "M21 8v13H3V8 M1 3h22v5H1z M10 12h4",
+  databases: "M3 6c0-1.7 4-3 9-3s9 1.3 9 3-4 3-9 3-9-1.3-9-3z M21 12c0 1.7-4 3-9 3s-9-1.3-9-3 M3 6v12c0 1.7 4 3 9 3s9-1.3 9-3V6",
+  allocations: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z M2 12h20 M12 2a15 15 0 0 1 0 20 M12 2a15 15 0 0 0 0 20",
+  schedules: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z M12 6v6l4 2",
+  access: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z",
+};
+
 const data = ref<AccessData | null>(null);
 const loading = ref(true);
 const error = ref("");
 const dialog = ref<Dialog | null>(null);
 const busy = ref(false);
 const formError = ref("");
-const email = ref("");
 const selected = ref<string[]>([]);
+const candidates = ref<Candidate[]>([]);
+const candidatesLoading = ref(false);
+const search = ref("");
+const chosen = ref("");
+let searchTimer: ReturnType<typeof setTimeout> | undefined;
 
 const canView = computed(() => props.permissions.includes("access.view"));
 const meId = computed(() => auth.state.user?.id);
 const base = computed(() => `/servers/${props.serverId}/access`);
+
+function iconPath(key: string): string {
+  return ICONS[key] ?? "M12 12h.01";
+}
 
 function groupsFor(perms: string[]): { key: string; items: string[] }[] {
   const by = new Map<string, string[]>();
@@ -67,9 +94,19 @@ function permLabel(p: string): string {
   return te(key) ? t(key) : p;
 }
 
+function permDesc(p: string): string {
+  const key = `access.permDesc.${p}`;
+  return te(key) ? t(key) : "";
+}
+
 function groupLabel(key: string): string {
   const k = `access.group.${key}`;
   return te(k) ? t(k) : key;
+}
+
+function groupDesc(key: string): string {
+  const k = `access.groupDesc.${key}`;
+  return te(k) ? t(k) : "";
 }
 
 function isAvailable(p: string): boolean {
@@ -103,14 +140,38 @@ async function load(): Promise<void> {
   }
 }
 
+async function loadCandidates(): Promise<void> {
+  candidatesLoading.value = true;
+  try {
+    const q = encodeURIComponent(search.value.trim());
+    candidates.value = await api<Candidate[]>(`${base.value}/candidates?q=${q}`);
+    if (!candidates.value.some((c) => c.id === chosen.value)) {
+      chosen.value = candidates.value[0]?.id ?? "";
+    }
+  } catch (cause) {
+    formError.value = message(cause);
+  } finally {
+    candidatesLoading.value = false;
+  }
+}
+
+function onSearch(): void {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => void loadCandidates(), 250);
+}
+
 function openDialog(next: Dialog): void {
   formError.value = "";
-  email.value = "";
+  search.value = "";
+  chosen.value = "";
+  candidates.value = [];
   selected.value = next.kind === "edit" ? [...next.member.permissions] : [];
   dialog.value = next;
+  if (next.kind === "add") void loadCandidates();
 }
 
 function closeDialog(): void {
+  clearTimeout(searchTimer);
   dialog.value = null;
 }
 
@@ -126,7 +187,12 @@ async function submit(): Promise<void> {
   formError.value = "";
   try {
     if (current.kind === "add") {
-      await api(base.value, { method: "POST", body: { email: email.value, permissions: selected.value } });
+      const pick = candidates.value.find((c) => c.id === chosen.value);
+      if (!pick) {
+        formError.value = t("access.selectUserFirst");
+        return;
+      }
+      await api(base.value, { method: "POST", body: { email: pick.email, permissions: selected.value } });
     } else if (current.kind === "edit") {
       await api(`${base.value}/${current.member.id}`, { method: "PUT", body: { permissions: selected.value } });
     } else {
@@ -151,7 +217,10 @@ onMounted(() => {
   else loading.value = false;
 });
 
-onBeforeUnmount(() => window.removeEventListener("keydown", onKey));
+onBeforeUnmount(() => {
+  window.removeEventListener("keydown", onKey);
+  clearTimeout(searchTimer);
+});
 
 const inputClass =
   "w-full rounded-md border border-ink-700 bg-ink-950 px-3 py-2 text-sm outline-none transition focus:border-accent-500";
@@ -238,10 +307,10 @@ const linkButton = "rounded px-2 py-1 text-xs text-ink-300 transition hover:bg-i
         role="dialog"
         aria-modal="true"
         aria-labelledby="access-dialog-title"
-        class="max-h-[90vh] w-full max-w-lg space-y-4 overflow-y-auto rounded-lg border border-ink-700 bg-ink-900 p-6"
+        class="max-h-[92vh] w-full max-w-5xl space-y-5 overflow-y-auto rounded-xl border border-ink-700 bg-ink-900 p-6"
         @submit.prevent="submit"
       >
-        <h3 id="access-dialog-title" class="text-lg font-semibold tracking-tight">
+        <h3 id="access-dialog-title" class="text-xl font-semibold tracking-tight">
           {{
             dialog.kind === "add"
               ? t("access.addTitle")
@@ -252,38 +321,90 @@ const linkButton = "rounded px-2 py-1 text-xs text-ink-300 transition hover:bg-i
         </h3>
 
         <template v-if="dialog.kind !== 'remove'">
-          <div v-if="dialog.kind === 'add'">
-            <label for="access-email" class="mb-1.5 block text-sm text-ink-300">{{ t("access.email") }}</label>
-            <input id="access-email" v-model="email" type="email" required autofocus autocomplete="off" :class="inputClass" />
-            <p class="mt-1.5 text-xs text-ink-400">{{ t("access.emailHint") }}</p>
+          <div v-if="dialog.kind === 'add'" class="rounded-lg border border-ink-700 bg-ink-950 p-4">
+            <p class="mb-3 text-sm font-medium">{{ t("access.selectUser") }}</p>
+            <div class="grid gap-3 sm:grid-cols-2">
+              <input
+                v-model="search"
+                type="search"
+                autocomplete="off"
+                :placeholder="t('access.searchUsers')"
+                :class="inputClass"
+                @input="onSearch"
+              />
+              <select
+                id="access-user"
+                v-model="chosen"
+                :disabled="busy || candidates.length === 0"
+                :class="inputClass"
+                :aria-label="t('access.selectUser')"
+              >
+                <option v-for="candidate in candidates" :key="candidate.id" :value="candidate.id">
+                  {{ candidate.email }}
+                </option>
+              </select>
+            </div>
+            <p class="mt-2 text-xs text-ink-400">
+              {{
+                candidatesLoading
+                  ? t("access.loadingUsers")
+                  : candidates.length === 0
+                    ? t("access.noCandidates")
+                    : t("access.selectUserHint")
+              }}
+            </p>
           </div>
           <p v-else class="text-sm text-ink-300">{{ dialog.member.email }}</p>
 
           <fieldset class="space-y-4">
-            <legend class="mb-1 text-sm text-ink-300">{{ t("access.permissionsLabel") }}</legend>
-            <div v-for="group in dialogGroups" :key="group.key" class="rounded-md border border-ink-700 p-3">
-              <div class="mb-2 flex items-center justify-between">
-                <span class="text-sm font-medium">{{ groupLabel(group.key) }}</span>
-                <span class="flex gap-1">
+            <legend class="mb-1 text-sm font-medium text-ink-200">{{ t("access.permissionsLabel") }}</legend>
+            <div v-for="group in dialogGroups" :key="group.key" class="rounded-lg border border-ink-700 bg-ink-950 p-4">
+              <div class="mb-3 flex items-start justify-between gap-3">
+                <div class="flex items-start gap-3">
+                  <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-accent-500/15 text-accent-400">
+                    <svg
+                      viewBox="0 0 24 24"
+                      class="h-5 w-5"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path :d="iconPath(group.key)" />
+                    </svg>
+                  </span>
+                  <div>
+                    <p class="text-sm font-semibold">{{ groupLabel(group.key) }}</p>
+                    <p v-if="groupDesc(group.key)" class="text-xs text-ink-400">{{ groupDesc(group.key) }}</p>
+                  </div>
+                </div>
+                <span class="flex shrink-0 gap-1">
                   <button type="button" :class="linkButton" @click="setGroup(group.items, true)">{{ t("access.all") }}</button>
                   <button type="button" :class="linkButton" @click="setGroup(group.items, false)">{{ t("access.none") }}</button>
                 </span>
               </div>
-              <label
-                v-for="permission in group.items"
-                :key="permission"
-                class="flex items-center gap-2.5 py-1 text-sm"
-                :class="isAvailable(permission) ? '' : 'opacity-50'"
-              >
-                <input
-                  v-model="selected"
-                  type="checkbox"
-                  :value="permission"
-                  :disabled="busy || !isAvailable(permission)"
-                  class="h-4 w-4 accent-accent-500"
-                />
-                {{ permLabel(permission) }}
-              </label>
+              <div class="grid gap-x-8 gap-y-3 sm:grid-cols-2">
+                <label
+                  v-for="permission in group.items"
+                  :key="permission"
+                  class="flex items-start gap-2.5 text-sm"
+                  :class="isAvailable(permission) ? 'cursor-pointer' : 'opacity-50'"
+                >
+                  <input
+                    v-model="selected"
+                    type="checkbox"
+                    :value="permission"
+                    :disabled="busy || !isAvailable(permission)"
+                    class="mt-0.5 h-4 w-4 shrink-0 accent-accent-500"
+                  />
+                  <span>
+                    <span class="block font-medium">{{ permLabel(permission) }}</span>
+                    <span v-if="permDesc(permission)" class="block text-xs text-ink-400">{{ permDesc(permission) }}</span>
+                  </span>
+                </label>
+              </div>
             </div>
           </fieldset>
         </template>
@@ -311,7 +432,7 @@ const linkButton = "rounded px-2 py-1 text-xs text-ink-300 transition hover:bg-i
           </button>
           <button
             type="submit"
-            :disabled="busy"
+            :disabled="busy || (dialog.kind === 'add' && !chosen)"
             class="rounded-md px-3 py-2 text-sm font-semibold transition disabled:opacity-60"
             :class="dialog.kind === 'remove' ? 'bg-bad text-white hover:opacity-90' : 'bg-accent-500 text-ink-950 hover:bg-accent-400'"
           >
