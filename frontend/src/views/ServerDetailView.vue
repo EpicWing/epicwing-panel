@@ -111,6 +111,17 @@ function scalePeak(key: string, values: number[]): number {
   return Math.max(...history.value.rx, ...history.value.tx, 1024);
 }
 
+// A new run starts with empty charts: reset when the server goes from stopped to starting/running.
+function setStatus(next: string): void {
+  if (!server.value) return;
+  const wasOnline = isOnline();
+  server.value.status = next;
+  if (!wasOnline && isOnline()) {
+    history.value = { cpu: [], ram: [], disk: [], rx: [], tx: [] };
+    startedAt.value = null;
+  }
+}
+
 function uptimeText(): string {
   const iso = startedAt.value;
   if (!isOnline() || !iso) return "0h 0m 0s";
@@ -197,7 +208,7 @@ function handleFrame(frame: ConsoleFrame): void {
     pushHistory("tx", txRate);
     if (stats.started_at) startedAt.value = stats.started_at;
   }
-  if (frame.type === "status" && frame.status && server.value) server.value.status = frame.status;
+  if (frame.type === "status" && frame.status && server.value) setStatus(frame.status);
 }
 
 const {
@@ -220,7 +231,7 @@ async function refreshStatus(): Promise<void> {
   if (!server.value) return;
   try {
     const fresh = await api<ServerData>(`/servers/${server.value.id}`);
-    if (server.value && server.value.id === fresh.id) server.value.status = fresh.status;
+    if (server.value && server.value.id === fresh.id) setStatus(fresh.status);
   } catch {
     // The next poll tries again.
   }
@@ -242,6 +253,10 @@ onBeforeUnmount(() => {
 
 async function power(action: "start" | "restart" | "stop" | "kill"): Promise<void> {
   if (!server.value) return;
+  if (action === "restart") {
+    history.value = { cpu: [], ram: [], disk: [], rx: [], tx: [] };
+    startedAt.value = null;
+  }
   if (action === "start") {
     clearConsole();
     startedAt.value = null;
