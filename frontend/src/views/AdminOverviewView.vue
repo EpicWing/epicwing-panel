@@ -114,8 +114,9 @@ function percent(used: number | null, total: number | null): number | null {
   return Math.min(100, Math.round((used / total) * 100));
 }
 
-function barClass(value: number | null): string {
-  return value !== null && value >= 85 ? "bg-bad" : "bg-accent-500";
+
+function ringClass(value: number | null): string {
+  return value !== null && value >= 85 ? "stroke-bad" : "stroke-accent-500";
 }
 
 function meters(n: NodeLoad) {
@@ -237,18 +238,35 @@ onUnmounted(() => window.clearInterval(timer));
             </p>
           </div>
           <p v-if="n.status !== 'online'" class="mt-1 text-xs text-ink-400">{{ t("admin.noLive") }}</p>
-          <div class="mt-3 grid gap-4 sm:grid-cols-3">
-            <div v-for="m in meters(n)" :key="m.key">
-              <div class="flex justify-between text-xs text-ink-400">
-                <span>{{ m.label }}</span>
-                <span class="font-mono text-ink-300">{{ m.text }}</span>
+          <div class="mt-4 grid gap-4 sm:grid-cols-3">
+            <div
+              v-for="m in meters(n)"
+              :key="m.key"
+              class="flex items-center gap-5 rounded-lg border border-ink-700 bg-ink-950 p-4"
+            >
+              <div class="relative h-24 w-24 shrink-0">
+                <svg viewBox="0 0 36 36" class="h-24 w-24 -rotate-90" aria-hidden="true">
+                  <circle cx="18" cy="18" r="15.915" fill="none" stroke-width="3.2" class="stroke-ink-800" />
+                  <circle
+                    v-if="(m.percent ?? 0) > 0"
+                    cx="18"
+                    cy="18"
+                    r="15.915"
+                    fill="none"
+                    stroke-width="3.2"
+                    stroke-linecap="round"
+                    class="transition-all"
+                    :class="ringClass(m.percent)"
+                    :stroke-dasharray="`${m.percent} 100`"
+                  />
+                </svg>
+                <span class="absolute inset-0 flex items-center justify-center font-mono text-lg font-semibold">
+                  {{ m.percent === null ? "–" : `${m.percent}%` }}
+                </span>
               </div>
-              <div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-ink-800">
-                <div
-                  class="h-full rounded-full transition-all"
-                  :class="barClass(m.percent)"
-                  :style="{ width: `${m.percent ?? 0}%` }"
-                />
+              <div class="min-w-0">
+                <p class="text-sm text-ink-400">{{ m.label }}</p>
+                <p class="mt-1 font-mono text-sm text-ink-300">{{ m.text }}</p>
               </div>
             </div>
           </div>
