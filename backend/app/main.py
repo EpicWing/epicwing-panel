@@ -15,6 +15,7 @@ from app.api import (
     eggs,
     health,
     nodes,
+    panel,
     server_members,
     servers,
     two_factor,
@@ -75,6 +76,7 @@ def create_app() -> FastAPI:
     app.include_router(avatars.router, prefix="/api")
     app.include_router(backups.router, prefix="/api")
     app.include_router(admin.router, prefix="/api")
+    app.include_router(panel.router, prefix="/api")
     return app
 
 
