@@ -391,3 +391,10 @@ def test_backup_view_does_not_allow_changes(client, db_session, world):
     ]:
         response = client.request(method, world.url + path, json=body, headers=headers)
         assert response.status_code == 403, (method, path, response.status_code)
+
+
+def test_backup_limit_is_admin_only(client, db_session, world):
+    _grant(db_session, world, world.member, P.SETTINGS_UPDATE)
+    headers = _login(client, world.member)
+    response = client.patch(world.url, json={"backup_limit": 3}, headers=headers)
+    assert response.status_code == 403, response.status_code
