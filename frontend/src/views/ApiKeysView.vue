@@ -147,7 +147,7 @@ onMounted(() => void load());
         <button :class="buttonClass" @click="remove(row)">Delete</button>
       </li>
     </ul>
-    <KeyEmptyState v-else title="No API Keys" text="You haven't created any API keys yet. Create one to get started with the API." />
+    <KeyEmptyState v-else title="No API keys yet" text="Create a key so your scripts and bots can control your servers without a password." />
 
     <Modal
       :model-value="open"
@@ -168,7 +168,7 @@ onMounted(() => void load());
         <div>
           <label for="key-name" class="mb-1.5 block text-sm text-ink-300">Name</label>
           <input id="key-name" v-model="name" required maxlength="64" :class="inputClass" />
-          <p class="mt-1.5 text-xs text-ink-400">A name to identify this API key, for example "Discord bot".</p>
+          <p class="mt-1.5 text-xs text-ink-400">Pick a name you will recognise later, for example "Discord bot".</p>
         </div>
         <div>
           <label for="key-expiry" class="mb-1.5 block text-sm text-ink-300">Expires</label>

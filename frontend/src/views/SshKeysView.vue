@@ -131,7 +131,7 @@ onMounted(() => void load());
         <button :class="buttonClass" @click="remove(row)">Delete</button>
       </li>
     </ul>
-    <KeyEmptyState v-else title="No SSH Keys" text="You haven't added any SSH keys yet. Add one to securely access your server files." />
+    <KeyEmptyState v-else title="No SSH keys yet" text="Add your public key to open your server files over SFTP without a password." />
 
     <div v-if="targets.length" class="mt-6 rounded-xl border border-ink-700 bg-ink-900 p-5">
       <p class="font-medium">Connect with SFTP</p>
@@ -153,7 +153,7 @@ onMounted(() => void load());
         <div>
           <label for="ssh-name" class="mb-1.5 block text-sm text-ink-300">SSH Key Name</label>
           <input id="ssh-name" v-model="name" required maxlength="64" :class="inputClass" />
-          <p class="mt-1.5 text-xs text-ink-400">A name to identify this SSH key, for example "My laptop".</p>
+          <p class="mt-1.5 text-xs text-ink-400">Something you will recognise later, for example "My laptop".</p>
         </div>
         <div>
           <label for="ssh-key" class="mb-1.5 block text-sm text-ink-300">Public Key</label>
