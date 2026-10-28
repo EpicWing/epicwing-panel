@@ -10,7 +10,7 @@ import NavIcon from "./NavIcon.vue";
 import CopyrightFooter from "./CopyrightFooter.vue";
 
 const props = withDefaults(
-  defineProps<{ title: string; subtitle?: string; area?: "user" | "admin"; wide?: boolean; minimal?: boolean; hero?: boolean; hideHeader?: boolean }>(),
+  defineProps<{ title: string; subtitle?: string; area?: "user" | "admin"; wide?: boolean; minimal?: boolean; hero?: boolean; hideHeader?: boolean; pinFooter?: boolean }>(),
   { area: "user", minimal: false },
 );
 
@@ -109,7 +109,7 @@ async function logout() {
 </script>
 
 <template>
-  <div class="flex" :class="props.minimal ? 'server-detail-shell h-screen overflow-hidden' : 'min-h-screen'">
+  <div class="flex" :class="props.minimal ? 'server-detail-shell h-screen overflow-hidden' : props.pinFooter ? 'h-screen overflow-hidden' : 'min-h-screen'">
     <aside
       class="sticky top-0 hidden h-screen shrink-0 flex-col border-r border-ink-700 bg-ink-900 md:flex"
       :class="props.minimal ? 'w-60' : 'w-60'"
@@ -217,7 +217,7 @@ async function logout() {
         </nav>
       </header>
 
-      <main class="min-w-0 flex-1" :class="props.minimal ? 'overflow-y-auto' : ''">
+      <main class="min-w-0 flex-1" :class="props.minimal || props.pinFooter ? 'overflow-y-auto' : ''">
         <div class="w-full px-4 py-6 lg:px-8" :class="wide ? 'mx-auto max-w-[2400px]' : 'mx-auto max-w-[2000px]'">
           <div v-if="!hideHeader" class="mb-5 flex items-end justify-between gap-4">
             <div>

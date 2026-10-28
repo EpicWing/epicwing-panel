@@ -158,7 +158,7 @@ onMounted(() => void load());
 </script>
 
 <template>
-  <AppLayout area="admin" :title="t('notify.title')" :subtitle="t('notify.subtitle')">
+  <AppLayout area="admin" pin-footer :title="t('notify.title')" :subtitle="t('notify.subtitle')">
     <p v-if="error" role="alert" class="mb-6 max-w-3xl rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">
       {{ error }}
     </p>
