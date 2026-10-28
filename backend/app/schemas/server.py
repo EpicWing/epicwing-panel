@@ -24,8 +24,8 @@ class AllocationCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     ip: str
-    port_start: int = Field(ge=1, le=65535)
-    port_end: int | None = Field(default=None, ge=1, le=65535)
+    port_start: int = Field(ge=1024, le=65535)
+    port_end: int | None = Field(default=None, ge=1024, le=65535)
 
     @field_validator("ip")
     @classmethod
