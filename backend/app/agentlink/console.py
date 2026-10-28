@@ -6,6 +6,7 @@ import hashlib
 import secrets
 import time
 import uuid
+from collections import deque
 from collections.abc import Coroutine
 from typing import Any
 
@@ -15,6 +16,8 @@ from app.agentlink.commands import AgentOffline, CommandBroker, broker
 
 TICKET_TTL_SECONDS = 30
 COMMAND_TIMEOUT_SECONDS = 15
+# So viele Ausgabeblöcke merkt sich der Hub je Container für Browser, die später dazukommen.
+BACKLOG_FRAMES = 400
 
 
 class ConsoleError(Exception):
@@ -52,6 +55,9 @@ class TicketStore:
         return entry[0]
 
 
+INSTALL_BACKLOG_FRAMES = 1000
+
+
 class ConsoleHub:
     """Verteilt die Ausgabe eines Containers an alle Browser, die ihn ansehen."""
 
@@ -59,6 +65,9 @@ class ConsoleHub:
         self._commands = commands
         self._subs: dict[str, set[WebSocket]] = {}
         self._nodes: dict[str, uuid.UUID] = {}
+        self._backlog: dict[str, deque[dict[str, Any]]] = {}
+        # Ausgabe von Install und Reinstall, unabhängig davon, ob jemand die Konsole offen hat.
+        self._install: dict[str, deque[str]] = {}
 
     async def _command(
         self, node_id: uuid.UUID, action: str, name: str, data: str | None = None
@@ -75,12 +84,26 @@ class ConsoleHub:
         first = not subs
         subs.add(websocket)
         self._nodes[name] = node_id
+        if not await self._replay_install(name, websocket):
+            return
         if first:
+            self._backlog.pop(name, None)
             try:
                 await self._command(node_id, "console.watch", name)
             except Exception:
+                if self._install.get(name):
+                    # Während der Installation kommt die Ausgabe über publish_install.
+                    return
                 self._drop(name, websocket)
                 raise
+        else:
+            # Ein weiterer Browser (z. B. nach einem Neuladen) bekommt die letzten Zeilen nachgeliefert.
+            for payload in list(self._backlog.get(name, ())):
+                try:
+                    await websocket.send_json(payload)
+                except (RuntimeError, WebSocketDisconnect):
+                    self._drop(name, websocket)
+                    return
 
     def _drop(self, name: str, websocket: WebSocket) -> None:
         subs = self._subs.get(name)
@@ -90,6 +113,7 @@ class ConsoleHub:
         if not subs:
             del self._subs[name]
             self._nodes.pop(name, None)
+            self._backlog.pop(name, None)
 
     async def unsubscribe(self, name: str, websocket: WebSocket) -> None:
         node_id = self._nodes.get(name)
@@ -102,6 +126,8 @@ class ConsoleHub:
         # Nur die Node, auf der der Container liegt, darf in dessen Konsole schreiben.
         if self._nodes.get(name) != node_id:
             return
+        if payload.get("type") == "output":
+            self._backlog.setdefault(name, deque(maxlen=BACKLOG_FRAMES)).append(payload)
         for websocket in list(self._subs.get(name, ())):
             try:
                 await websocket.send_json(payload)
@@ -110,6 +136,42 @@ class ConsoleHub:
 
     async def send_input(self, node_id: uuid.UUID, name: str, data: str) -> None:
         await self._command(node_id, "console.input", name, data)
+
+    async def _replay_install(self, name: str, websocket: WebSocket) -> bool:
+        for data in list(self._install.get(name, ())):
+            try:
+                await websocket.send_json({"type": "output", "data": data})
+            except (RuntimeError, WebSocketDisconnect):
+                self._drop(name, websocket)
+                return False
+        return True
+
+    def start_install(self, name: str) -> None:
+        self._install[name] = deque(maxlen=INSTALL_BACKLOG_FRAMES)
+
+    def clear_install(self, name: str) -> None:
+        self._install.pop(name, None)
+
+    async def publish_install(self, name: str, data: str) -> None:
+        buffer = self._install.setdefault(name, deque(maxlen=INSTALL_BACKLOG_FRAMES))
+        buffer.append(data)
+        payload = {"type": "output", "data": data}
+        for websocket in list(self._subs.get(name, ())):
+            try:
+                await websocket.send_json(payload)
+            except (RuntimeError, WebSocketDisconnect):
+                self._drop(name, websocket)
+
+    async def publish_clear(self, name: str) -> None:
+        """Leert die Puffer und weist alle offenen Konsolen an, ihre Anzeige zu leeren."""
+        self._backlog.pop(name, None)
+        self._install.pop(name, None)
+        payload = {"type": "clear"}
+        for websocket in list(self._subs.get(name, ())):
+            try:
+                await websocket.send_json(payload)
+            except (RuntimeError, WebSocketDisconnect):
+                self._drop(name, websocket)
 
     async def rewatch(self, node_id: uuid.UUID) -> None:
         """Nach einer neuen Agent-Verbindung die beobachteten Container erneut anmelden."""

@@ -123,7 +123,7 @@ def test_update_rejects_duplicate_name(client, user):
 
 def test_update_checks_ports_against_stored_values(client, user):
     headers = _login(client, user)
-    node_id = _create(client, headers)  # Standard: 25000 bis 25999
+    node_id = _create(client, headers, port_range_start=25000, port_range_end=25999)
     response = client.patch(
         f"/api/nodes/{node_id}", json={"port_range_start": 26000}, headers=headers
     )

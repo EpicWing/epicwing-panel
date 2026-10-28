@@ -18,8 +18,8 @@ class NodeCreate(BaseModel):
     location: str = ""
     fqdn: str | None = None
     # Standardbereich, falls beim Anlegen nichts angegeben wird.
-    port_range_start: int = Field(default=25000, ge=1024, le=65535)
-    port_range_end: int = Field(default=25999, ge=1024, le=65535)
+    port_range_start: int = Field(default=1024, ge=1024, le=65535)
+    port_range_end: int = Field(default=65535, ge=1024, le=65535)
 
     @field_validator("name")
     @classmethod

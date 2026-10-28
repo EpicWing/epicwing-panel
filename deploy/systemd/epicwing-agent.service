@@ -1,6 +1,6 @@
 [Unit]
 Description=EpicWing node agent
-After=network-online.target
+After=network-online.target docker.service
 Wants=network-online.target
 
 [Service]
@@ -9,16 +9,15 @@ User=epicwing
 Group=epicwing
 SupplementaryGroups=docker
 Environment=EPICWING_AGENT_CONFIG=/etc/epicwing-agent/config.json
+Environment=DOCKER_CONFIG=/etc/epicwing-agent/docker-none
 ExecStart=/opt/epicwing/epicwing-agent run
 Restart=always
 RestartSec=5
 
-# Härtung: Der Agent bekommt nur Schreibrechte auf die Serverordner (Datei-API), das
-# Backup-Verzeichnis (backup.create liest die Daten und schreibt das Archiv) und keine
-# neuen Privilegien.
+# Hardening: the agent may only write below /var/lib/epicwing and gets no new privileges.
 NoNewPrivileges=true
 ProtectSystem=strict
-ReadWritePaths=-/var/lib/epicwing/servers -/var/lib/epicwing/backups
+ReadWritePaths=/var/lib/epicwing
 ProtectHome=true
 PrivateTmp=true
 ProtectKernelModules=true

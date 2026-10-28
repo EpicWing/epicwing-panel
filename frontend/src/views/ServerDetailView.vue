@@ -12,6 +12,7 @@ import FilesPanel from "../components/FilesPanel.vue";
 import BackupsPanel from "../components/BackupsPanel.vue";
 import DatabasesPanel from "../components/DatabasesPanel.vue";
 import SchedulesPanel from "../components/SchedulesPanel.vue";
+import DdosPanel from "../components/DdosPanel.vue";
 import BackupLimitField from "../components/BackupLimitField.vue";
 import PortsPanel from "../components/PortsPanel.vue";
 import StartupPanel from "../components/StartupPanel.vue";
@@ -58,7 +59,7 @@ let previousNetwork: { rx: number; tx: number; at: number } | null = null;
 
 const groups = [
   { title: "Overview", items: [["home", "Home"], ["activity", "Timeline"]] },
-  { title: "Manage", items: [["files", "Files"], ["startup", "Launch"], ["networking", "Ports"], ["schedules", "Automations"]] },
+  { title: "Manage", items: [["files", "Files"], ["startup", "Launch"], ["networking", "Ports"], ["ddos", "DDoS"], ["schedules", "Automations"]] },
   { title: "Data", items: [["databases", "Databases"], ["backups", "Backups"]] },
   { title: "Admin", items: [["users", "Access"], ["settings", "Settings"]] },
 ] as const;
@@ -71,6 +72,7 @@ const NAV_ICONS: Record<string, string> = {
   startup: "M5 3l14 9-14 9V3z",
   networking: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z M2 12h20 M12 2a15 15 0 0 1 0 20 M12 2a15 15 0 0 0 0 20",
   schedules: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z M12 6v6l4 2",
+  ddos: "M12 3l8 3v6c0 5-3.4 8.4-8 9-4.6-.6-8-4-8-9V6l8-3z M9 12l2 2 4-4",
   databases: "M3 6c0-1.7 4-3 9-3s9 1.3 9 3-4 3-9 3-9-1.3-9-3z M21 12c0 1.7-4 3-9 3s-9-1.3-9-3 M3 6v12c0 1.7 4 3 9 3s9-1.3 9-3V6",
   backups: "M21 8v13H3V8 M1 3h22v5H1z M10 12h4",
   users: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M22 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75",
@@ -120,7 +122,7 @@ function setStatus(next: string): void {
   const wasOnline = isOnline();
   server.value.status = next;
   if (!wasOnline && isOnline()) {
-    history.value = { cpu: [], ram: [], disk: [], rx: [], tx: [] };
+    history.value = { cpu: [], ram: [], disk: [], rx: [], tx: [] }; metrics.value = { cpu: 0, ram: 0, disk: 0, rx: 0, tx: 0 };
     startedAt.value = null;
   }
 }
@@ -147,6 +149,24 @@ function smoothPath(points: string, area = 0): string {
 }
 
 const nameDraft = ref<string | null>(null);
+const sftp = ref<{ username: string; host: string | null; port: number; write: boolean } | null>(null);
+
+watch(
+  () => server.value?.id,
+  async (id) => {
+    sftp.value = null;
+    if (!id) return;
+    try {
+      const all = await api<
+        { server_id: string; username: string; host: string | null; port: number; write: boolean }[]
+      >("/ssh-keys/connections");
+      sftp.value = all.find((row) => row.server_id === id) ?? null;
+    } catch {
+      sftp.value = null;
+    }
+  },
+  { immediate: true },
+);
 const savingName = ref(false);
 const nameError = ref("");
 const nameSaved = ref(false);
@@ -322,13 +342,13 @@ const powerBusy = ref<string | null>(null);
 async function power(action: "start" | "restart" | "stop" | "kill"): Promise<void> {
   if (!server.value || powerBusy.value !== null) return;
   if (action === "restart") {
-    history.value = { cpu: [], ram: [], disk: [], rx: [], tx: [] };
+    history.value = { cpu: [], ram: [], disk: [], rx: [], tx: [] }; metrics.value = { cpu: 0, ram: 0, disk: 0, rx: 0, tx: 0 };
     startedAt.value = null;
   }
   if (action === "start") {
     clearConsole();
     startedAt.value = null;
-    history.value = { cpu: [], ram: [], disk: [], rx: [], tx: [] };
+    history.value = { cpu: [], ram: [], disk: [], rx: [], tx: [] }; metrics.value = { cpu: 0, ram: 0, disk: 0, rx: 0, tx: 0 };
   }
   powerBusy.value = action;
   try {
@@ -412,7 +432,7 @@ onMounted(async () => {
         </div>
 
         <section v-if="active === 'home'" class="overflow-hidden rounded-xl border border-ink-700 bg-ink-900">
-          <ConsoleOutput :lines="lines" :placeholder="t('console.waiting')" :offline-text="server.status === 'running' || server.status === 'starting' ? undefined : 'EpicWing container: Server marked as offline...'" class="h-[min(34vh,28rem)] min-h-[17rem]" />
+          <ConsoleOutput :lines="lines" :placeholder="t('console.waiting')" :offline-text="server.status === 'running' || server.status === 'starting' ? undefined : server.status === 'installing' ? 'EpicWing container: Installing server, this can take a few minutes...' : 'EpicWing container: Server marked as offline...'" class="h-[min(34vh,28rem)] min-h-[17rem]" />
           <p v-if="error || consoleError" class="border-t border-bad/30 bg-bad/10 px-4 py-2 text-xs text-bad">{{ error || consoleError }}</p>
           <form class="flex gap-2 border-t border-ink-700 p-3" @submit.prevent="sendCommand">
             <input v-model="command" class="min-w-0 flex-1 rounded-md border border-ink-700 bg-ink-950 px-3 py-2 font-mono text-sm outline-none focus:border-accent-500" placeholder="Enter a command…" :disabled="connection !== 'connected' && connection !== 'running'" autocomplete="off" />
@@ -459,7 +479,9 @@ onMounted(async () => {
 
           <SchedulesPanel v-else-if="active === 'schedules'" :server-id="server.id" :permissions="permissions" />
 
-          <div v-else-if="active === 'settings'" class="space-y-6"><div><h2 class="text-2xl font-semibold">Settings</h2><p class="mt-2 text-sm text-ink-400">Configure your server settings and maintenance actions.</p></div><div class="rounded-xl border border-ink-700 bg-ink-900 p-6"><h3 class="text-lg font-semibold">Server Details</h3><label class="mt-5 block text-sm text-ink-400">Server Name</label><div class="mt-2 flex gap-3"><input :value="nameDraft ?? server.name" @input="nameDraft = ($event.target as HTMLInputElement).value; nameSaved = false" @keydown.enter.prevent="saveName()" class="w-full rounded-lg border border-ink-700 bg-ink-950 px-4 py-3 text-sm text-ink-100" /><button class="shrink-0 rounded-lg bg-accent-500 px-5 py-2 text-sm font-medium text-ink-950 transition hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-40" :disabled="!nameChanged() || savingName" @click="saveName()">{{ savingName ? "Saving…" : "Save" }}</button></div><p v-if="nameError" class="mt-3 text-sm text-bad">{{ nameError }}</p><p v-else-if="nameSaved" class="mt-3 text-sm text-ink-400">Saved.</p></div><div class="rounded-xl border border-ink-700 bg-ink-900 p-6"><h3 class="text-lg font-semibold">Reinstall Server</h3><p class="mt-2 text-sm text-ink-400">Reinstalling replaces the container and runs the installation script again. This can overwrite files.</p><button class="mt-5 rounded-lg border border-bad/50 px-4 py-2 text-sm text-bad transition hover:bg-bad/10 disabled:cursor-not-allowed disabled:opacity-40" :disabled="!canReinstall()" @click="reinstall()">{{ reinstalling ? "Reinstalling…" : "Reinstall Server" }}</button><p v-if="!canReinstall() && !reinstalling" class="mt-3 text-xs text-ink-400">Stop the server before reinstalling.</p><p v-if="reinstallError" class="mt-3 text-sm text-bad">{{ reinstallError }}</p></div><BackupLimitField v-if="auth.state.user?.is_admin" :server-id="server.id" :limit="server.backup_limit" @saved="server.backup_limit = $event" /></div>
+          <DdosPanel v-else-if="active === 'ddos'" :server-id="server.id" :online="isOnline()" :rx="history.rx" :tx="history.tx" />
+
+          <div v-else-if="active === 'settings'" class="space-y-6"><div><h2 class="text-2xl font-semibold">Settings</h2><p class="mt-2 text-sm text-ink-400">Configure your server settings and maintenance actions.</p></div><div class="rounded-xl border border-ink-700 bg-ink-900 p-6"><h3 class="text-lg font-semibold">Server Details</h3><label class="mt-5 block text-sm text-ink-400">Server Name</label><div class="mt-2 flex gap-3"><input :value="nameDraft ?? server.name" @input="nameDraft = ($event.target as HTMLInputElement).value; nameSaved = false" @keydown.enter.prevent="saveName()" class="w-full rounded-lg border border-ink-700 bg-ink-950 px-4 py-3 text-sm text-ink-100" /><button class="shrink-0 rounded-lg bg-accent-500 px-5 py-2 text-sm font-medium text-ink-950 transition hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-40" :disabled="!nameChanged() || savingName" @click="saveName()">{{ savingName ? "Saving…" : "Save" }}</button></div><p v-if="nameError" class="mt-3 text-sm text-bad">{{ nameError }}</p><p v-else-if="nameSaved" class="mt-3 text-sm text-ink-400">Saved.</p></div><div class="rounded-xl border border-ink-700 bg-ink-900 p-6"><h3 class="text-lg font-semibold">Reinstall Server</h3><p class="mt-2 text-sm text-ink-400">Reinstalling replaces the container and runs the installation script again. This can overwrite files.</p><button class="mt-5 rounded-lg border border-bad/50 px-4 py-2 text-sm text-bad transition hover:bg-bad/10 disabled:cursor-not-allowed disabled:opacity-40" :disabled="!canReinstall()" @click="reinstall()">{{ reinstalling ? "Reinstalling…" : "Reinstall Server" }}</button><p v-if="!canReinstall() && !reinstalling" class="mt-3 text-xs text-ink-400">Stop the server before reinstalling.</p><p v-if="reinstallError" class="mt-3 text-sm text-bad">{{ reinstallError }}</p></div><div v-if="sftp" class="rounded-xl border border-ink-700 bg-ink-900 p-6"><h3 class="text-lg font-semibold">SFTP</h3><p class="mt-2 text-sm text-ink-400">Open this server's files in any SFTP program with your SSH key. Add a key under <RouterLink to="/ssh-keys" class="underline hover:text-ink-100">SSH Keys</RouterLink>.<span v-if="!sftp.write"> Your access is read only.</span></p><code class="mt-4 block select-all break-all rounded-md border border-ink-700 bg-ink-950 px-3 py-2 font-mono text-xs">sftp -P {{ sftp.port }} {{ sftp.username }}@{{ sftp.host ?? "NODE-ADDRESS" }}</code></div><BackupLimitField v-if="auth.state.user?.is_admin" :server-id="server.id" :limit="server.backup_limit" @saved="server.backup_limit = $event" /></div>
 
           <div v-else-if="active === 'activity'" class="space-y-6"><div><h2 class="text-2xl font-semibold">Timeline</h2><p class="mt-2 text-sm text-ink-400">Monitor server activity and track actions performed on this server.</p></div><ActivityPanel :server-id="server.id" :permissions="permissions" /></div>
         </div>

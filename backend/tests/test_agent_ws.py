@@ -326,3 +326,20 @@ def test_disconnecting_one_node_keeps_the_stats_of_others(client, user, clean_st
         # Node A ist getrennt: ihre Stats verschwinden, die von Node B bleiben.
         assert _eventually(lambda: set(registry.server_stats) == {server_b})
         assert server_a not in registry.server_stats
+
+
+def test_stats_feed_the_ddos_detector(client, user, clean_stats):
+    import time
+
+    from app.services.ddos_detect import detector
+
+    node_id, key = _enroll_node(client, user)
+    server_id = _server_on(client, user, node_id, 25003)
+    with client.websocket_connect(WS_URL) as ws:
+        _login_agent(ws, node_id, key)
+        frame = _stats_frame(server_id)
+        frame["console"] = {"window_lines": 5, "bogus": 7}
+        ws.send_json(frame)
+        assert _eventually(lambda: detector.snapshot(server_id, time.monotonic()) is not None)
+    # Beim Trennen vergisst die Registry auch den Zustand des Detektors.
+    assert _eventually(lambda: detector.snapshot(server_id, time.monotonic()) is None)

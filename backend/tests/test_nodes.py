@@ -125,7 +125,7 @@ def test_create_node_with_only_a_name_uses_defaults(client, user):
     response = client.post("/api/nodes", json={"name": "minimal"}, headers=headers)
     assert response.status_code == 201
     node = response.json()["node"]
-    assert node["port_range_start"] == 25000
-    assert node["port_range_end"] == 25999
+    assert node["port_range_start"] == 1024
+    assert node["port_range_end"] == 65535
     assert node["location"] == ""
     assert node["fqdn"] is None

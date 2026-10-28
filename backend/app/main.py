@@ -2,8 +2,6 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.api_keys import router as api_keys_router
-from app.api.ssh_keys import router as ssh_keys_router
 from app.api import (
     admin,
     agent,
@@ -18,6 +16,7 @@ from app.api import (
     health,
     nodes,
     panel,
+    server_ddos,
     server_members,
     servers,
     two_factor,
@@ -26,8 +25,10 @@ from app.api import (
 from app.api.admin_database_hosts import router as admin_database_hosts_router
 from app.api.admin_mail import router as admin_mail_router
 from app.api.admin_notifications import router as admin_notifications_router
+from app.api.api_keys import router as api_keys_router
 from app.api.schedules import router as schedules_router
 from app.api.server_databases import router as server_databases_router
+from app.api.ssh_keys import router as ssh_keys_router
 from app.config import get_settings
 from app.services.scheduler import lifespan
 
@@ -81,6 +82,7 @@ def create_app() -> FastAPI:
     app.include_router(eggs.router, prefix="/api")
     app.include_router(allocations.router, prefix="/api")
     app.include_router(servers.router, prefix="/api")
+    app.include_router(server_ddos.router, prefix="/api")
     app.include_router(server_members.router, prefix="/api")
     app.include_router(avatars.router, prefix="/api")
     app.include_router(backups.router, prefix="/api")

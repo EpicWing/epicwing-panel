@@ -15,17 +15,7 @@ interface KeyRow {
   created_at: string;
 }
 
-interface Target {
-  server_id: string;
-  server_name: string;
-  username: string;
-  host: string | null;
-  port: number;
-  write: boolean;
-}
-
 const keys = ref<KeyRow[]>([]);
-const targets = ref<Target[]>([]);
 const loading = ref(true);
 const error = ref("");
 const formError = ref("");
@@ -54,7 +44,6 @@ function formatDate(value: string | null, empty: string): string {
 async function load(): Promise<void> {
   try {
     keys.value = await api<KeyRow[]>("/ssh-keys");
-    targets.value = await api<Target[]>("/ssh-keys/connections");
   } catch (cause) {
     error.value = message(cause);
   } finally {
@@ -132,20 +121,6 @@ onMounted(() => void load());
       </li>
     </ul>
     <KeyEmptyState v-else title="No SSH keys yet" text="Add your public key to open your server files over SFTP without a password." />
-
-    <div v-if="targets.length" class="mt-6 rounded-xl border border-ink-700 bg-ink-900 p-5">
-      <p class="font-medium">Connect with SFTP</p>
-      <p class="mt-1 text-xs text-ink-400">The user name is the short ID of the server. Your private key stays on your computer.</p>
-      <ul class="mt-3 space-y-3">
-        <li v-for="target in targets" :key="target.server_id">
-          <p class="flex items-center gap-2 text-sm">
-            <span class="truncate">{{ target.server_name }}</span>
-            <span v-if="!target.write" class="rounded bg-ink-700 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink-300">Read only</span>
-          </p>
-          <code class="mt-1 block select-all break-all rounded-md border border-ink-700 bg-ink-950 px-3 py-2 font-mono text-xs">sftp -P {{ target.port }} {{ target.username }}@{{ target.host ?? "NODE-ADDRESS" }}</code>
-        </li>
-      </ul>
-    </div>
 
     <Modal v-model="open" title="Add SSH Key">
       <form id="ssh-key-form" class="grid gap-4" @submit.prevent="add">
