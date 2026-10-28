@@ -17,6 +17,8 @@ from app.security.sessions import AuthContext
 router = APIRouter(prefix="/audit-logs", tags=["audit"])
 server_router = APIRouter(prefix="/servers", tags=["audit"])
 
+HIDDEN_ACTIONS = ("server.console_open",)
+
 ActivityAccess = Annotated[ServerAccess, Depends(server_access(ServerPermission.SETTINGS_VIEW))]
 
 
@@ -65,7 +67,11 @@ def server_activity(
     rows = list(
         db.scalars(
             select(AuditLog)
-            .where(AuditLog.target_type == "server", AuditLog.target_id == str(access.server.id))
+            .where(
+                AuditLog.target_type == "server",
+                AuditLog.target_id == str(access.server.id),
+                AuditLog.action.not_in(HIDDEN_ACTIONS),
+            )
             .order_by(AuditLog.created_at.desc(), AuditLog.id.desc())
             .offset(offset)
             .limit(limit + 1)
