@@ -14,7 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Schedule
-from app.services import ddos_store
+from app.services import auto_restart, ddos_store
 from app.services.schedule_runner import open_session, run_in_background
 from app.services.schedules import build_expression, next_run
 
@@ -94,6 +94,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     if os.environ.get("EPICWING_SCHEDULER", "1") == "1":
         await asyncio.to_thread(_seed_eggs_if_empty)
         tasks.append(asyncio.create_task(scheduler_loop()))
+        tasks.append(asyncio.create_task(auto_restart.loop()))
         tasks.append(asyncio.create_task(ddos_store.store_loop(ddos_store.load())))
     try:
         yield

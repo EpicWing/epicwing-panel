@@ -68,6 +68,8 @@ class ConsoleHub:
         self._backlog: dict[str, deque[dict[str, Any]]] = {}
         # Ausgabe von Install und Reinstall, unabhängig davon, ob jemand die Konsole offen hat.
         self._install: dict[str, deque[str]] = {}
+        # Letzte Eingabe je Container: Ein getippter Stopp soll nicht neu gestartet werden.
+        self._last_input: dict[str, tuple[float, str]] = {}
 
     async def _command(
         self, node_id: uuid.UUID, action: str, name: str, data: str | None = None
@@ -140,7 +142,11 @@ class ConsoleHub:
             except (RuntimeError, WebSocketDisconnect):
                 self._drop(name, websocket)
 
+    def last_input(self, name: str) -> tuple[float, str] | None:
+        return self._last_input.get(name)
+
     async def send_input(self, node_id: uuid.UUID, name: str, data: str) -> None:
+        self._last_input[name] = (time.monotonic(), data)
         await self._command(node_id, "console.input", name, data)
 
     async def _replay_install(self, name: str, websocket: WebSocket) -> bool:

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.agentlink.protocol import StateFrame
 from app.models import Server
 from app.models.egg import Egg
+from app.services import auto_restart
 from app.services.startup_ready import done_texts
 
 
@@ -57,9 +58,15 @@ def apply_state(db: Session, node_id: uuid.UUID, frame: StateFrame) -> str | Non
         if server is not None and server.node_id == node_id:
             egg = db.get(Egg, server.egg_id)
             hold = bool(egg and done_texts(egg.config))
-            new_status, error = next_status(server.status, frame.state, frame.exit_code, hold)
+            previous = server.status
+            new_status, error = next_status(previous, frame.state, frame.exit_code, hold)
             if new_status is not None:
                 server.status = new_status
                 server.last_error = error
+                if frame.state == "exited":
+                    auto_restart.plan(
+                        db, server, previous, frame.exit_code, egg.stop_command if egg else ""
+                    )
+                    new_status = server.status
     db.commit()
     return new_status

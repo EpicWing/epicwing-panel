@@ -137,6 +137,9 @@ class ServerUpdate(CleanedFields):
     startup: str | None = None
     variables: dict[str, str] | None = Field(default=None, max_length=64)
     backup_limit: int | None = Field(default=None, ge=0, le=1000)
+    auto_restart: str | None = Field(default=None, pattern="^(off|crash|always)$")
+    auto_restart_delay: int | None = Field(default=None, ge=5, le=3600)
+    auto_restart_max_failures: int | None = Field(default=None, ge=0, le=100)
 
     @field_validator("memory_mb", "cpus", "disk_mb")
     @classmethod
@@ -172,6 +175,10 @@ class ServerOut(BaseModel):
     cpus: float
     disk_mb: int
     backup_limit: int = 0
+    auto_restart: str = "always"
+    auto_restart_delay: int = 30
+    auto_restart_max_failures: int = 5
+    restart_due_at: datetime | None = None
     status: str
     last_error: str | None
     allocations: list[AllocationRef] = []
