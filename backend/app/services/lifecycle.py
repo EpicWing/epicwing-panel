@@ -86,5 +86,6 @@ def install_settings(egg: Any) -> tuple[str, str]:
         # without an install.entrypoint still need the shell matching the
         # installer image instead of always trying Alpine's `ash`.
         lowered = resolved_image.lower()
-        resolved_entrypoint = "bash" if any(word in lowered for word in ("debian", "ubuntu", "alpine-glibc")) else "ash"
+        shell_images = ("debian", "ubuntu", "alpine-glibc")
+        resolved_entrypoint = "bash" if any(word in lowered for word in shell_images) else "ash"
     return resolved_image, resolved_entrypoint
