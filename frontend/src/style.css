@@ -164,3 +164,69 @@ body:has(.server-detail-shell) {
     animation: none;
   }
 }
+
+/* Animationen: kurz halten, 120 bis 250 ms */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+}
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-4px);
+  }
+}
+
+.page-in {
+  animation: page-in 0.24s ease-out backwards;
+}
+
+.fixed.inset-0.z-50 {
+  animation: fade-in 0.16s ease-out backwards;
+}
+.fixed.inset-0.z-50 > [role="dialog"] {
+  animation: pop-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+[role="menu"] {
+  animation: menu-in 0.12s ease-out backwards;
+  transform-origin: top right;
+}
+
+/* In der base-Schicht, damit Tailwind-Klassen wie "transition" Vorrang behalten. */
+@layer base {
+  button,
+  a,
+  input,
+  select,
+  textarea,
+  [role="menuitem"] {
+    transition-property: color, background-color, border-color, opacity, box-shadow;
+    transition-duration: 150ms;
+    transition-timing-function: ease;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
