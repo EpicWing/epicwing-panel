@@ -45,6 +45,7 @@ const sections = computed<NavSection[]>(() => {
           { label: t("nav.locations"), to: "/admin/locations" },
           { label: t("nav.eggs"), to: "/admin/eggs" },
           { label: t("nav.allServers"), to: "/admin/servers" },
+          { label: t("nav.databaseHosts"), to: "/admin/databases" },
           { label: t("nav.users"), to: "/admin/users" },
           { label: t("nav.mail"), to: "/admin/mail" },
         ],
