@@ -2,12 +2,14 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     DateTime,
     Float,
     ForeignKey,
     Integer,
     String,
+    Text,
     UniqueConstraint,
     false,
     func,
@@ -64,6 +66,8 @@ class Server(Base):
     memory_mb: Mapped[int] = mapped_column(Integer)
     cpus: Mapped[float] = mapped_column(Float)
     disk_mb: Mapped[int] = mapped_column(Integer)
+    # 0 heißt unbegrenzt viele Backups.
+    backup_limit: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     # 'new' heißt: nur im Panel angelegt, noch nichts auf der Node. Die übrigen Werte
     # (installing, offline, starting, running, stopping, error) setzt die Agent-Anbindung.
     status: Mapped[str] = mapped_column(String(16), default="new")
@@ -113,3 +117,29 @@ class ServerMemberPermission(Base):
         ForeignKey("server_members.id", ondelete="CASCADE"), primary_key=True
     )
     permission: Mapped[str] = mapped_column(String(64), primary_key=True)
+
+
+class ServerBackup(Base):
+    """Ein Backup eines Servers. Die Datei liegt auf der Node, hier nur die Metadaten."""
+
+    __tablename__ = "server_backups"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    server_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("servers.id", ondelete="CASCADE"), index=True
+    )
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    name: Mapped[str] = mapped_column(String(128))
+    # running, ok oder failed
+    status: Mapped[str] = mapped_column(String(16), default="running")
+    size_bytes: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0")
+    sha256: Mapped[str | None] = mapped_column(String(64))
+    is_locked: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    ignored: Mapped[str] = mapped_column(Text, default="", server_default="")
+    error: Mapped[str | None] = mapped_column(String(1024))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
