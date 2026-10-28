@@ -13,7 +13,6 @@ VALID = {
     "provider": "resend",
     "sender": "EpicWing <noreply@example.com>",
     "reply_to": "support@example.com",
-    "discord_url": "https://discord.gg/abc",
     "smtp_host": "",
     "smtp_port": 587,
     "smtp_user": "",
@@ -109,7 +108,6 @@ def test_save_keeps_secret_when_omitted(client, headers):
         {"sender": ""},
         {"sender": "a@example.com\r\nBcc: b@example.com"},
         {"reply_to": "nope"},
-        {"discord_url": "javascript:alert(1)"},
         {"provider": "sendmail"},
         {"smtp_port": 0},
     ],
@@ -132,7 +130,6 @@ def test_test_mail_uses_saved_settings(client, headers, monkeypatch):
     assert response.status_code == 200, response.text
     assert response.json() == {"ok": True, "detail": "msg-1"}
     assert sent["to"] == "me@example.com"
-    assert "https://discord.gg/abc" in sent["html"]
     assert sent["config"].resend_api_key == "re_secret_value"
 
 

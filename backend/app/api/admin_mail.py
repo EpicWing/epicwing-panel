@@ -41,7 +41,6 @@ class MailSettingsOut(BaseModel):
     provider: Literal["resend", "smtp"]
     sender: str
     reply_to: str
-    discord_url: str
     smtp_host: str
     smtp_port: int
     smtp_user: str
@@ -55,7 +54,6 @@ class MailSettingsIn(BaseModel):
     provider: Literal["resend", "smtp"]
     sender: str = Field(min_length=3, max_length=200)
     reply_to: str = Field("", max_length=200)
-    discord_url: str = Field("", max_length=300)
     smtp_host: str = Field("", max_length=200)
     smtp_port: int = Field(587, ge=1, le=65535)
     smtp_user: str = Field("", max_length=200)
@@ -72,14 +70,6 @@ class MailSettingsIn(BaseModel):
     @classmethod
     def _check_reply_to(cls, value: str) -> str:
         return _address(value) if value.strip() else ""
-
-    @field_validator("discord_url")
-    @classmethod
-    def _check_discord(cls, value: str) -> str:
-        value = _single_line(value)
-        if value and not value.startswith(("https://", "http://")):
-            raise ValueError("The link must start with https://")
-        return value
 
     @field_validator("smtp_host", "smtp_user")
     @classmethod
@@ -112,7 +102,6 @@ def _out(db: Session) -> MailSettingsOut:
         provider=config.provider,  # type: ignore[arg-type]
         sender=config.sender,
         reply_to=config.reply_to,
-        discord_url=config.discord_url,
         smtp_host=config.smtp_host,
         smtp_port=config.smtp_port,
         smtp_user=config.smtp_user,
@@ -137,7 +126,6 @@ def put_mail(body: MailSettingsIn, _auth: AdminAuth, db: DbSession) -> MailSetti
 @router.post("/test")
 def send_test(body: MailTestIn, _auth: AdminAuth, db: DbSession) -> MailTestOut:
     config = load_config(db)
-    button = ("Open Discord", config.discord_url) if config.discord_url else None
     html, text = render_for(
         config,
         "Mail delivery works",
@@ -145,7 +133,6 @@ def send_test(body: MailTestIn, _auth: AdminAuth, db: DbSession) -> MailTestOut:
             "This is a test message from your EpicWing panel.",
             "If you can read this, the panel can send emails with your settings.",
         ],
-        button,
     )
     ok, detail = send_mail(body.to, "EpicWing test email", html, text, config)
     return MailTestOut(ok=ok, detail=detail)

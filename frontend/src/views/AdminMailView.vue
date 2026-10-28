@@ -12,7 +12,6 @@ interface MailSettings {
   provider: Provider;
   sender: string;
   reply_to: string;
-  discord_url: string;
   smtp_host: string;
   smtp_port: number;
   smtp_user: string;
@@ -39,7 +38,6 @@ const form = reactive({
   provider: "resend" as Provider,
   sender: "",
   reply_to: "",
-  discord_url: "",
   smtp_host: "",
   smtp_port: 587,
   smtp_user: "",
@@ -59,7 +57,6 @@ function apply(data: MailSettings) {
   form.provider = data.provider;
   form.sender = data.sender;
   form.reply_to = data.reply_to;
-  form.discord_url = data.discord_url;
   form.smtp_host = data.smtp_host;
   form.smtp_port = data.smtp_port;
   form.smtp_user = data.smtp_user;
@@ -98,7 +95,6 @@ async function save() {
           provider: form.provider,
           sender: form.sender.trim(),
           reply_to: form.reply_to.trim(),
-          discord_url: form.discord_url.trim(),
           smtp_host: form.smtp_host.trim(),
           smtp_port: form.smtp_port,
           smtp_user: form.smtp_user.trim(),
@@ -169,12 +165,6 @@ onMounted(() => void load());
           <label :class="labelCls" for="mail-reply">{{ t("mail.replyTo") }}</label>
           <input id="mail-reply" v-model="form.reply_to" type="text" :class="fieldCls" />
           <p :class="hintCls">{{ t("mail.replyToHint") }}</p>
-        </div>
-
-        <div>
-          <label :class="labelCls" for="mail-discord">{{ t("mail.discord") }}</label>
-          <input id="mail-discord" v-model="form.discord_url" type="text" placeholder="https://" :class="fieldCls" />
-          <p :class="hintCls">{{ t("mail.discordHint") }}</p>
         </div>
 
         <div v-if="form.provider === 'resend'">
