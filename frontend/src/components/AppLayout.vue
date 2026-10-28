@@ -109,7 +109,7 @@ async function logout() {
               v-if="item.to"
               :to="item.to"
               class="mb-0.5 block border-l-2 border-transparent px-3 py-1.5 text-sm text-ink-300 transition hover:bg-ink-800 hover:text-ink-100"
-              exact-active-class="!border-accent-500 !bg-ink-800 !text-ink-100"
+              exact-active-class="!border-accent-500 !bg-accent-500/10 !text-accent-400"
             >
               {{ item.label }}
             </RouterLink>

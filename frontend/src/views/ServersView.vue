@@ -41,7 +41,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <AppLayout :title="t('servers.title')" :subtitle="t('servers.subtitle')">
+  <AppLayout wide :title="t('servers.title')" :subtitle="t('servers.subtitle')">
     <template #actions>
       <div class="flex items-center gap-2">
         <button
@@ -85,7 +85,7 @@ onMounted(async () => {
 
     <div
       v-if="showDemo || servers.length > 0"
-      :class="layout === 'grid' ? 'grid gap-4 md:grid-cols-2' : 'flex flex-col gap-3'"
+      :class="layout === 'grid' ? 'grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4' : 'flex flex-col gap-3'"
     >
       <ServerCard
         v-for="server in showDemo ? demoServers : servers"
