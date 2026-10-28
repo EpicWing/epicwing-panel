@@ -19,7 +19,12 @@ from app.api.servers import FILES_BLOCKED, _conflict, _exclusive, _not_found, _s
 from app.db import get_db
 from app.models import Server
 from app.models.server import ServerBackup
-from app.security.server_access import ServerAccess, ServerPermission, server_access
+from app.security.server_access import (
+    ServerAccess,
+    ServerPermission,
+    effective_permissions,
+    server_access,
+)
 from app.services import audit, lifecycle
 
 router = APIRouter(prefix="/servers", tags=["backups"])
@@ -92,6 +97,23 @@ class BackupPatch(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     is_locked: bool
+
+
+class BackupTransfer(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    target_server_id: uuid.UUID
+    name: str | None = Field(default=None, max_length=128)
+
+    @field_validator("name")
+    @classmethod
+    def _clean_name(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip()
+        if any(ord(c) < 32 for c in value):
+            raise ValueError("The name contains control characters.")
+        return value or None
 
 
 class BackupOut(BaseModel):
@@ -307,6 +329,83 @@ async def restore_status(
     result = await _send(auth.server, "backup.status", _params(auth.server, backup, kind="restore"))
     data = _data(result)
     return {"state": str(data.get("state") or "unknown"), "error": data.get("error") or None}
+
+
+@router.post("/{server_id}/backups/{backup_id}/transfer", status_code=status.HTTP_201_CREATED)
+async def transfer_backup(
+    backup_id: uuid.UUID,
+    body: BackupTransfer,
+    request: Request,
+    auth: BackupsDownload,
+    db: DbSession,
+) -> BackupOut:
+    """Kopiert ein fertiges Backup auf einen anderen Server derselben Node."""
+    source = auth.server
+    _check_available(source)
+    original = _get_backup(db, source, backup_id)
+    if original.status != "ok":
+        raise _conflict("Only finished backups can be transferred.")
+    target = db.get(Server, body.target_server_id)
+    if target is None:
+        raise _not_found("Server not found.")
+    granted = effective_permissions(db, auth.user, [target], auth.is_admin)[target.id]
+    if not granted:
+        raise _not_found("Server not found.")
+    if ServerPermission.BACKUPS_CREATE.value not in granted:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Permission denied.")
+    if target.id == source.id:
+        raise _conflict("Choose a different target server.")
+    if target.node_id != source.node_id:
+        raise _conflict("Transfers between different nodes are not supported yet.")
+    _check_available(target)
+    if target.backup_limit <= 0:
+        raise _conflict("Backups are disabled for the target server.")
+    async with _exclusive(target.id):
+        used = (
+            db.scalar(
+                select(func.count())
+                .select_from(ServerBackup)
+                .where(ServerBackup.server_id == target.id, ServerBackup.status != "failed")
+            )
+            or 0
+        )
+        if used >= target.backup_limit:
+            raise _conflict("The backup limit of the target server is reached.")
+        name = body.name or f"{original.name} (from {source.name})"[:128]
+        new_backup = ServerBackup(
+            id=uuid.uuid4(),
+            server_id=target.id,
+            created_by=auth.user.id,
+            name=name,
+            status="running",
+            ignored=original.ignored,
+            is_locked=False,
+        )
+        db.add(new_backup)
+        db.commit()
+        try:
+            result = await _send(
+                target,
+                "backup.copy",
+                {
+                    "name": lifecycle.container_name(target.id),
+                    "id": str(new_backup.id),
+                    "source_name": lifecycle.container_name(source.id),
+                    "source_id": str(original.id),
+                    "sha256": original.sha256 or "",
+                },
+            )
+            _data(result)
+        except HTTPException as exc:
+            if exc.status_code == status.HTTP_504_GATEWAY_TIMEOUT:
+                _finish(new_backup, "failed", "The node did not answer in time.")
+            else:
+                db.delete(new_backup)
+            db.commit()
+            raise
+    _audit(db, request, auth, "transfer", f"{original.name} -> {target.name}")
+    db.refresh(new_backup)
+    return BackupOut.model_validate(new_backup)
 
 
 @router.delete("/{server_id}/backups/{backup_id}", status_code=status.HTTP_204_NO_CONTENT)

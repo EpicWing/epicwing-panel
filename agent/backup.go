@@ -428,13 +428,15 @@ func bkStateMap(st bkState) map[string]any {
 
 func (d *commandDispatcher) executeBackup(action string, raw json.RawMessage) (map[string]any, error) {
 	var p struct {
-		Name    string `json:"name"`
-		ID      string `json:"id"`
-		Ignored string `json:"ignored"`
-		SHA256  string `json:"sha256"`
-		Kind    string `json:"kind"`
-		Offset  int64  `json:"offset"`
-		Length  int    `json:"length"`
+		Name       string `json:"name"`
+		ID         string `json:"id"`
+		Ignored    string `json:"ignored"`
+		SHA256     string `json:"sha256"`
+		Kind       string `json:"kind"`
+		Offset     int64  `json:"offset"`
+		Length     int    `json:"length"`
+		SourceName string `json:"source_name"`
+		SourceID   string `json:"source_id"`
 	}
 	if err := decodeParams(raw, &p); err != nil {
 		return nil, err
@@ -504,6 +506,41 @@ func (d *commandDispatcher) executeBackup(action string, raw json.RawMessage) (m
 			bkJobs.finish(p.Name, key, st)
 		}()
 		return map[string]any{"state": "running"}, nil
+	case "backup.copy":
+		if !bkNameRe.MatchString(p.SourceName) {
+			return nil, errors.New("invalid source server name")
+		}
+		if !bkIDRe.MatchString(p.SourceID) {
+			return nil, errors.New("invalid source backup id")
+		}
+		from := filepath.Join(filepath.Dir(filepath.Clean(dataDir)), "backups", p.SourceName, p.SourceID+".tar.gz")
+		if _, err := os.Stat(from); err != nil {
+			return nil, errors.New("backup file not found")
+		}
+		if _, err := os.Stat(archive); err == nil {
+			return nil, errors.New("this backup already exists")
+		}
+		if bkJobs.isBusy(p.SourceName) {
+			return nil, errors.New("a backup operation is running for this server")
+		}
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			return nil, err
+		}
+		key := "create:" + p.ID
+		if err := bkJobs.start(p.Name, key); err != nil {
+			return nil, err
+		}
+		go func() {
+			size, sum, err := bkCopy(from, archive, p.SHA256)
+			st := bkState{State: "ok", Size: size, SHA256: sum}
+			if err != nil {
+				st = bkState{State: "failed", Error: bkErrText(err)}
+				log.Printf("backup copy %s of %s failed: %v", p.ID, p.Name, err)
+			}
+			bkWriteMeta(meta, st)
+			bkJobs.finish(p.Name, key, st)
+		}()
+		return map[string]any{"state": "running"}, nil
 	case "backup.read":
 		return bkReadChunk(archive, p.Offset, p.Length)
 	case "backup.status":
@@ -546,3 +583,40 @@ func (d *commandDispatcher) executeBackup(action string, raw json.RawMessage) (m
 }
 
 var _ = time.Second
+
+// bkCopy kopiert ein fertiges Archiv und prüft dabei die Prüfsumme. Die Zieldatei
+// erscheint erst, wenn alles stimmt.
+func bkCopy(src, dest, want string) (int64, string, error) {
+	in, err := os.Open(src)
+	if err != nil {
+		return 0, "", err
+	}
+	defer in.Close()
+	part := dest + ".part"
+	out, err := os.OpenFile(part, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
+	if err != nil {
+		return 0, "", err
+	}
+	h := sha256.New()
+	size, err := io.Copy(io.MultiWriter(out, h), in)
+	if err == nil {
+		err = out.Sync()
+	}
+	if cerr := out.Close(); err == nil {
+		err = cerr
+	}
+	if err != nil {
+		os.Remove(part)
+		return 0, "", err
+	}
+	sum := hex.EncodeToString(h.Sum(nil))
+	if want != "" && sum != want {
+		os.Remove(part)
+		return 0, "", errors.New("checksum mismatch, the source backup file is damaged")
+	}
+	if err := os.Rename(part, dest); err != nil {
+		os.Remove(part)
+		return 0, "", err
+	}
+	return size, sum, nil
+}
