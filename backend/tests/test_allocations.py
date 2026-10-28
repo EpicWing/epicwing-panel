@@ -79,6 +79,7 @@ def test_unknown_node_gives_404(client, user):
         {"ip": "45.142.104.41", "port_start": 65536},
         {"ip": "45.142.104.41", "port_start": 65535, "port_end": 65536},
         {"ip": "45.142.104.41", "port_start": 1023},
+        {"ip": "45.142.104.41", "port_start": 1023},
         {"ip": "45.142.104.41", "port_start": 25010, "port_end": 25001},
         {"ip": "45.142.104.41", "port_start": 25000, "port_end": 25600},
         {"ip": "45.142.104.41", "port_start": 25001, "protocol": "tcp"},
