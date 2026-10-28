@@ -6,6 +6,7 @@ import { useRouter } from "vue-router";
 import { auth } from "../stores/auth";
 import LogoMark from "./LogoMark.vue";
 import UserAvatar from "./UserAvatar.vue";
+import CopyrightFooter from "./CopyrightFooter.vue";
 
 const props = withDefaults(
   defineProps<{ title: string; subtitle?: string; area?: "user" | "admin"; wide?: boolean; minimal?: boolean; hero?: boolean; hideHeader?: boolean }>(),
@@ -199,6 +200,7 @@ async function logout() {
           </div>
           <slot />
         </div>
+        <CopyrightFooter v-if="!props.minimal" />
       </main>
     </div>
   </div>
