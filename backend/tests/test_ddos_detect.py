@@ -12,11 +12,15 @@ class Feeder:
         self.name = name
         self.t = 0.0
         self.rx = 0
-        self.det.observe(name, self.t, 0)
+        self.pk = 0
+        self.det.observe(name, self.t, 0, {"rx_packets": 0})
 
-    def step(self, rate, net=None, console=None):
+    def step(self, rate, net=None, console=None, pps=10):
         self.t += 2.0
         self.rx += int(rate * 2)
+        if net is None:
+            self.pk += int(pps * 2)
+            net = {"rx_packets": self.pk}
         return self.det.observe(self.name, self.t, self.rx, net, console)
 
 
@@ -48,7 +52,7 @@ def test_traffic_spike_alerts_once():
     f = Feeder()
     for _ in range(20):
         f.step(100 * KIB)
-    verdicts = [f.step(5 * 1024 * KIB) for _ in range(4)]
+    verdicts = [f.step(5 * 1024 * KIB, pps=30000) for _ in range(4)]
     assert sum(v.alert for v in verdicts) == 1
     assert verdicts[-1].level == "attack"
     assert verdicts[-1].reasons
@@ -59,7 +63,7 @@ def test_long_attack_does_not_become_normal():
     for _ in range(20):
         f.step(100 * KIB)
     for _ in range(200):
-        verdict = f.step(5 * 1024 * KIB)
+        verdict = f.step(5 * 1024 * KIB, pps=30000)
     assert verdict.level == "attack"
 
 
@@ -109,7 +113,7 @@ def test_servers_are_judged_separately():
         b.step(100 * KIB)
     alerts_a = []
     for _ in range(4):
-        alerts_a.append(a.step(5 * 1024 * KIB).alert)
+        alerts_a.append(a.step(5 * 1024 * KIB, pps=30000).alert)
         verdict_b = b.step(100 * KIB)
         assert verdict_b.level == "normal"
         assert not verdict_b.alert
