@@ -50,6 +50,7 @@ const next = ref(-1);
 const loading = ref(false);
 const busy = ref(false);
 const dragging = ref(false);
+const notice = ref("");
 const error = ref("");
 const query = ref("");
 const progress = ref("");
@@ -423,7 +424,7 @@ function exists(name: string): boolean {
 }
 
 interface Dialog {
-  kind: "file" | "folder" | "rename" | "move" | "moveMany" | "delete";
+  kind: "file" | "folder" | "rename" | "move" | "moveMany" | "delete" | "unarchive";
   entries: Entry[];
   value: string;
 }
@@ -435,6 +436,7 @@ const DIALOGS = {
   move: { title: "Move", label: "New name or path", hint: "Relative to the current folder, a leading / starts at the root.", submit: "Move" },
   delete: { title: "Delete", label: "", hint: "This cannot be undone.", submit: "Delete" },
   moveMany: { title: "Move items", label: "Destination folder", hint: "Relative to the current folder, a leading / starts at the root.", submit: "Move" },
+  unarchive: { title: "Unarchive", label: "Destination folder (empty: this folder)", hint: "Relative to the current folder, a leading / starts at the root. Existing files are overwritten.", submit: "Unarchive" },
 } as const;
 
 const dialog = ref<Dialog | null>(null);
@@ -475,6 +477,11 @@ function openDialog(kind: Dialog["kind"], entries: Entry[] = [], value = ""): vo
   });
 }
 
+function isArchive(name: string): boolean {
+  const lower = name.toLowerCase();
+  return lower.endsWith(".zip") || lower.endsWith(".tar.gz") || lower.endsWith(".tgz");
+}
+
 function closeDialog(): void {
   dialog.value = null;
 }
@@ -505,6 +512,38 @@ async function submitDialog(): Promise<void> {
       );
     } else {
       await action(() => api(`${base()}/folder`, { method: "POST", body: { path: target } }));
+    }
+    return;
+  }
+
+  if (d.kind === "unarchive") {
+    const archive = d.entries[0];
+    if (!archive) return;
+    let to = "";
+    if (value !== "") {
+      const dest = resolveTarget(value);
+      if (dest === null) {
+        dialogError.value = "Invalid folder.";
+        return;
+      }
+      to = dest === "" ? "." : dest;
+    }
+    closeDialog();
+    notice.value = "";
+    let summary = "";
+    await action(async () => {
+      const result = await api<{ files: number; dirs: number; skipped: number }>(`${base()}/decompress`, {
+        method: "POST",
+        body: { path: join(path.value, archive.name), to },
+      });
+      summary = `Unpacked ${result.files} files and ${result.dirs} folders from ${archive.name}.`;
+      if (result.skipped > 0) summary += ` ${result.skipped} links were skipped.`;
+    });
+    if (summary) {
+      notice.value = summary;
+      window.setTimeout(() => {
+        notice.value = "";
+      }, 10000);
     }
     return;
   }
@@ -760,6 +799,7 @@ watch(blocked, (value) => {
     </div>
 
     <p v-if="error" class="rounded-lg border border-bad/50 px-4 py-3 text-sm text-bad">{{ error }}</p>
+    <p v-if="notice" class="rounded-lg border border-ink-700 px-4 py-3 text-sm text-ink-200">{{ notice }}</p>
 
     <div v-if="blocked" class="flex min-h-[16rem] items-center justify-center rounded-xl border border-ink-700 bg-ink-900 text-center">
       <p class="text-sm text-ink-400">Files are available once the installation has finished.</p>
@@ -857,6 +897,7 @@ watch(blocked, (value) => {
                 <button role="menuitem" class="block w-full px-3 py-2 text-left text-ink-100 hover:bg-ink-800" @click="closeMenu(); download([entry])">{{ entry.dir ? "Download ZIP" : "Download" }}</button>
                 <button role="menuitem" class="block w-full px-3 py-2 text-left text-ink-100 hover:bg-ink-800" @click="closeMenu(); openDialog('rename', [entry], entry.name)">Rename</button>
                 <button role="menuitem" class="block w-full px-3 py-2 text-left text-ink-100 hover:bg-ink-800" @click="closeMenu(); openDialog('move', [entry], entry.name)">Move</button>
+                <button v-if="!entry.dir && isArchive(entry.name)" role="menuitem" class="block w-full px-3 py-2 text-left text-ink-100 hover:bg-ink-800" @click="closeMenu(); openDialog('unarchive', [entry], '')">Unarchive</button>
                 <button role="menuitem" class="block w-full px-3 py-2 text-left text-bad hover:bg-ink-800" @click="closeMenu(); openDialog('delete', [entry])">Delete</button>
               </div>
             </div>
