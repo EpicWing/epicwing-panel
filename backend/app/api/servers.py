@@ -1,18 +1,22 @@
 import uuid
 from collections import defaultdict
-from typing import Annotated
+from collections.abc import Awaitable, Callable
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.agentlink import protocol
+from app.agentlink.commands import AgentOffline, broker
 from app.db import get_db
 from app.models import Allocation, Egg, EggVariable, Node, Server, ServerVariable, User
 from app.schemas.server import AllocationRef, ServerCreate, ServerOut, ServerUpdate
 from app.security.permissions import Permission, require
 from app.security.sessions import AuthContext
-from app.services import audit
+from app.services import audit, lifecycle
 from app.services import rules as rule_engine
 from app.services import startup as startup_service
 
@@ -218,13 +222,15 @@ def update_server(
 
 
 @router.delete("/{server_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_server(
+async def delete_server(
     server_id: uuid.UUID, request: Request, auth: ManageServers, db: DbSession
 ) -> None:
     server = _get(db, server_id)
     if server.status not in DELETABLE:
         raise _conflict("Stop the server before deleting it.")
     name = server.name
+    if server.status != "new":
+        await _remove_container(server, skip_offline=True)
     db.execute(
         update(Allocation)
         .where(Allocation.server_id == server.id)
@@ -242,3 +248,140 @@ def delete_server(
         ip=audit.client_ip(request),
         details={"name": name},
     )
+
+
+class PowerRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    action: Literal["start", "stop", "kill"]
+
+
+# Aus welchem Zustand welche Aktion erlaubt ist, und wohin sie führt.
+POWER_FROM = {
+    "start": {"offline", "error"},
+    "stop": {"running", "starting"},
+    "kill": {"running", "starting", "stopping", "error"},
+}
+POWER_BUSY = {"start": "starting", "stop": "stopping", "kill": "stopping"}
+POWER_DONE = {"start": "running", "stop": "offline", "kill": "offline"}
+INSTALL_FROM = {"new", "offline", "error"}
+
+
+def _set_status(db: Session, server: Server, value: str, error: str | None = None) -> None:
+    server.status = value
+    server.last_error = error[:1024] if error else None
+    db.commit()
+
+
+async def _send(
+    server: Server, action: str, params: dict[str, Any] | None = None
+) -> protocol.CommandResult:
+    if params is None:
+        params = {"name": lifecycle.container_name(server.id)}
+    try:
+        return await broker.send(server.node_id, action, params)
+    except AgentOffline:
+        raise _conflict("The node is offline.") from None
+    except TimeoutError:
+        raise HTTPException(
+            status.HTTP_504_GATEWAY_TIMEOUT, "The node did not answer in time."
+        ) from None
+
+
+async def _agent(server: Server, action: str, params: dict[str, Any] | None = None) -> None:
+    result = await _send(server, action, params)
+    if not result.ok:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY, result.error or "The node reported an error."
+        )
+
+
+async def _remove_container(server: Server, skip_offline: bool = False) -> None:
+    """Entfernt den Container. Einen schon fehlenden Container zählt es als Erfolg."""
+    try:
+        result = await _send(server, "container.remove")
+    except HTTPException as exc:
+        if skip_offline and exc.status_code == status.HTTP_409_CONFLICT:
+            return
+        raise
+    if not result.ok and "no such" not in (result.error or "").lower():
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY, result.error or "The node reported an error."
+        )
+
+
+async def _transition(
+    db: Session,
+    server: Server,
+    busy: str,
+    done: str,
+    work: Callable[[], Awaitable[None]],
+) -> None:
+    _set_status(db, server, busy)
+    try:
+        await work()
+    except HTTPException as exc:
+        _set_status(db, server, "error", str(exc.detail))
+        raise
+    _set_status(db, server, done)
+
+
+@router.post("/{server_id}/install")
+async def install_server(
+    server_id: uuid.UUID, request: Request, auth: ManageServers, db: DbSession
+) -> ServerOut:
+    """Legt Datenverzeichnis und Container an. Das Install-Script läuft noch nicht."""
+    server = _get(db, server_id)
+    if server.status not in INSTALL_FROM:
+        raise _conflict(f"Not possible while the server is {server.status}.")
+    out = _outs(db, [server])[0]
+    node = db.get(Node, server.node_id)
+    spec = lifecycle.build_spec(
+        server, out.allocations, out.variables, node.ram_total_mb if node else None
+    )
+    reinstall = server.status != "new"
+
+    async def work() -> None:
+        if reinstall:
+            await _remove_container(server)
+        await _agent(server, "container.create", spec)
+
+    await _transition(db, server, "installing", "offline", work)
+    audit.record(
+        db,
+        "server.install",
+        actor_id=auth.user.id,
+        target_type="server",
+        target_id=str(server.id),
+        ip=audit.client_ip(request),
+        details={"name": server.name, "reinstall": reinstall},
+    )
+    return _outs(db, [server])[0]
+
+
+@router.post("/{server_id}/power")
+async def power_server(
+    server_id: uuid.UUID,
+    body: PowerRequest,
+    request: Request,
+    auth: ManageServers,
+    db: DbSession,
+) -> ServerOut:
+    server = _get(db, server_id)
+    if server.status not in POWER_FROM[body.action]:
+        raise _conflict(f"Not possible while the server is {server.status}.")
+
+    async def work() -> None:
+        await _agent(server, f"container.{body.action}")
+
+    await _transition(db, server, POWER_BUSY[body.action], POWER_DONE[body.action], work)
+    audit.record(
+        db,
+        "server.power",
+        actor_id=auth.user.id,
+        target_type="server",
+        target_id=str(server.id),
+        ip=audit.client_ip(request),
+        details={"name": server.name, "action": body.action},
+    )
+    return _outs(db, [server])[0]

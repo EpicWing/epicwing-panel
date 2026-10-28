@@ -265,6 +265,52 @@ async function remove(server: ServerItem) {
   }
 }
 
+const working = ref("");
+
+async function act(server: ServerItem, path: string, body?: Record<string, unknown>) {
+  error.value = "";
+  working.value = server.id;
+  try {
+    await api<ServerItem>(`/servers/${server.id}/${path}`, { method: "POST", body });
+  } catch (e) {
+    error.value = message(e);
+  } finally {
+    working.value = "";
+    await loadServers(false);
+  }
+}
+
+function install(server: ServerItem) {
+  const ask = server.status !== "new";
+  if (ask && !window.confirm(t("adminServers.reinstallConfirm", { name: server.name }))) {
+    return;
+  }
+  void act(server, "install");
+}
+
+function power(server: ServerItem, action: "start" | "stop" | "kill") {
+  if (action === "kill" && !window.confirm(t("adminServers.killConfirm", { name: server.name }))) {
+    return;
+  }
+  void act(server, "power", { action });
+}
+
+function canInstall(server: ServerItem): boolean {
+  return ["new", "offline", "error"].includes(server.status);
+}
+
+function canStart(server: ServerItem): boolean {
+  return ["offline", "error"].includes(server.status);
+}
+
+function canStop(server: ServerItem): boolean {
+  return ["running", "starting"].includes(server.status);
+}
+
+function canKill(server: ServerItem): boolean {
+  return ["running", "starting", "stopping"].includes(server.status);
+}
+
 onMounted(() => {
   void loadServers(true);
   timer = window.setInterval(() => void loadServers(false), 5000);
@@ -507,9 +553,43 @@ onUnmounted(() => window.clearInterval(timer));
               </p>
             </td>
             <td class="px-4 py-3 text-right">
-              <button :class="dangerClass" @click="remove(server)">
-                {{ t("adminServers.delete") }}
-              </button>
+              <div class="flex flex-wrap justify-end gap-2">
+                <button
+                  v-if="canInstall(server)"
+                  :class="buttonClass"
+                  :disabled="working === server.id"
+                  @click="install(server)"
+                >
+                  {{ server.status === "new" ? t("adminServers.install") : t("adminServers.reinstall") }}
+                </button>
+                <button
+                  v-if="server.status === 'offline' || server.status === 'error'"
+                  :class="buttonClass"
+                  :disabled="working === server.id"
+                  @click="power(server, 'start')"
+                >
+                  {{ t("adminServers.start") }}
+                </button>
+                <button
+                  v-if="canStop(server)"
+                  :class="buttonClass"
+                  :disabled="working === server.id"
+                  @click="power(server, 'stop')"
+                >
+                  {{ t("adminServers.stop") }}
+                </button>
+                <button
+                  v-if="canKill(server)"
+                  :class="dangerClass"
+                  :disabled="working === server.id"
+                  @click="power(server, 'kill')"
+                >
+                  {{ t("adminServers.kill") }}
+                </button>
+                <button :class="dangerClass" :disabled="working === server.id" @click="remove(server)">
+                  {{ t("adminServers.delete") }}
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>

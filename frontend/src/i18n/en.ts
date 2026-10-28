@@ -139,7 +139,7 @@ export default {
   adminServers: {
     title: "Servers",
     subtitle: "All servers on this panel.",
-    note: "Servers are only created in the panel for now. Installing, starting and stopping them comes with the agent.",
+    note: "Install creates the container and the data folder on the node. Egg install scripts are not run yet.",
     create: "Create new",
     cancel: "Cancel",
     colName: "Name",
@@ -174,6 +174,13 @@ export default {
     submitting: "Creating…",
     delete: "Delete",
     deleteConfirm: "Delete {name}? Its ports are released.",
+    install: "Install",
+    reinstall: "Reinstall",
+    reinstallConfirm: "Reinstall {name}? The container is replaced, the files are kept.",
+    start: "Start",
+    stop: "Stop",
+    kill: "Kill",
+    killConfirm: "Kill {name}? Unsaved data can be lost.",
     status: {
       new: "Not installed",
       installing: "Installing",

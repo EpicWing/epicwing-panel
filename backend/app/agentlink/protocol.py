@@ -14,7 +14,14 @@ MAX_MESSAGE_CHARS = 16 * 1024
 AUTH_TIMEOUT_SECONDS = 10
 IDLE_TIMEOUT_SECONDS = 30
 COMMAND_TIMEOUT_SECONDS = 90
-COMMAND_ACTIONS = ("container.create", "container.start", "container.stop", "container.remove")
+COMMAND_ACTIONS = (
+    "container.create",
+    "container.start",
+    "container.stop",
+    "container.kill",
+    "container.remove",
+    "container.status",
+)
 
 WS_GOING_AWAY = 1001
 WS_UNSUPPORTED = 1003
