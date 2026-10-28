@@ -35,6 +35,7 @@ COMMAND_ACTIONS = (
     "backup.restore",
     "backup.delete",
     "backup.status",
+    "backup.read",
 )
 
 WS_GOING_AWAY = 1001
