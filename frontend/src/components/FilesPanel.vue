@@ -42,6 +42,7 @@ const MAX_EDIT = 1024 * 1024;
 const MAX_LOAD = 5000;
 const MAX_FILES = 5000;
 const MAX_TRANSFER = 100 * 1024 * 1024;
+const MAX_UPLOAD = 1024 * 1024 * 1024;
 const PARALLEL = 6;
 
 const path = ref("");
@@ -787,8 +788,8 @@ async function uploadItems(uploads: Upload[], dirs: string[]): Promise<void> {
       if (!rel.split("/").every((part) => validName(part))) {
         throw new LocalError(`Invalid file name: ${rel}`);
       }
-      if (file.size > MAX_TRANSFER) {
-        throw new LocalError(`"${rel}" is larger than ${formatBytes(MAX_TRANSFER)}.`);
+      if (file.size > MAX_UPLOAD) {
+        throw new LocalError(`"${rel}" is larger than ${formatBytes(MAX_UPLOAD)}.`);
       }
       const bytes = new Uint8Array(await file.arrayBuffer());
       await writeFile(join(path.value, rel), bytes, (done) => {
