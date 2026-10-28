@@ -201,6 +201,10 @@ func (c *consoleManager) watchLoop(ctx context.Context, name string, w *consoleW
 		if history {
 			args = append(args, "--since", sinceArg(since))
 		} else {
+			// Only the current run: a restart keeps the container, so older lines are still in its log.
+			if started, err := runDocker(ctx, "inspect", "-f", "{{.State.StartedAt}}", name); err == nil && started != "" {
+				args = append(args, "--since", started)
+			}
 			args = append(args, "--tail", consoleHistory)
 		}
 		c.stream(ctx, name, append(args, name))
