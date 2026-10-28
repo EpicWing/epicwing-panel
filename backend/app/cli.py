@@ -121,7 +121,13 @@ def main(argv: list[str] | None = None) -> int:
     twofa = sub.add_parser("disable-2fa", help="2FA eines Benutzers abschalten (Notfall)")
     twofa.add_argument("--email", required=True)
 
+    sub.add_parser("seed-eggs", help="Mitgelieferte Eggs anlegen, die noch fehlen")
+
     args = parser.parse_args(argv)
+    if args.command == "seed-eggs":
+        from app import seed_eggs
+
+        return seed_eggs.main()
     if args.command == "disable-2fa":
         return disable_2fa(args.email)
     if args.command == "create-admin":

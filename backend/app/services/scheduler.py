@@ -71,10 +71,28 @@ async def scheduler_loop() -> None:
         await asyncio.sleep(INTERVAL_SECONDS)
 
 
+def _seed_eggs_if_empty() -> None:
+    """Frische Installation: mitgelieferte Eggs anlegen, solange die Tabelle leer ist."""
+    from sqlalchemy import func, select
+    from sqlalchemy.orm import Session
+
+    from app import seed_eggs
+    from app.db import get_engine
+    from app.models import Egg
+
+    try:
+        with Session(get_engine()) as db:
+            if db.scalar(select(func.count()).select_from(Egg)) == 0:
+                seed_eggs.seed(db)
+    except Exception:  # noqa: BLE001 - ein Seed-Fehler darf den Start nicht verhindern
+        logging.getLogger(__name__).exception("egg seed failed")
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     tasks: list[asyncio.Task[None]] = []
     if os.environ.get("EPICWING_SCHEDULER", "1") == "1":
+        await asyncio.to_thread(_seed_eggs_if_empty)
         tasks.append(asyncio.create_task(scheduler_loop()))
         tasks.append(asyncio.create_task(ddos_store.store_loop(ddos_store.load())))
     try:
