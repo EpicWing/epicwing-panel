@@ -102,9 +102,23 @@ function pushHistory(key: keyof typeof history.value, value: number): void {
   if (values.length > 60) values.shift();
 }
 
+function isOnline(): boolean {
+  return server.value?.status === "running" || server.value?.status === "starting";
+}
+
+// Axis labels follow the scaling of the line: top = peak, middle = half, bottom = 0.
+function axisLabel(key: string, fraction: number): string {
+  const values = history.value[key as keyof typeof history.value] ?? [];
+  const max = isOnline() ? Math.max(...values, 1) : key === "cpu" ? 1 : 0;
+  const value = max * fraction;
+  if (key === "cpu") return `${value.toFixed(2)}%`;
+  if (value > 0) return formatBytes(value);
+  return fraction === 0 ? formatBytes(0) : "";
+}
+
 function chartPoints(key: string): string {
   const values = history.value[key as keyof typeof history.value] ?? [];
-  if (values.length < 2) return "0,72 300,72";
+  if (!isOnline() || values.length < 2) return "0,72 300,72";
   const max = Math.max(...values, 1);
   return values.map((value, index) => `${(index / (values.length - 1)) * 300},${72 - (value / max) * 64}`).join(" ");
 }
@@ -268,11 +282,11 @@ onMounted(async () => {
 
         <section v-if="active === 'home'" class="grid gap-4 lg:grid-cols-3">
           <div v-for="chart in [
-            { key: 'cpu', title: 'CPU', value: `${metrics.cpu.toFixed(1)}%`, color: '#e5534b' },
-            { key: 'ram', title: 'RAM', value: formatBytes(metrics.ram), color: '#d9a21b' },
+            { key: 'cpu', title: 'CPU', value: (server.status === 'running' || server.status === 'starting') ? `${metrics.cpu.toFixed(1)}%` : 'Offline', color: '#e5534b' },
+            { key: 'ram', title: 'RAM', value: (server.status === 'running' || server.status === 'starting') ? formatBytes(metrics.ram) : 'Offline', color: '#d9a21b' },
           ]" :key="chart.key" class="rounded-xl border border-ink-700 bg-ink-900 p-4">
             <div class="flex items-center justify-between"><p class="flex items-center gap-2 text-xs uppercase tracking-wider text-ink-400"><span class="h-2 w-2 rounded-full" :style="{ backgroundColor: chart.color }"></span>{{ chart.title }}</p><p class="font-mono text-sm">{{ chart.value }}</p></div>
-            <svg viewBox="0 0 300 80" class="mt-3 h-16 w-full" preserveAspectRatio="none" aria-hidden="true"><polyline :points="chartPoints(chart.key)" fill="none" :stroke="chart.color" stroke-width="2" vector-effect="non-scaling-stroke" /></svg>
+            <div class="mt-3 flex gap-2"><div class="flex h-16 flex-col justify-between font-mono text-[10px] leading-none text-ink-500"><span>{{ axisLabel(chart.key, 1) }}</span><span>{{ axisLabel(chart.key, 0.5) }}</span><span>{{ axisLabel(chart.key, 0) }}</span></div><svg viewBox="0 0 300 80" class="h-16 min-w-0 flex-1" preserveAspectRatio="none" aria-hidden="true"><polyline :points="chartPoints(chart.key)" fill="none" :stroke="chart.color" stroke-width="2" vector-effect="non-scaling-stroke" /></svg></div>
           </div>
           <div class="rounded-xl border border-ink-700 bg-ink-900 p-4">
             <div class="flex items-center justify-between"><p class="text-xs uppercase tracking-wider text-ink-400">Network activity</p><p class="font-mono text-sm">↓ {{ formatBytes(metrics.rx) }}/s · ↑ {{ formatBytes(metrics.tx) }}/s</p></div>
