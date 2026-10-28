@@ -18,10 +18,10 @@ from sqlalchemy import Select, or_, select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import Server, User, UserSession
+from app.models import ApiKey, Server, User, UserSession
 from app.models.server import ServerMember, ServerMemberPermission
 from app.security.permissions import Permission, has_permission
-from app.security.sessions import CurrentAuth
+from app.security.apikeys import KeyContext, ServerAuth
 
 
 class ServerPermission(StrEnum):
@@ -54,6 +54,9 @@ class ServerPermission(StrEnum):
 
 
 ALL_SERVER_PERMISSIONS: frozenset[str] = frozenset(p.value for p in ServerPermission)
+
+# Ein API Key darf nie die Zugriffsverwaltung eines Servers anfassen.
+KEY_DENIED = frozenset({ServerPermission.ACCESS_VIEW, ServerPermission.ACCESS_MANAGE})
 
 
 def is_server_admin(db: Session, user: User) -> bool:
@@ -118,10 +121,11 @@ def visible_servers(db: Session, user: User) -> Select[tuple[Server]]:
 @dataclass
 class ServerAccess:
     user: User
-    session: UserSession
+    session: UserSession | None
     server: Server
     permissions: set[str]
     is_admin: bool
+    api_key: ApiKey | None = None
 
     def has(self, permission: ServerPermission) -> bool:
         return permission.value in self.permissions
@@ -136,9 +140,13 @@ def server_access(permission: ServerPermission | None = None) -> Callable[..., S
 
     def dependency(
         server_id: uuid.UUID,
-        auth: CurrentAuth,
+        auth: ServerAuth,
         db: Annotated[Session, Depends(get_db)],
     ) -> ServerAccess:
+        if isinstance(auth, KeyContext) and permission in KEY_DENIED:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN, "API keys cannot manage server access."
+            )
         server = db.get(Server, server_id)
         if server is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Server not found.")
@@ -146,7 +154,8 @@ def server_access(permission: ServerPermission | None = None) -> Callable[..., S
         granted = effective_permissions(db, auth.user, [server], admin)[server.id]
         if not granted:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Server not found.")
-        access = ServerAccess(auth.user, auth.session, server, granted, admin)
+        key = auth.key if isinstance(auth, KeyContext) else None
+        access = ServerAccess(auth.user, auth.session, server, granted, admin, key)
         if permission is not None:
             access.require(permission)
         return access

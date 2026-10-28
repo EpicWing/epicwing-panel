@@ -16,6 +16,9 @@ def record(
     ip: str | None = None,
     details: dict | None = None,
 ) -> None:
+    via_key = db.info.get("api_key")
+    if via_key:
+        details = {**(details or {}), "via_api_key": via_key}
     db.add(
         AuditLog(
             action=action,

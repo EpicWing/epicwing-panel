@@ -21,6 +21,7 @@ from app.agentlink.registry import registry
 from app.db import get_db
 from app.models import Allocation, Egg, EggVariable, Node, Server, ServerVariable, User
 from app.schemas.server import AllocationRef, ServerCreate, ServerOut, ServerUpdate
+from app.security.apikeys import ServerAuth
 from app.security.permissions import Permission, require
 from app.security.server_access import (
     ServerAccess,
@@ -30,7 +31,7 @@ from app.security.server_access import (
     server_access,
     visible_servers,
 )
-from app.security.sessions import AuthContext, CurrentAuth
+from app.security.sessions import AuthContext
 from app.services import audit, lifecycle, server_databases, transfer
 from app.services import rules as rule_engine
 from app.services import startup as startup_service
@@ -174,7 +175,7 @@ def _check_values(
 
 
 @router.get("")
-def list_servers(auth: CurrentAuth, db: DbSession) -> list[ServerOut]:
+def list_servers(auth: ServerAuth, db: DbSession) -> list[ServerOut]:
     servers = db.scalars(visible_servers(db, auth.user).order_by(Server.created_at))
     return _outs(db, list(servers), auth.user)
 

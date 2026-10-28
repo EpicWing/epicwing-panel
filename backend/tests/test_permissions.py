@@ -5,6 +5,7 @@ from app.main import app
 from app.models import AuditLog, Role, RolePermission, User, UserRole
 from app.security.passwords import hash_password
 from app.security.permissions import Permission
+from app.security.apikeys import get_server_auth
 from app.security.sessions import get_auth
 from tests.helpers import collect_routes
 
@@ -61,7 +62,10 @@ def test_every_route_requires_auth():
         for method in sorted(route.methods):
             if (route.path, method) in PUBLIC_ROUTES:
                 continue
-            if not _depends_on(route.dependant, get_auth):
+            if not (
+                _depends_on(route.dependant, get_auth)
+                or _depends_on(route.dependant, get_server_auth)
+            ):
                 unprotected.append(f"{method} {route.path}")
     assert not unprotected, f"Routen ohne Auth-Prüfung: {unprotected}"
 
