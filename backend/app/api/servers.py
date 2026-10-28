@@ -394,12 +394,15 @@ def _set_status(db: Session, server: Server, value: str, error: str | None = Non
 
 
 async def _send(
-    server: Server, action: str, params: dict[str, Any] | None = None
+    server: Server,
+    action: str,
+    params: dict[str, Any] | None = None,
+    timeout: float = protocol.COMMAND_TIMEOUT_SECONDS,
 ) -> protocol.CommandResult:
     if params is None:
         params = {"name": lifecycle.container_name(server.id)}
     try:
-        return await broker.send(server.node_id, action, params)
+        return await broker.send(server.node_id, action, params, timeout)
     except AgentOffline:
         raise NodeOffline() from None
     except TimeoutError:
@@ -408,8 +411,13 @@ async def _send(
         ) from None
 
 
-async def _agent(server: Server, action: str, params: dict[str, Any] | None = None) -> None:
-    result = await _send(server, action, params)
+async def _agent(
+    server: Server,
+    action: str,
+    params: dict[str, Any] | None = None,
+    timeout: float = protocol.COMMAND_TIMEOUT_SECONDS,
+) -> None:
+    result = await _send(server, action, params, timeout)
     if not result.ok:
         raise HTTPException(
             status.HTTP_502_BAD_GATEWAY, result.error or "The node reported an error."
@@ -437,6 +445,7 @@ async def _transition(
     done: str | None,
     work: Callable[[], Awaitable[None]],
     keep_on_offline: bool = False,
+    timeout_status: str | None = None,
 ) -> None:
     previous, previous_error = server.status, server.last_error
     _set_status(db, server, busy)
@@ -447,6 +456,9 @@ async def _transition(
             # Die Node war nicht erreichbar, der Zustand des Servers ist unverändert. Nach dem
             # Verbindungsaufbau meldet der Agent den echten Zustand ohnehin.
             _set_status(db, server, previous, previous_error)
+        elif timeout_status is not None and exc.status_code == status.HTTP_504_GATEWAY_TIMEOUT:
+            # Ein laufender Vorgang (z. B. installation) läuft auf der Node möglicherweise weiter.
+            _set_status(db, server, timeout_status)
         else:
             _set_status(db, server, "error", str(exc.detail))
         raise
@@ -485,9 +497,14 @@ async def install_server(
                 installer_image,
                 installer_entrypoint,
             )
-            await _agent(server, "container.install", install_spec)
+            await _agent(
+                server,
+                "container.install",
+                install_spec,
+                timeout=protocol.INSTALL_COMMAND_TIMEOUT_SECONDS,
+            )
 
-    await _transition(db, server, "installing", "offline", work)
+    await _transition(db, server, "installing", "offline", work, timeout_status="installing")
     audit.record(
         db,
         "server.install",

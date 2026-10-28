@@ -56,6 +56,11 @@ def create_allocations(
     node = _get_node(db, node_id)
     first = body.port_start
     last = body.port_end if body.port_end is not None else first
+    if first < node.port_range_start or last > node.port_range_end:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            f"Ports must be within the node range {node.port_range_start}-{node.port_range_end}.",
+        )
     taken = db.scalar(
         select(Allocation.port)
         .where(

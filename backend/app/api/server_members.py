@@ -176,17 +176,23 @@ def add_member(
 ) -> MemberOut:
     server = access.server
     target = db.scalar(select(User).where(func.lower(User.email) == body.email.strip().lower()))
-    if target is None or target.disabled_at is not None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found.")
-    if target.id == server.owner_id:
-        raise HTTPException(status.HTTP_409_CONFLICT, "The owner already has full access.")
-    taken = db.scalar(
-        select(ServerMember.id).where(
-            ServerMember.server_id == server.id, ServerMember.user_id == target.id
+    taken = (
+        target is not None
+        and target.disabled_at is None
+        and target.id != server.owner_id
+        and db.scalar(
+            select(ServerMember.id).where(
+                ServerMember.server_id == server.id, ServerMember.user_id == target.id
+            )
         )
+        is not None
     )
-    if taken is not None:
-        raise HTTPException(status.HTTP_409_CONFLICT, "This user already has access.")
+    if target is None or target.disabled_at is not None or target.id == server.owner_id or taken:
+        # Einheitliche Antwort, damit man nicht zwischen „existiert nicht“, „Eigentümer“
+        # und „schon Mitglied“ unterscheiden und damit E-Mail-Adressen enumerieren kann.
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "This user already has access or the user does not exist."
+        )
 
     requested = set(body.permissions)
     _guard(access, target.id, requested, set())

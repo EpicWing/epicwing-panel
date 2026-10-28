@@ -27,11 +27,20 @@ def test_create_single_port_and_range(client, user):
 
 def test_ports_from_1024_are_allowed(client, user):
     headers = _login(client, user)
-    node_id = _create(client, headers)  # Der Standardbereich 25000 bis 25999 spielt keine Rolle.
+    node_id = _create(client, headers, port_range_start=1024, port_range_end=65535)
     for port in (1024, 7777, 27015, 65535):
         body = {"ip": "45.142.104.41", "port_start": port}
         assert client.post(_url(node_id), json=body, headers=headers).status_code == 201
     assert [r["port"] for r in client.get(_url(node_id)).json()] == [1024, 7777, 27015, 65535]
+
+
+def test_ports_outside_the_node_range_are_rejected(client, user):
+    headers = _login(client, user)
+    node_id = _create(client, headers)
+    for port in (1024, 24999, 26000, 65535):
+        body = {"ip": "45.142.104.41", "port_start": port}
+        assert client.post(_url(node_id), json=body, headers=headers).status_code == 422
+    assert client.get(_url(node_id)).json() == []
 
 
 def test_duplicate_creates_nothing(client, user):

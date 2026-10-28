@@ -75,7 +75,9 @@ def test_owner_and_duplicates_are_conflicts(client, user, world):
     assert client.post(_url(world), json=body, headers=headers).status_code == 201
     assert client.post(_url(world), json=body, headers=headers).status_code == 409
     missing = {"email": "nobody@example.test", "permissions": []}
-    assert client.post(_url(world), json=missing, headers=headers).status_code == 404
+    # Gleiche Antwort wie bei einem existierenden Mitglied, damit E-Mail-Adressen
+    # nicht über den Statuscode enumeriert werden können.
+    assert client.post(_url(world), json=missing, headers=headers).status_code == 409
 
 
 def test_viewing_needs_access_view(client, db_session, world):
