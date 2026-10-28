@@ -57,8 +57,8 @@ function message(e: unknown): string {
 
 function usage(row: HostRow): string {
   return row.max_databases === null
-    ? `${t("databaseHosts.databases", { count: row.database_count })} · ${t("databaseHosts.unlimited")}`
-    : t("databaseHosts.of", { count: row.database_count, max: row.max_databases });
+    ? String(row.database_count)
+    : `${row.database_count} / ${row.max_databases}`;
 }
 
 async function load() {
@@ -180,12 +180,11 @@ onMounted(() => void load());
     </p>
     <p v-if="loading" class="text-sm text-ink-400">…</p>
 
-    <div v-else class="max-w-3xl space-y-6">
-      <div v-if="!editing" class="flex justify-end">
-        <button :class="primaryCls" @click="startNew">{{ t("databaseHosts.add") }}</button>
-      </div>
-
-      <form v-if="editing" class="space-y-5 rounded-xl border border-ink-700 bg-ink-900 p-6" @submit.prevent="save">
+    <div v-else class="space-y-6">
+      <form v-if="editing" class="max-w-3xl space-y-5 rounded-xl border border-ink-700 bg-ink-900 p-6" @submit.prevent="save">
+        <h3 class="text-base font-semibold">
+          {{ editing === "new" ? t("databaseHosts.createTitle") : t("databaseHosts.editTitle") }}
+        </h3>
         <div>
           <label :class="labelCls" for="dbh-name">{{ t("databaseHosts.name") }}</label>
           <input id="dbh-name" v-model="form.name" type="text" maxlength="64" :class="fieldCls" />
@@ -225,34 +224,59 @@ onMounted(() => void load());
         </div>
       </form>
 
-      <div v-if="!rows.length && !editing" class="rounded-xl border border-ink-700 bg-ink-900 p-10 text-center">
-        <h3 class="text-lg font-semibold">{{ t("databaseHosts.empty") }}</h3>
-        <p class="mt-2 text-sm text-ink-400">{{ t("databaseHosts.emptyHint") }}</p>
-      </div>
-
-      <div v-for="row in rows" :key="row.id" class="rounded-xl border border-ink-700 bg-ink-900 p-4">
-        <div class="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h3 class="text-base font-semibold">{{ row.name }}</h3>
-            <p class="mt-1 font-mono text-sm text-ink-400">{{ row.admin_user }}@{{ row.host }}:{{ row.port }}</p>
-            <p class="mt-1 text-sm text-ink-400">{{ usage(row) }}</p>
-          </div>
-          <div class="flex flex-wrap gap-2">
-            <button :class="buttonCls" :disabled="testing === row.id" @click="test(row)">
-              {{ testing === row.id ? t("databaseHosts.testing") : t("databaseHosts.test") }}
-            </button>
-            <button :class="buttonCls" @click="startEdit(row)">{{ t("databaseHosts.edit") }}</button>
-            <button :class="dangerCls" @click="remove(row)">{{ t("databaseHosts.remove") }}</button>
-          </div>
+      <section class="overflow-hidden rounded-xl border border-ink-700 bg-ink-900">
+        <div class="flex items-center justify-between border-b border-ink-700 px-4 py-3">
+          <h3 class="text-base font-semibold">{{ t("databaseHosts.listTitle") }}</h3>
+          <button v-if="!editing" :class="primaryCls" @click="startNew">{{ t("databaseHosts.add") }}</button>
         </div>
-        <p
-          v-if="results[row.id]"
-          class="mt-3 rounded-md border px-3 py-2 text-sm"
-          :class="results[row.id].ok ? 'border-ink-700 bg-ink-950' : 'border-bad/40 bg-bad/10 text-bad'"
-        >
-          {{ results[row.id].ok ? `${t("databaseHosts.works")} (${results[row.id].message})` : results[row.id].message }}
-        </p>
-      </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead>
+              <tr class="border-b border-ink-700 text-xs uppercase tracking-wide text-ink-400">
+                <th class="px-4 py-3 font-semibold">{{ t("databaseHosts.colId") }}</th>
+                <th class="px-4 py-3 font-semibold">{{ t("databaseHosts.name") }}</th>
+                <th class="px-4 py-3 font-semibold">{{ t("databaseHosts.host") }}</th>
+                <th class="px-4 py-3 font-semibold">{{ t("databaseHosts.port") }}</th>
+                <th class="px-4 py-3 font-semibold">{{ t("databaseHosts.colUsername") }}</th>
+                <th class="px-4 py-3 font-semibold">{{ t("databaseHosts.colDatabases") }}</th>
+                <th class="px-4 py-3"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <template v-for="row in rows" :key="row.id">
+                <tr class="border-b border-ink-800 last:border-0 hover:bg-ink-800/40">
+                  <td class="px-4 py-3 font-mono text-xs text-ink-400">{{ row.id.slice(0, 8) }}</td>
+                  <td class="px-4 py-3 font-medium">{{ row.name }}</td>
+                  <td class="px-4 py-3 font-mono">{{ row.host }}</td>
+                  <td class="px-4 py-3 font-mono">{{ row.port }}</td>
+                  <td class="px-4 py-3 font-mono">{{ row.admin_user }}</td>
+                  <td class="px-4 py-3">{{ usage(row) }}</td>
+                  <td class="px-4 py-3">
+                    <div class="flex justify-end gap-2">
+                      <button :class="buttonCls" :disabled="testing === row.id" @click="test(row)">
+                        {{ testing === row.id ? t("databaseHosts.testing") : t("databaseHosts.test") }}
+                      </button>
+                      <button :class="buttonCls" @click="startEdit(row)">{{ t("databaseHosts.edit") }}</button>
+                      <button :class="dangerCls" @click="remove(row)">{{ t("databaseHosts.remove") }}</button>
+                    </div>
+                  </td>
+                </tr>
+                <tr v-if="results[row.id]" class="border-b border-ink-800 last:border-0">
+                  <td colspan="7" class="px-4 pb-3 text-sm" :class="results[row.id].ok ? 'text-ink-300' : 'text-bad'">
+                    {{ results[row.id].ok ? `${t("databaseHosts.works")} (${results[row.id].message})` : results[row.id].message }}
+                  </td>
+                </tr>
+              </template>
+              <tr v-if="!rows.length">
+                <td colspan="7" class="px-4 py-12 text-center">
+                  <p class="font-semibold">{{ t("databaseHosts.empty") }}</p>
+                  <p class="mt-1 text-sm text-ink-400">{{ t("databaseHosts.emptyHint") }}</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   </AppLayout>
 </template>
