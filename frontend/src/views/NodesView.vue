@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
+import { useI18n } from "vue-i18n";
 
 import { ApiError, api } from "../api/client";
 import AppLayout from "../components/AppLayout.vue";
@@ -22,43 +23,54 @@ interface Enrollment {
   expires_at: string;
 }
 
-const emptyForm = {
-  name: "",
-  location: "",
-  fqdn: "",
-  port_range_start: 25000,
-  port_range_end: 25999,
-};
+const { t, te } = useI18n();
 
 const nodes = ref<NodeItem[]>([]);
 const loading = ref(true);
 const error = ref("");
 const showForm = ref(false);
 const busy = ref(false);
-const form = ref({ ...emptyForm });
+const form = ref({ name: "", location: "", fqdn: "" });
 const issued = ref<{ nodeName: string; enrollment: Enrollment } | null>(null);
 const copied = ref(false);
 
-const statusLabels: Record<string, string> = {
-  pending: "Wartet auf Agent",
-  online: "Online",
-  offline: "Offline",
+const inputClass =
+  "w-full rounded-md border border-ink-700 bg-ink-950 px-3 py-2 text-sm outline-none transition focus:border-accent-500";
+const buttonClass =
+  "rounded-md border border-ink-700 px-3 py-1.5 text-xs text-ink-300 transition hover:border-ink-600 hover:text-ink-100";
+
+const dots: Record<string, string> = {
+  pending: "bg-warn",
+  online: "bg-ok",
+  offline: "bg-bad",
 };
 
 function message(e: unknown): string {
-  return e instanceof ApiError ? e.message : "Der Server ist nicht erreichbar.";
+  return e instanceof ApiError ? e.message : t("common.unreachable");
 }
 
 function formatDate(value: string): string {
-  return new Date(value).toLocaleString("de-DE");
+  return new Date(value).toLocaleString();
+}
+
+function statusLabel(status: string): string {
+  const key = `nodes.status.${status}`;
+  return te(key) ? t(key) : status;
 }
 
 function resources(node: NodeItem): string {
   if (node.cpu_total === null || node.ram_total_mb === null) {
     return "–";
   }
-  const ram = Math.round(node.ram_total_mb / 1024);
-  return `${node.cpu_total} CPU · ${ram} GB RAM`;
+  return t("nodes.resourcesValue", {
+    cpu: node.cpu_total,
+    ram: Math.round(node.ram_total_mb / 1024),
+  });
+}
+
+function toggleForm() {
+  error.value = "";
+  showForm.value = !showForm.value;
 }
 
 async function load() {
@@ -81,15 +93,13 @@ async function create() {
         name: form.value.name,
         location: form.value.location,
         fqdn: form.value.fqdn.trim() || null,
-        port_range_start: form.value.port_range_start,
-        port_range_end: form.value.port_range_end,
       },
     });
     nodes.value.push(result.node);
     issued.value = { nodeName: result.node.name, enrollment: result.enrollment };
     copied.value = false;
     showForm.value = false;
-    form.value = { ...emptyForm };
+    form.value = { name: "", location: "", fqdn: "" };
   } catch (e) {
     error.value = message(e);
   } finally {
@@ -116,7 +126,7 @@ async function copyToken() {
     await navigator.clipboard.writeText(issued.value.enrollment.token);
     copied.value = true;
   } catch {
-    error.value = "Kopieren nicht möglich, bitte den Token von Hand markieren.";
+    error.value = t("nodes.copyFailed");
   }
 }
 
@@ -124,166 +134,127 @@ onMounted(load);
 </script>
 
 <template>
-  <AppLayout title="Nodes">
-    <div class="mb-6 flex items-center justify-between gap-4">
-      <p class="text-sm text-slate-400">Server, auf denen später Projekte laufen.</p>
+  <AppLayout :title="t('nodes.title')" :subtitle="t('nodes.subtitle')">
+    <template #actions>
       <button
-        class="shrink-0 rounded-lg bg-indigo-500 px-3 py-2 text-sm font-medium transition hover:bg-indigo-400"
-        @click="showForm = !showForm"
+        class="rounded-md bg-accent-500 px-3 py-1.5 text-sm font-semibold text-ink-950 transition hover:bg-accent-400"
+        @click="toggleForm"
       >
-        {{ showForm ? "Abbrechen" : "Node hinzufügen" }}
+        {{ showForm ? t("nodes.cancel") : t("nodes.add") }}
       </button>
-    </div>
+    </template>
 
     <p
       v-if="error"
       role="alert"
-      class="mb-6 rounded-lg border border-red-900 bg-red-950 px-3 py-2 text-sm text-red-300"
+      class="mb-6 rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad"
     >
       {{ error }}
     </p>
 
     <div
       v-if="issued"
-      class="mb-6 rounded-xl border border-indigo-900 bg-indigo-950/40 p-4 text-sm"
+      class="mb-6 rounded-lg border border-accent-500/40 bg-accent-500/5 p-4 text-sm"
     >
-      <p class="font-medium">Enrollment-Token für „{{ issued.nodeName }}“</p>
-      <p class="mt-1 text-slate-300">
-        Er wird nur jetzt angezeigt und ist bis {{ formatDate(issued.enrollment.expires_at) }}
-        gültig. Der Node-Agent ist noch nicht implementiert, der Token kann deshalb noch nicht
-        verwendet werden.
+      <p class="font-medium">{{ t("nodes.tokenTitle", { name: issued.nodeName }) }}</p>
+      <p class="mt-1 text-ink-300">
+        {{ t("nodes.tokenBody", { date: formatDate(issued.enrollment.expires_at) }) }}
       </p>
       <div class="mt-3 flex flex-wrap items-center gap-2">
-        <code class="min-w-0 flex-1 break-all rounded-lg bg-slate-950 px-3 py-2 text-xs">
+        <code
+          class="min-w-0 flex-1 break-all rounded-md border border-ink-700 bg-ink-950 px-3 py-2 font-mono text-xs"
+        >
           {{ issued.enrollment.token }}
         </code>
-        <button
-          class="rounded-lg border border-slate-700 px-3 py-1.5 transition hover:bg-slate-800"
-          @click="copyToken"
-        >
-          {{ copied ? "Kopiert" : "Kopieren" }}
+        <button :class="buttonClass" @click="copyToken">
+          {{ copied ? t("nodes.copied") : t("nodes.copy") }}
         </button>
-        <button
-          class="rounded-lg border border-slate-700 px-3 py-1.5 transition hover:bg-slate-800"
-          @click="issued = null"
-        >
-          Schließen
-        </button>
+        <button :class="buttonClass" @click="issued = null">{{ t("nodes.close") }}</button>
       </div>
     </div>
 
     <form
       v-if="showForm"
-      class="mb-6 grid gap-4 rounded-xl border border-slate-800 bg-slate-900 p-5 sm:grid-cols-2"
+      class="mb-6 grid gap-4 rounded-lg border border-ink-700 bg-ink-900 p-5 sm:grid-cols-2"
       @submit.prevent="create"
     >
+      <div class="sm:col-span-2">
+        <label for="name" class="mb-1.5 block text-sm text-ink-300">{{ t("nodes.name") }}</label>
+        <input id="name" v-model="form.name" required maxlength="64" :class="inputClass" />
+      </div>
       <div>
-        <label for="name" class="mb-1 block text-sm text-slate-300">Name</label>
+        <label for="fqdn" class="mb-1.5 block text-sm text-ink-300">
+          {{ t("nodes.hostname") }}
+        </label>
         <input
-          id="name"
-          v-model="form.name"
-          required
-          maxlength="64"
-          class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-indigo-500"
+          id="fqdn"
+          v-model="form.fqdn"
+          :placeholder="t('nodes.hostnamePlaceholder')"
+          :class="inputClass"
         />
       </div>
       <div>
-        <label for="location" class="mb-1 block text-sm text-slate-300">Standort</label>
+        <label for="location" class="mb-1.5 block text-sm text-ink-300">
+          {{ t("nodes.location") }}
+        </label>
         <input
           id="location"
           v-model="form.location"
           maxlength="64"
-          placeholder="z. B. Germany"
-          class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-indigo-500"
+          :placeholder="t('nodes.locationPlaceholder')"
+          :class="inputClass"
         />
       </div>
-      <div class="sm:col-span-2">
-        <label for="fqdn" class="mb-1 block text-sm text-slate-300">Hostname (optional)</label>
-        <input
-          id="fqdn"
-          v-model="form.fqdn"
-          placeholder="node1.example.com"
-          class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-indigo-500"
-        />
-      </div>
-      <div>
-        <label for="port-start" class="mb-1 block text-sm text-slate-300">Port-Bereich ab</label>
-        <input
-          id="port-start"
-          v-model.number="form.port_range_start"
-          type="number"
-          min="1024"
-          max="65535"
-          required
-          class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-indigo-500"
-        />
-      </div>
-      <div>
-        <label for="port-end" class="mb-1 block text-sm text-slate-300">Port-Bereich bis</label>
-        <input
-          id="port-end"
-          v-model.number="form.port_range_end"
-          type="number"
-          min="1024"
-          max="65535"
-          required
-          class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-indigo-500"
-        />
-      </div>
+      <p class="text-xs text-ink-400 sm:col-span-2">{{ t("nodes.formHint") }}</p>
       <div class="sm:col-span-2">
         <button
           type="submit"
           :disabled="busy"
-          class="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium transition hover:bg-indigo-400 disabled:opacity-60"
+          class="rounded-md bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950 transition hover:bg-accent-400 disabled:opacity-60"
         >
-          {{ busy ? "Anlegen …" : "Node anlegen" }}
+          {{ busy ? t("nodes.creating") : t("nodes.create") }}
         </button>
       </div>
     </form>
 
-    <div class="overflow-x-auto rounded-xl border border-slate-800">
+    <div class="overflow-x-auto rounded-lg border border-ink-700">
       <table class="w-full text-left text-sm">
-        <thead class="bg-slate-900 text-slate-400">
+        <thead class="bg-ink-900 text-xs uppercase tracking-wider text-ink-400">
           <tr>
-            <th class="px-4 py-3 font-medium">Name</th>
-            <th class="px-4 py-3 font-medium">Standort</th>
-            <th class="px-4 py-3 font-medium">Status</th>
-            <th class="px-4 py-3 font-medium">Ports</th>
-            <th class="px-4 py-3 font-medium">Ressourcen</th>
+            <th class="px-4 py-3 font-medium">{{ t("nodes.colName") }}</th>
+            <th class="px-4 py-3 font-medium">{{ t("nodes.colLocation") }}</th>
+            <th class="px-4 py-3 font-medium">{{ t("nodes.colStatus") }}</th>
+            <th class="px-4 py-3 font-medium">{{ t("nodes.colPorts") }}</th>
+            <th class="px-4 py-3 font-medium">{{ t("nodes.colResources") }}</th>
             <th class="px-4 py-3"></th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-slate-800">
+        <tbody class="divide-y divide-ink-700">
           <tr v-if="loading">
-            <td colspan="6" class="px-4 py-6 text-center text-slate-500">Lade …</td>
+            <td colspan="6" class="px-4 py-8 text-center text-ink-400">{{ t("nodes.loading") }}</td>
           </tr>
           <tr v-else-if="nodes.length === 0">
-            <td colspan="6" class="px-4 py-6 text-center text-slate-500">
-              Noch keine Nodes angelegt.
-            </td>
+            <td colspan="6" class="px-4 py-8 text-center text-ink-400">{{ t("nodes.empty") }}</td>
           </tr>
-          <tr v-for="node in nodes" :key="node.id">
+          <tr v-for="node in nodes" :key="node.id" class="hover:bg-ink-900/60">
             <td class="px-4 py-3">
               <div class="font-medium">{{ node.name }}</div>
-              <div v-if="node.fqdn" class="text-xs text-slate-500">{{ node.fqdn }}</div>
+              <div v-if="node.fqdn" class="font-mono text-xs text-ink-400">{{ node.fqdn }}</div>
             </td>
-            <td class="px-4 py-3 text-slate-300">{{ node.location || "–" }}</td>
+            <td class="px-4 py-3 text-ink-300">{{ node.location || "–" }}</td>
             <td class="px-4 py-3">
-              <span class="rounded-full bg-slate-800 px-2 py-0.5 text-xs text-slate-300">
-                {{ statusLabels[node.status] ?? node.status }}
+              <span class="inline-flex items-center gap-2 text-ink-300">
+                <span class="h-2 w-2 rounded-full" :class="dots[node.status] ?? 'bg-ink-600'"></span>
+                {{ statusLabel(node.status) }}
               </span>
             </td>
-            <td class="px-4 py-3 text-slate-300">
+            <td class="px-4 py-3 font-mono text-xs text-ink-300">
               {{ node.port_range_start }}–{{ node.port_range_end }}
             </td>
-            <td class="px-4 py-3 text-slate-300">{{ resources(node) }}</td>
+            <td class="px-4 py-3 font-mono text-xs text-ink-300">{{ resources(node) }}</td>
             <td class="px-4 py-3 text-right">
-              <button
-                v-if="node.status === 'pending'"
-                class="rounded-lg border border-slate-700 px-3 py-1.5 text-xs transition hover:bg-slate-800"
-                @click="newToken(node)"
-              >
-                Neuer Token
+              <button v-if="node.status === 'pending'" :class="buttonClass" @click="newToken(node)">
+                {{ t("nodes.newToken") }}
               </button>
             </td>
           </tr>
