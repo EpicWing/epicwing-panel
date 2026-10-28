@@ -3,7 +3,7 @@ import re
 import uuid
 from collections.abc import Callable
 from datetime import datetime
-from typing import Any, Self
+from typing import Any, ClassVar, Self
 
 from pydantic import (
     BaseModel,
@@ -79,11 +79,13 @@ CLEANERS: dict[str, Callable[[str], str]] = {
 
 class CleanedFields(BaseModel):
     """Basisklasse: prüft und bereinigt Textfelder anhand ihres Namens."""
+    cleaners: ClassVar[dict[str, Callable[[str], str]]] = CLEANERS
+
 
     @field_validator("*", check_fields=False)
     @classmethod
     def _clean_fields(cls, value: Any, info: ValidationInfo) -> Any:
-        cleaner = CLEANERS.get(info.field_name or "")
+        cleaner = cls.cleaners.get(info.field_name or "")
         if cleaner is None or value is None:
             return value
         return cleaner(value)
