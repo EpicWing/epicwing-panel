@@ -656,7 +656,7 @@ export default {
     testing: "Sending…",
     testOk: "Test message sent.",
     testFailed: "Sending failed: {detail}",
-    testHint: "Tests use the saved settings. Save first, then test.",
+    testHint: "Tests use the values entered above, or the saved ones if a field is empty.",
     deliveryTitle: "Email delivery",
   },
 };
