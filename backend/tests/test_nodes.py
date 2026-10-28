@@ -52,7 +52,7 @@ def test_create_node_returns_token_once(client, db_session, user):
     body = response.json()
     token = body["enrollment"]["token"]
     assert body["node"]["status"] == "pending"
-    assert token.startswith("forge_enroll_")
+    assert token.startswith("epicwing_enroll_")
 
     # In der Datenbank steht nur der Hash.
     enrollment = db_session.scalars(select(NodeEnrollment)).one()

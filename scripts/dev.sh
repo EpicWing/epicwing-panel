@@ -19,7 +19,7 @@ stop_port() {
   cwd="$(readlink "/proc/$pid/cwd" || true)"
   case "$cwd" in
     "$ROOT"/*) ;;
-    *) echo "!! Port $port gehört nicht zu Forge ($cwd), nichts beendet."; return 1 ;;
+    *) echo "!! Port $port gehört nicht zu EpicWing ($cwd), nichts beendet."; return 1 ;;
   esac
   parent="$(ps -o ppid= -p "$pid" | tr -d ' ')"
   pcwd="$(readlink "/proc/$parent/cwd" || true)"

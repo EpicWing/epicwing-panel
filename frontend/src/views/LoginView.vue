@@ -33,9 +33,9 @@ async function submit() {
         <div
           class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-500 text-xl font-bold"
         >
-          F
+          E
         </div>
-        <h1 class="text-2xl font-semibold tracking-tight">Forge</h1>
+        <h1 class="text-2xl font-semibold tracking-tight">EpicWing</h1>
         <p class="mt-1 text-sm text-slate-400">Bei deinem Panel anmelden</p>
       </div>
 

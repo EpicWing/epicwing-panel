@@ -18,7 +18,7 @@ source .venv/bin/activate
 set -a && source ../.env && set +a
 
 JAR="$(mktemp)"
-uvicorn app.main:app --port 8010 >/tmp/forge-smoke.log 2>&1 &
+uvicorn app.main:app --port 8010 >/tmp/epicwing-smoke.log 2>&1 &
 PID=$!
 trap 'kill "$PID" 2>/dev/null || true; rm -f "$JAR"' EXIT
 sleep 3

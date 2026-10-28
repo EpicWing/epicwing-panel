@@ -28,9 +28,9 @@ async function logout() {
     <aside class="hidden w-56 shrink-0 flex-col border-r border-slate-800 bg-slate-900 p-4 md:flex">
       <div class="mb-8 flex items-center gap-3 px-2">
         <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500 font-bold">
-          F
+          E
         </div>
-        <span class="text-lg font-semibold tracking-tight">Forge</span>
+        <span class="text-lg font-semibold tracking-tight">EpicWing</span>
       </div>
       <nav class="space-y-1 text-sm">
         <template v-for="item in navigation" :key="item.label">

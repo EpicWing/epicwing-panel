@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import User, UserSession
 
-SESSION_COOKIE = "forge_session"
+SESSION_COOKIE = "epicwing_session"
 SESSION_MAX_AGE = timedelta(days=7)
 SESSION_IDLE_TIMEOUT = timedelta(hours=12)
 _LAST_SEEN_INTERVAL = timedelta(minutes=1)

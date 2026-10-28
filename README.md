@@ -1,4 +1,4 @@
-# Forge
+# EpicWing
 
 Ein leichtgewichtiges, selbst hostbares Panel für Game-Server, Webanwendungen
 und andere Serverdienste.

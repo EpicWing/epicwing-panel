@@ -1,8 +1,8 @@
 import os
 
 os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://forge:test@localhost:5433/forge")
-os.environ.setdefault("FORGE_SECRET_KEY", "x" * 48)
-os.environ.setdefault("FORGE_ENCRYPTION_KEY", "test")
+os.environ.setdefault("EPICWING_SECRET_KEY", "x" * 48)
+os.environ.setdefault("EPICWING_ENCRYPTION_KEY", "test")
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402

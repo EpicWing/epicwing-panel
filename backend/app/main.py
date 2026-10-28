@@ -12,7 +12,7 @@ def create_app() -> FastAPI:
     settings = get_settings()
 
     app = FastAPI(
-        title="Forge",
+        title="EpicWing",
         version="0.0.1",
         # API-Doku nur in der Entwicklung öffentlich
         docs_url=None if settings.is_production else "/docs",

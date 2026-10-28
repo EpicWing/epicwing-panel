@@ -21,7 +21,7 @@ from app.security.sessions import (
 )
 from app.services import audit
 
-log = logging.getLogger("forge.auth")
+log = logging.getLogger("epicwing.auth")
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 

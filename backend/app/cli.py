@@ -77,7 +77,7 @@ def set_password(email: str) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="forge")
+    parser = argparse.ArgumentParser(prog="epicwing")
     sub = parser.add_subparsers(dest="command", required=True)
 
     admin = sub.add_parser("create-admin", help="Ersten Administrator anlegen")

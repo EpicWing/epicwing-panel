@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.models import Node, NodeEnrollment
 from app.security.sessions import hash_token
 
-ENROLL_PREFIX = "forge_enroll_"
+ENROLL_PREFIX = "epicwing_enroll_"
 ENROLL_TTL = timedelta(hours=1)
 
 
