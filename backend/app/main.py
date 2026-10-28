@@ -13,6 +13,7 @@ from app.api import (
     health,
     nodes,
     servers,
+    two_factor,
     users,
 )
 from app.config import get_settings
@@ -54,6 +55,7 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router, prefix="/api")
     app.include_router(auth.router, prefix="/api")
+    app.include_router(two_factor.router, prefix="/api")
     app.include_router(users.router, prefix="/api")
     app.include_router(audit.router, prefix="/api")
     app.include_router(nodes.router, prefix="/api")
