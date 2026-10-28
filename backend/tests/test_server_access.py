@@ -129,6 +129,10 @@ DENIED_FOR_VIEWERS = [
         None,
     ),
     ("POST", "/schedules/00000000-0000-4000-8000-000000000005/execute", None),
+    ("GET", "/databases", None),
+    ("POST", "/databases", {"name": "x"}),
+    ("POST", "/databases/00000000-0000-4000-8000-000000000007/rotate", None),
+    ("DELETE", "/databases/00000000-0000-4000-8000-000000000007", None),
 ]
 
 # Routen mit Server-ID, die absichtlich nicht in der Matrix stehen.

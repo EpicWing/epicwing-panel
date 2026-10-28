@@ -21,8 +21,10 @@ from app.api import (
     two_factor,
     users,
 )
+from app.api.admin_database_hosts import router as admin_database_hosts_router
 from app.api.admin_mail import router as admin_mail_router
 from app.api.schedules import router as schedules_router
+from app.api.server_databases import router as server_databases_router
 from app.config import get_settings
 from app.services.scheduler import lifespan
 
@@ -82,6 +84,8 @@ def create_app() -> FastAPI:
     app.include_router(admin.router, prefix="/api")
     app.include_router(admin_mail_router, prefix="/api")
     app.include_router(schedules_router, prefix="/api")
+    app.include_router(admin_database_hosts_router, prefix="/api")
+    app.include_router(server_databases_router, prefix="/api")
     app.include_router(panel.router, prefix="/api")
     return app
 

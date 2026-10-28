@@ -10,6 +10,7 @@ import AccessPanel from "../components/AccessPanel.vue";
 import ActivityPanel from "../components/ActivityPanel.vue";
 import FilesPanel from "../components/FilesPanel.vue";
 import BackupsPanel from "../components/BackupsPanel.vue";
+import DatabasesPanel from "../components/DatabasesPanel.vue";
 import SchedulesPanel from "../components/SchedulesPanel.vue";
 import BackupLimitField from "../components/BackupLimitField.vue";
 import PortsPanel from "../components/PortsPanel.vue";
@@ -434,10 +435,7 @@ onMounted(async () => {
 
         <template v-else>
           <FilesPanel v-if="active === 'files'" :server-id="server.id" :status="server.status" />
-          <div v-else-if="active === 'databases'" class="space-y-6">
-            <div class="flex items-start justify-between gap-4"><div><h2 class="text-2xl font-semibold">Databases</h2><p class="mt-2 text-sm text-ink-400">Create and manage databases for your server and configure access details.</p></div><button class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950">New Database</button></div>
-            <div class="flex min-h-[24rem] items-center justify-center rounded-xl border border-ink-700 bg-ink-900 text-center"><div><div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-ink-800 text-2xl">▣</div><h3 class="text-lg font-semibold">No databases found</h3><p class="mt-2 text-sm text-ink-400">Your server does not have any databases yet.</p></div></div>
-          </div>
+          <DatabasesPanel v-else-if="active === 'databases'" :server-id="server.id" :permissions="permissions" />
 
           <BackupsPanel v-else-if="active === 'backups'" :server-id="server.id" :status="server.status" :permissions="permissions" />
 
