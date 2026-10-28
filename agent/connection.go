@@ -16,7 +16,7 @@ import (
 const (
 	heartbeatInterval = 10 * time.Second
 	ioTimeout         = 10 * time.Second
-	maxMessageBytes   = 16 * 1024
+	maxMessageBytes   = 1024 * 1024
 	nonceBytes        = 32
 	statusReplaced    = websocket.StatusCode(1012)
 )

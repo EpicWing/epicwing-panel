@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	maxFileChunk     = 8 * 1024
+	maxFileChunk     = 512 * 1024
 	maxListBytes     = 10 * 1024
 	maxListEntries   = 200
 	maxRemoveDepth   = 64

@@ -38,6 +38,8 @@ class LocalError extends Error {}
 const props = defineProps<{ serverId: string; status: string }>();
 
 const CHUNK = 8 * 1024;
+// Upload in großen Stücken: Agent, Backend und Frontend müssen dieselbe Größe tragen.
+const UPLOAD_CHUNK = 512 * 1024;
 const MAX_EDIT = 1024 * 1024;
 const MAX_LOAD = 5000;
 const MAX_FILES = 5000;
@@ -170,9 +172,11 @@ function formatFull(seconds: number): string {
 }
 
 function toBase64(bytes: Uint8Array): string {
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary);
+  const parts: string[] = [];
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    parts.push(String.fromCharCode(...bytes.subarray(i, i + 0x8000)));
+  }
+  return btoa(parts.join(""));
 }
 
 function fromBase64(value: string): Uint8Array {
@@ -224,7 +228,7 @@ async function writeFile(
       body: {
         path: target,
         offset,
-        data: toBase64(bytes.subarray(offset, offset + CHUNK)),
+        data: toBase64(bytes.subarray(offset, offset + UPLOAD_CHUNK)),
         create: offset === 0,
         truncate: offset === 0,
       },
@@ -232,12 +236,12 @@ async function writeFile(
   // Der erste Block legt die Datei an, die übrigen schreiben parallel an ihre Position.
   report?.(0);
   await put(0);
-  let cursor = CHUNK;
+  let cursor = UPLOAD_CHUNK;
   let failure: unknown = null;
   const worker = async (): Promise<void> => {
     while (failure === null && cursor < bytes.length) {
       const offset = cursor;
-      cursor += CHUNK;
+      cursor += UPLOAD_CHUNK;
       report?.(offset);
       try {
         await put(offset);

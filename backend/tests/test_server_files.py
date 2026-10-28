@@ -162,7 +162,7 @@ def test_unknown_server_gives_404(client, server, broker):
         {"path": "a", "data": "", "extra": 1},
         {"path": "a", "data": "", "offset": -1},
         {"path": "a", "data": "", "offset": (1 << 30) + 1},
-        {"path": "a", "data": "A" * 12_001},
+        {"path": "a", "data": "A" * 700_001},
         {"path": "a\x00b", "data": ""},
         {"path": "a" * 1025, "data": ""},
         {"data": ""},
@@ -272,7 +272,7 @@ def test_download_streams_the_whole_file(client, ready, monkeypatch):
     assert "filename*=UTF-8''my%20map.dat" in response.headers["content-disposition"]
     assert response.headers["x-content-type-options"] == "nosniff"
     assert sorted(params["offset"] for _, params in fake.calls) == list(
-        range(0, len(content), 8 * 1024)
+        range(0, len(content), 512 * 1024)
     )
     assert {action for action, _ in fake.calls} == {"file.read"}
 

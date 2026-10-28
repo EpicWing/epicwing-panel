@@ -650,10 +650,10 @@ async def power_server(
 
 # Vorher gibt es kein Datenverzeichnis, oder die Installation schreibt gerade hinein.
 FILES_BLOCKED = {"new", "installing"}
-# 8 KiB Rohdaten sind als base64 rund 10,9 Tausend Zeichen und bleiben unter dem 16-KiB-Rahmen.
-FILE_CHUNK_B64 = 12_000
+# 512 KiB Rohdaten sind als base64 rund 700 Tausend Zeichen und bleiben unter dem 1-MiB-Rahmen.
+FILE_CHUNK_B64 = 700_000
 FILE_MAX_OFFSET = 1 << 30
-FILE_READ_CHUNK = 8 * 1024
+FILE_READ_CHUNK = 512 * 1024
 FILE_DOWNLOAD_WINDOW = 3  # Stücke, die gleichzeitig beim Agent angefragt sind
 FILE_DOWNLOAD_RETRIES = 4
 # Ein großes Archiv braucht länger als ein normaler Dateibefehl.
