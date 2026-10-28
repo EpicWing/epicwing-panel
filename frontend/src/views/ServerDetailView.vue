@@ -349,6 +349,14 @@ async function refreshStatus(): Promise<void> {
   try {
     const fresh = await api<ServerData>(`/servers/${server.value.id}`);
     if (server.value && server.value.id === fresh.id) setStatus(fresh.status);
+    if (
+      server.value &&
+      server.value.id === fresh.id &&
+      ["installing", "starting", "running"].includes(fresh.status) &&
+      ["error", "closed"].includes(connection.value)
+    ) {
+      void connectConsole(fresh.id);
+    }
   } catch {
     // The next poll tries again.
   }
