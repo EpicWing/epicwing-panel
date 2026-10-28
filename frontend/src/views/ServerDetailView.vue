@@ -280,11 +280,16 @@ onBeforeUnmount(() => socket?.close());
             { key: 'cpu', title: 'CPU', value: `${metrics.cpu.toFixed(1)}%`, color: '#e5534b' },
             { key: 'ram', title: 'RAM', value: formatBytes(metrics.ram), color: '#d9a21b' },
           ]" :key="chart.key" class="rounded-xl border border-ink-700 bg-ink-900 p-4">
-            <div class="flex items-center justify-between"><p class="text-xs uppercase tracking-wider text-ink-400">{{ chart.title }}</p><p class="font-mono text-sm">{{ chart.value }}</p></div>
+            <div class="flex items-center justify-between"><p class="flex items-center gap-2 text-xs uppercase tracking-wider text-ink-400"><span class="h-2 w-2 rounded-full" :style="{ backgroundColor: chart.color }"></span>{{ chart.title }}</p><p class="font-mono text-sm">{{ chart.value }}</p></div>
             <svg viewBox="0 0 300 80" class="mt-3 h-16 w-full" preserveAspectRatio="none" aria-hidden="true"><polyline :points="chartPoints(chart.key)" fill="none" :stroke="chart.color" stroke-width="2" vector-effect="non-scaling-stroke" /></svg>
           </div>
           <div class="rounded-xl border border-ink-700 bg-ink-900 p-4">
             <div class="flex items-center justify-between"><p class="text-xs uppercase tracking-wider text-ink-400">Network activity</p><p class="font-mono text-sm">↓ {{ formatBytes(metrics.rx) }}/s · ↑ {{ formatBytes(metrics.tx) }}/s</p></div>
+            <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-400">
+              <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full" style="background-color: #49c58a"></span>↓ Download (incoming)</span>
+              <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full" style="background-color: #f778ba"></span>↑ Upload (outgoing)</span>
+              <span class="text-ink-500">Each line is scaled to its own peak.</span>
+            </div>
             <svg viewBox="0 0 900 80" class="mt-3 h-16 w-full" preserveAspectRatio="none" aria-hidden="true">
               <polyline :points="networkPoints('rx')" fill="none" stroke="#49c58a" stroke-width="2" vector-effect="non-scaling-stroke" />
               <polyline :points="networkPoints('tx')" fill="none" stroke="#f778ba" stroke-width="2" vector-effect="non-scaling-stroke" />
