@@ -6,6 +6,7 @@ import AdminServersView from "../views/AdminServersView.vue";
 import UsersView from "../views/UsersView.vue";
 import EggsView from "../views/EggsView.vue";
 import AdminLocationsView from "../views/AdminLocationsView.vue";
+import AdminMailView from "../views/AdminMailView.vue";
 import LoginView from "../views/LoginView.vue";
 import NodeDetailView from "../views/NodeDetailView.vue";
 import NodesView from "../views/NodesView.vue";
@@ -47,6 +48,12 @@ const router = createRouter({
       path: "/admin/eggs",
       name: "eggs",
       component: EggsView,
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
+    {
+      path: "/admin/mail",
+      name: "admin-mail",
+      component: AdminMailView,
       meta: { requiresAuth: true, requiresAdmin: true },
     },
     {
