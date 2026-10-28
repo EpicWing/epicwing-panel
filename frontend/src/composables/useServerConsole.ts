@@ -83,6 +83,7 @@ export function useServerConsole(options: Options = {}) {
         error.value = "";
       };
       ws.onmessage = (event) => {
+        if (socket !== ws) return;
         if (typeof event.data === "string") handleMessage(event.data);
       };
       ws.onerror = () => {
@@ -90,6 +91,7 @@ export function useServerConsole(options: Options = {}) {
         error.value = t("console.connectionError");
       };
       ws.onclose = () => {
+        if (socket !== ws) return;
         if (status.value !== "error") status.value = "closed";
       };
     } catch (cause) {

@@ -517,6 +517,9 @@ async def install_server(
                 install_spec,
                 timeout=protocol.INSTALL_COMMAND_TIMEOUT_SECONDS,
             )
+            await hub.publish_install(
+                lifecycle.container_name(server.id), "[EpicWing] Installation finished.\n"
+            )
 
     try:
         await _transition(db, server, "installing", "offline", work, timeout_status="installing")
