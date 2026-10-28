@@ -62,7 +62,7 @@ def test_import_maps_the_fields():
     assert data["description"] == "A game with two lines"
     assert data["docker_image"] == "ghcr.io/pterodactyl/yolks:java_17"
     assert data["stop_command"] == "stop"
-    assert data["install_script"] == "#!/bin/bash\r\necho hi"
+    assert data["install_script"] == "#!/bin/bash\necho hi"
     jar, players = data["variables"]
     assert jar["rules"] == r"required|regex:/^([\w\d._-]+)(\.jar)$/"
     assert players["rules"] == "required|integer"
