@@ -55,6 +55,7 @@ class ActivityItem(BaseModel):
     created_at: datetime
     action: str
     actor: str | None
+    actor_id: str | None = None
     ip: str | None
     details: dict | None
 
@@ -70,6 +71,7 @@ def _item(entry: AuditLog, actor: str | None, show_ip: bool) -> ActivityItem:
         created_at=entry.created_at,
         action=entry.action,
         actor=actor,
+        actor_id=str(entry.actor_id) if entry.actor_id else None,
         ip=entry.ip if show_ip else None,
         details=entry.details,
     )
