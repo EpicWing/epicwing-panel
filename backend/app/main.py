@@ -12,6 +12,7 @@ from app.api import (
     eggs,
     health,
     nodes,
+    server_members,
     servers,
     two_factor,
     users,
@@ -66,6 +67,7 @@ def create_app() -> FastAPI:
     app.include_router(eggs.router, prefix="/api")
     app.include_router(allocations.router, prefix="/api")
     app.include_router(servers.router, prefix="/api")
+    app.include_router(server_members.router, prefix="/api")
     return app
 
 
