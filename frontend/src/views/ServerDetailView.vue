@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from "vue";
+import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 
@@ -143,7 +143,7 @@ function smoothPath(points: string, area = 0): string {
     const mid = (x0 + x1) / 2;
     d += ` C${mid},${y0} ${mid},${y1} ${x1},${y1}`;
   }
-  return area ? `${d} L${area},72 L0,72 Z` : d;
+  return area ? `${d} L${pts[pts.length - 1][0]},72 L${pts[0][0]},72 Z` : d;
 }
 
 const nameDraft = ref<string | null>(null);
@@ -223,7 +223,7 @@ function chartPoints(key: string): string {
   const values = history.value[key as keyof typeof history.value] ?? [];
   if (!isOnline() || values.length < 2) return "0,72 300,72";
   const max = scalePeak(key, values);
-  return values.map((value, index) => `${(index / (values.length - 1)) * 300},${72 - (value / max) * 64}`).join(" ");
+  return values.map((value, index) => `${300 - (values.length - 1 - index) * (300 / 59)},${72 - (value / max) * 64}`).join(" ");
 }
 
 function networkAxisLabel(fraction: number): string {
@@ -242,6 +242,10 @@ function networkPoints(key: "rx" | "tx"): string {
     })
     .join(" ");
 }
+
+// Neuer Messpunkt: die Linien gleiten um einen Schritt nach links.
+const chartTick = ref(0);
+watch(history, () => { chartTick.value++; }, { deep: true });
 
 function handleFrame(frame: ConsoleFrame): void {
   if (frame.type === "stats") {
@@ -422,7 +426,7 @@ onMounted(async () => {
             { key: 'ram', title: 'RAM', value: (server.status === 'running' || server.status === 'starting') ? formatBytes(metrics.ram) : 'Offline', color: '#d9a21b' },
           ]" :key="chart.key" class="rounded-xl border border-ink-700 bg-ink-900 p-4">
             <div class="flex items-center justify-between"><p class="flex items-center gap-2 text-xs uppercase tracking-wider text-ink-400"><span class="h-2 w-2 rounded-full" :style="{ backgroundColor: chart.color }"></span>{{ chart.title }}</p><p class="font-mono text-sm">{{ chart.value }}</p></div>
-            <div class="mt-3 flex gap-2"><div class="flex h-32 flex-col justify-between py-2 font-mono text-[10px] leading-none text-ink-500"><span>{{ axisLabel(chart.key, 1) }}</span><span>{{ axisLabel(chart.key, 0.5) }}</span><span>{{ axisLabel(chart.key, 0) }}</span></div><svg viewBox="0 0 300 80" class="h-32 min-w-0 flex-1" preserveAspectRatio="none" aria-hidden="true"><path :d="smoothPath(chartPoints(chart.key), 300)" :fill="chart.color" fill-opacity="0.2" /><path :d="smoothPath(chartPoints(chart.key))" fill="none" :stroke="chart.color" stroke-width="2" vector-effect="non-scaling-stroke" /></svg></div>
+            <div class="mt-3 flex gap-2"><div class="flex h-32 flex-col justify-between py-2 font-mono text-[10px] leading-none text-ink-500"><span>{{ axisLabel(chart.key, 1) }}</span><span>{{ axisLabel(chart.key, 0.5) }}</span><span>{{ axisLabel(chart.key, 0) }}</span></div><svg viewBox="0 0 300 80" class="h-32 min-w-0 flex-1" preserveAspectRatio="none" aria-hidden="true"><g :key="chartTick" :class="{ 'chart-glide': chartTick > 0 }" style="--glide: 5.085px"><path :d="smoothPath(chartPoints(chart.key), 300)" :fill="chart.color" fill-opacity="0.2" /><path :d="smoothPath(chartPoints(chart.key))" fill="none" :stroke="chart.color" stroke-width="2" vector-effect="non-scaling-stroke" /></g></svg></div>
           </div>
           <div class="rounded-xl border border-ink-700 bg-ink-900 p-4">
             <div class="flex items-center justify-between"><p class="text-xs uppercase tracking-wider text-ink-400">Network activity</p><p class="font-mono text-sm">↓ {{ formatBytes(metrics.rx) }}/s · ↑ {{ formatBytes(metrics.tx) }}/s</p></div>
@@ -432,8 +436,8 @@ onMounted(async () => {
               <span class="text-ink-500">Both lines share one scale.</span>
             </div>
             <div class="mt-3 flex gap-2"><div class="flex h-32 flex-col justify-between py-2 font-mono text-[10px] leading-none text-ink-500"><span>{{ networkAxisLabel(1) }}</span><span>{{ networkAxisLabel(0.5) }}</span><span>{{ networkAxisLabel(0) }}</span></div><div class="min-w-0 flex-1"><svg viewBox="0 0 900 80" class="h-32 w-full" preserveAspectRatio="none" aria-hidden="true">
-              <path :d="smoothPath(networkPoints('rx'), 900)" fill="#49c58a" fill-opacity="0.2" /><path :d="smoothPath(networkPoints('rx'))" fill="none" stroke="#49c58a" stroke-width="2" vector-effect="non-scaling-stroke" />
-              <path :d="smoothPath(networkPoints('tx'), 900)" fill="#f778ba" fill-opacity="0.2" /><path :d="smoothPath(networkPoints('tx'))" fill="none" stroke="#f778ba" stroke-width="2" vector-effect="non-scaling-stroke" />
+              <g :key="chartTick" :class="{ 'chart-glide': chartTick > 0 }" style="--glide: 15.254px"><path :d="smoothPath(networkPoints('rx'), 900)" fill="#49c58a" fill-opacity="0.2" /><path :d="smoothPath(networkPoints('rx'))" fill="none" stroke="#49c58a" stroke-width="2" vector-effect="non-scaling-stroke" />
+              <path :d="smoothPath(networkPoints('tx'), 900)" fill="#f778ba" fill-opacity="0.2" /><path :d="smoothPath(networkPoints('tx'))" fill="none" stroke="#f778ba" stroke-width="2" vector-effect="non-scaling-stroke" /></g>
             </svg></div></div>
           </div>
         </section>

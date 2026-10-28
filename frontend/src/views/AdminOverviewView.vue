@@ -4,6 +4,7 @@ import { useI18n } from "vue-i18n";
 
 import { api } from "../api/client";
 import AppLayout from "../components/AppLayout.vue";
+import CountUp from "../components/CountUp.vue";
 
 interface NodeLoad {
   id: string;
@@ -172,26 +173,26 @@ onUnmounted(() => window.clearInterval(timer));
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <div class="rounded-xl border border-ink-700 bg-ink-900 p-5">
         <p class="flex items-center gap-2 text-sm text-ink-400"><svg class="h-4 w-4 text-accent-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16v5H4zM4 13h16v5H4zM8 8.5h.01M8 15.5h.01" /></svg>{{ t("admin.nodes") }}</p>
-        <p class="mt-1 font-mono text-2xl font-semibold">{{ data?.nodes.total ?? "–" }}</p>
+        <p class="mt-1 font-mono text-2xl font-semibold"><CountUp :value="data?.nodes.total" /></p>
         <p v-if="data" class="mt-1 text-xs text-ink-400">
           {{ t("admin.nodesOnline", { online: data.nodes.online, total: data.nodes.total }) }}
         </p>
       </div>
       <div class="rounded-xl border border-ink-700 bg-ink-900 p-5">
         <p class="flex items-center gap-2 text-sm text-ink-400"><svg class="h-4 w-4 text-accent-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v14H4zM8 10l3 2-3 2M13 14h3" /></svg>{{ t("admin.servers") }}</p>
-        <p class="mt-1 font-mono text-2xl font-semibold">{{ data?.servers.total ?? "–" }}</p>
+        <p class="mt-1 font-mono text-2xl font-semibold"><CountUp :value="data?.servers.total" /></p>
         <p v-if="data" class="mt-1 text-xs text-ink-400">{{ t("admin.serversRunning", { running }) }}</p>
       </div>
       <div class="rounded-xl border border-ink-700 bg-ink-900 p-5">
         <p class="flex items-center gap-2 text-sm text-ink-400"><svg class="h-4 w-4 text-accent-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 19v-1a4 4 0 00-4-4H8a4 4 0 00-4 4v1M10 11a3 3 0 100-6 3 3 0 000 6zM20 19v-1a3 3 0 00-2-2.8" /></svg>{{ t("admin.users") }}</p>
-        <p class="mt-1 font-mono text-2xl font-semibold">{{ data?.users.total ?? "–" }}</p>
+        <p class="mt-1 font-mono text-2xl font-semibold"><CountUp :value="data?.users.total" /></p>
         <p v-if="data" class="mt-1 text-xs text-ink-400">
           {{ t("admin.usersDetail", { admins: data.users.admins, disabled: data.users.disabled }) }}
         </p>
       </div>
       <div class="rounded-xl border border-ink-700 bg-ink-900 p-5">
         <p class="flex items-center gap-2 text-sm text-ink-400"><svg class="h-4 w-4 text-accent-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v4H4zM5 9v10h14V9M10 13h4" /></svg>{{ t("admin.backups") }}</p>
-        <p class="mt-1 font-mono text-2xl font-semibold">{{ data?.backups.total ?? "–" }}</p>
+        <p class="mt-1 font-mono text-2xl font-semibold"><CountUp :value="data?.backups.total" /></p>
         <p v-if="data" class="mt-1 text-xs" :class="data.backups.failed ? 'text-bad' : 'text-ink-400'">
           {{
             t("admin.backupsDetail", {

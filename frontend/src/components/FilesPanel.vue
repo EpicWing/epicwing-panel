@@ -1010,7 +1010,7 @@ watch(blocked, (value) => {
           <div
             v-for="entry in visible"
             :key="entry.name"
-            class="group grid cursor-pointer grid-cols-[1.5rem_minmax(0,1fr)_2rem] items-center gap-3 rounded-lg px-3 py-2.5 text-sm sm:grid-cols-[1.5rem_minmax(0,1fr)_6rem_10rem_2rem]"
+            class="file-row-in group grid cursor-pointer grid-cols-[1.5rem_minmax(0,1fr)_2rem] items-center gap-3 rounded-lg px-3 py-2.5 text-sm sm:grid-cols-[1.5rem_minmax(0,1fr)_6rem_10rem_2rem]"
             :class="selected.includes(entry.name) ? 'bg-ink-800 ring-1 ring-inset ring-accent-500/50' : 'bg-ink-950 hover:bg-ink-800/70'"
             @click="activate(entry)"
             @contextmenu.prevent="openContext($event, entry.name)"
@@ -1040,6 +1040,7 @@ watch(blocked, (value) => {
             </div>
           </div>
 
+          <div v-if="loading && entries.length === 0" class="space-y-1" aria-busy="true"><div v-for="n in 6" :key="n" class="skeleton h-11"></div></div>
           <p v-if="!loading && !error && visible.length === 0" class="py-12 text-center text-sm text-ink-400">{{ query ? "No matches." : "This folder is empty." }}</p>
         </div>
       </div>
