@@ -597,3 +597,51 @@ async def delete_file(
     _audit_file(
         db, request, auth, server, "delete", {"path": body.path, "recursive": body.recursive}
     )
+
+
+class StartupVariableOut(BaseModel):
+    name: str
+    env_variable: str
+    description: str
+    rules: str
+    default_value: str
+    value: str
+    user_editable: bool
+    user_viewable: bool
+
+
+class StartupOut(BaseModel):
+    startup: str
+    startup_command: str
+    egg_startup: str
+    image: str
+    egg_image: str
+    variables: list[StartupVariableOut]
+
+
+@router.get("/{server_id}/startup")
+def get_startup(server_id: uuid.UUID, _auth: ManageServers, db: DbSession) -> StartupOut:
+    server = _get(db, server_id)
+    out = _outs(db, [server])[0]
+    egg = db.get(Egg, server.egg_id)
+    variables = [
+        StartupVariableOut(
+            name=v.name,
+            env_variable=v.env_variable,
+            description=v.description,
+            rules=v.rules,
+            default_value=v.default_value,
+            value=out.variables.get(v.env_variable, v.default_value),
+            user_editable=v.user_editable,
+            user_viewable=v.user_viewable,
+        )
+        for v in sorted(_egg_variables(db, server.egg_id), key=lambda v: v.name.lower())
+    ]
+    return StartupOut(
+        startup=server.startup,
+        startup_command=out.startup_command,
+        egg_startup=egg.startup if egg else "",
+        image=server.image,
+        egg_image=egg.docker_image if egg else "",
+        variables=variables,
+    )
