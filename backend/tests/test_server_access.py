@@ -398,3 +398,12 @@ def test_backup_limit_is_admin_only(client, db_session, world):
     headers = _login(client, world.member)
     response = client.patch(world.url, json={"backup_limit": 3}, headers=headers)
     assert response.status_code == 403, response.status_code
+
+
+def test_backup_limit_admin_can_set_within_range(client, world):
+    headers = _login(client, world.admin)
+    ok = client.patch(world.url, json={"backup_limit": 3}, headers=headers)
+    assert ok.status_code == 200, ok.text
+    assert ok.json()["backup_limit"] == 3
+    bad = client.patch(world.url, json={"backup_limit": 2000}, headers=headers)
+    assert bad.status_code == 422, bad.status_code

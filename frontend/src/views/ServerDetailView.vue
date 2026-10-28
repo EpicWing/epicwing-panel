@@ -8,6 +8,7 @@ import AppLayout from "../components/AppLayout.vue";
 import ConsoleOutput from "../components/ConsoleOutput.vue";
 import AccessPanel from "../components/AccessPanel.vue";
 import FilesPanel from "../components/FilesPanel.vue";
+import BackupsPanel from "../components/BackupsPanel.vue";
 import PortsPanel from "../components/PortsPanel.vue";
 import StartupPanel from "../components/StartupPanel.vue";
 import { type ConsoleFrame, useServerConsole } from "../composables/useServerConsole";
@@ -291,10 +292,7 @@ onMounted(async () => {
             <div class="flex min-h-[24rem] items-center justify-center rounded-xl border border-ink-700 bg-ink-900 text-center"><div><div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-ink-800 text-2xl">▣</div><h3 class="text-lg font-semibold">No databases found</h3><p class="mt-2 text-sm text-ink-400">Your server does not have any databases yet.</p></div></div>
           </div>
 
-          <div v-else-if="active === 'backups'" class="space-y-6">
-            <div class="flex items-start justify-between gap-4"><div><h2 class="text-2xl font-semibold">Backups</h2><p class="mt-2 text-sm text-ink-400">Create and manage server backups to protect your data.</p></div><div class="flex gap-2"><button class="rounded-lg border border-bad/50 px-4 py-2 text-sm text-bad">Delete All Backups</button><button class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950">New Backup</button></div></div>
-            <div class="rounded-xl border border-ink-700 bg-ink-900 p-5 text-sm text-ink-300">☐ &nbsp; Select backups</div>
-          </div>
+          <BackupsPanel v-else-if="active === 'backups'" :server-id="server.id" :status="server.status" :permissions="permissions" />
 
           <div v-else-if="active === 'networking'" class="space-y-6">
             <div><h2 class="text-2xl font-semibold">Ports</h2><p class="mt-2 text-sm text-ink-400">Configure network settings, IP addresses and ports your server can bind to.</p></div>
