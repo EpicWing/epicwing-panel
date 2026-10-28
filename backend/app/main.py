@@ -8,6 +8,7 @@ from app.api import (
     allocations,
     audit,
     auth,
+    avatars,
     backups,
     console_ws,
     eggs,
@@ -70,6 +71,7 @@ def create_app() -> FastAPI:
     app.include_router(allocations.router, prefix="/api")
     app.include_router(servers.router, prefix="/api")
     app.include_router(server_members.router, prefix="/api")
+    app.include_router(avatars.router, prefix="/api")
     app.include_router(backups.router, prefix="/api")
     return app
 
