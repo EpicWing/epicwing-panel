@@ -17,6 +17,13 @@ interface Backup {
   completed_at: string | null;
 }
 
+interface TargetServer {
+  id: string;
+  name: string;
+  node_id?: string;
+  permissions?: string[];
+}
+
 interface BackupList {
   limit: number;
   items: Backup[];
@@ -32,6 +39,11 @@ const busy = ref(false);
 const restoring = ref<string | null>(null);
 const showForm = ref(false);
 const form = ref({ name: "", ignored: "", locked: false });
+const notice = ref("");
+const transferFrom = ref<string | null>(null);
+const transferBusy = ref(false);
+const targets = ref<TargetServer[]>([]);
+const transferForm = ref({ target: "", name: "" });
 let timer: number | undefined;
 let alive = true;
 
@@ -167,6 +179,49 @@ async function restore(b: Backup) {
   }
 }
 
+async function openTransfer(b: Backup) {
+  error.value = "";
+  notice.value = "";
+  transferFrom.value = b.id;
+  transferForm.value = { target: "", name: "" };
+  try {
+    const [all, me] = await Promise.all([
+      api<TargetServer[]>("/servers"),
+      api<TargetServer>(`/servers/${props.serverId}`),
+    ]);
+    targets.value = all.filter(
+      (s) =>
+        s.id !== props.serverId &&
+        (!me.node_id || !s.node_id || s.node_id === me.node_id) &&
+        (!Array.isArray(s.permissions) || s.permissions.includes("backups.create")),
+    );
+  } catch (e) {
+    error.value = message(e);
+    transferFrom.value = null;
+  }
+}
+
+async function transfer(b: Backup) {
+  if (!transferForm.value.target) return;
+  error.value = "";
+  transferBusy.value = true;
+  try {
+    await api(`${base()}/${b.id}/transfer`, {
+      method: "POST",
+      body: {
+        target_server_id: transferForm.value.target,
+        name: transferForm.value.name.trim() || null,
+      },
+    });
+    transferFrom.value = null;
+    notice.value = "Transfer started. The copy shows up in the backups of the target server.";
+  } catch (e) {
+    error.value = message(e);
+  } finally {
+    transferBusy.value = false;
+  }
+}
+
 onMounted(load);
 onBeforeUnmount(() => {
   alive = false;
@@ -191,6 +246,9 @@ onBeforeUnmount(() => {
 
     <p v-if="error" role="alert" class="rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">
       {{ error }}
+    </p>
+    <p v-if="notice" role="status" class="rounded-md border border-ink-700 bg-ink-900 px-3 py-2 text-sm text-ink-300">
+      {{ notice }}
     </p>
     <p v-if="!loading && limit === 0" class="rounded-lg border border-ink-700 bg-ink-900 px-4 py-3 text-sm text-ink-300">
       Backups are disabled for this server. An administrator can set a backup limit.
@@ -248,6 +306,13 @@ onBeforeUnmount(() => {
           <div class="flex flex-wrap gap-2">
             <a v-if="can('backups.download') && b.status === 'ok'" :href="`/api${base()}/${b.id}/download`" download class="inline-block rounded-md border border-ink-700 px-3 py-1.5 text-xs text-ink-300 transition hover:border-accent-500">Download</a>
             <button
+              v-if="can('backups.download') && b.status === 'ok'"
+              :class="ghostClass"
+              @click="openTransfer(b)"
+            >
+              Transfer
+            </button>
+            <button
               v-if="can('backups.restore')"
               :class="ghostClass"
               :disabled="b.status !== 'ok' || props.status !== 'offline' || restoring !== null"
@@ -269,6 +334,30 @@ onBeforeUnmount(() => {
             </button>
           </div>
         </div>
+        <form
+          v-if="transferFrom === b.id"
+          class="mt-4 grid gap-3 border-t border-ink-700 pt-4"
+          @submit.prevent="transfer(b)"
+        >
+          <div>
+            <label :for="`t-target-${b.id}`" class="mb-1.5 block text-sm text-ink-300">Target server</label>
+            <select :id="`t-target-${b.id}`" v-model="transferForm.target" :class="inputClass">
+              <option value="" disabled>Select a server</option>
+              <option v-for="t in targets" :key="t.id" :value="t.id">{{ t.name }}</option>
+            </select>
+          </div>
+          <div>
+            <label :for="`t-name-${b.id}`" class="mb-1.5 block text-sm text-ink-300">Name (optional)</label>
+            <input :id="`t-name-${b.id}`" v-model="transferForm.name" maxlength="128" :class="inputClass" />
+          </div>
+          <p v-if="targets.length === 0" class="text-xs text-ink-400">
+            No other server on this node where you may create backups.
+          </p>
+          <div class="flex gap-2">
+            <button type="submit" :class="primaryClass" :disabled="transferBusy || !transferForm.target">Copy backup</button>
+            <button type="button" :class="ghostClass" @click="transferFrom = null">Cancel</button>
+          </div>
+        </form>
       </li>
     </ul>
   </section>
