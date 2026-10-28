@@ -68,6 +68,15 @@ class Server(Base):
     disk_mb: Mapped[int] = mapped_column(Integer)
     # 0 heißt unbegrenzt viele Backups.
     backup_limit: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    # Neustart, wenn der Server von selbst endet: off, crash (nur Absturz) oder always.
+    auto_restart: Mapped[str] = mapped_column(String(8), default="always", server_default="always")
+    auto_restart_delay: Mapped[int] = mapped_column(Integer, default=30, server_default="30")
+    auto_restart_max_failures: Mapped[int] = mapped_column(
+        Integer, default=5, server_default="5"
+    )
+    restart_failures: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    restart_due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_auto_start_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # 'new' heißt: nur im Panel angelegt, noch nichts auf der Node. Die übrigen Werte
     # (installing, offline, starting, running, stopping, error) setzt die Agent-Anbindung.
     status: Mapped[str] = mapped_column(String(16), default="new")
