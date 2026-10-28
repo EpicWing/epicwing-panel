@@ -9,9 +9,11 @@ import ConsoleOutput from "../components/ConsoleOutput.vue";
 import AccessPanel from "../components/AccessPanel.vue";
 import FilesPanel from "../components/FilesPanel.vue";
 import BackupsPanel from "../components/BackupsPanel.vue";
+import BackupLimitField from "../components/BackupLimitField.vue";
 import PortsPanel from "../components/PortsPanel.vue";
 import StartupPanel from "../components/StartupPanel.vue";
 import { type ConsoleFrame, useServerConsole } from "../composables/useServerConsole";
+import { auth } from "../stores/auth";
 
 interface Allocation {
   ip: string;
@@ -28,6 +30,7 @@ interface ServerData {
   memory_mb: number;
   cpus: number;
   disk_mb: number;
+  backup_limit: number;
   image: string;
   startup_command: string;
   node_name: string;
@@ -305,7 +308,7 @@ onMounted(async () => {
 
           <div v-else-if="active === 'schedules'" class="space-y-6"><div class="flex items-start justify-between"><div><h2 class="text-2xl font-semibold">Automations</h2><p class="mt-2 text-sm text-ink-400">Automate server tasks with scheduled commands and backups.</p></div><button class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950">New Schedule</button></div><div class="min-h-[20rem] rounded-xl border border-ink-700 bg-ink-900"></div></div>
 
-          <div v-else-if="active === 'settings'" class="space-y-6"><div><h2 class="text-2xl font-semibold">Settings</h2><p class="mt-2 text-sm text-ink-400">Configure your server settings and maintenance actions.</p></div><div class="rounded-xl border border-ink-700 bg-ink-900 p-6"><h3 class="text-lg font-semibold">Server Details</h3><label class="mt-5 block text-sm text-ink-400">Server Name</label><input :value="server.name" class="mt-2 w-full rounded-lg border border-ink-700 bg-ink-950 px-4 py-3 text-sm text-ink-100" readonly /></div><div class="rounded-xl border border-ink-700 bg-ink-900 p-6"><h3 class="text-lg font-semibold">Reinstall Server</h3><p class="mt-2 text-sm text-ink-400">Reinstalling stops the server and runs its installation script again.</p><button class="mt-5 rounded-lg border border-bad/50 px-4 py-2 text-sm text-bad">Reinstall Server</button></div></div>
+          <div v-else-if="active === 'settings'" class="space-y-6"><div><h2 class="text-2xl font-semibold">Settings</h2><p class="mt-2 text-sm text-ink-400">Configure your server settings and maintenance actions.</p></div><div class="rounded-xl border border-ink-700 bg-ink-900 p-6"><h3 class="text-lg font-semibold">Server Details</h3><label class="mt-5 block text-sm text-ink-400">Server Name</label><input :value="server.name" class="mt-2 w-full rounded-lg border border-ink-700 bg-ink-950 px-4 py-3 text-sm text-ink-100" readonly /></div><div class="rounded-xl border border-ink-700 bg-ink-900 p-6"><h3 class="text-lg font-semibold">Reinstall Server</h3><p class="mt-2 text-sm text-ink-400">Reinstalling stops the server and runs its installation script again.</p><button class="mt-5 rounded-lg border border-bad/50 px-4 py-2 text-sm text-bad">Reinstall Server</button></div><BackupLimitField v-if="auth.state.user?.is_admin" :server-id="server.id" :limit="server.backup_limit" @saved="server.backup_limit = $event" /></div>
 
           <div v-else-if="active === 'activity'" class="space-y-6"><div><h2 class="text-2xl font-semibold">Timeline</h2><p class="mt-2 text-sm text-ink-400">Monitor server activity and track actions performed on this server.</p></div><div class="min-h-[24rem] rounded-xl border border-ink-700 bg-ink-900 p-6"><h3 class="text-lg font-semibold">Events</h3><p class="mt-10 text-center text-sm text-ink-500">No activity events found.</p></div></div>
         </template>
