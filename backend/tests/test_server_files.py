@@ -7,7 +7,7 @@ from sqlalchemy import select
 
 from app.agentlink.commands import AgentOffline
 from app.agentlink.protocol import CommandResult
-from app.models import AuditLog, Server
+from app.models import AuditLog, Node, Server
 from tests import test_server_power as base
 
 # Der Fixture "server" legt einen Server mit Node, Egg und Allocation an.
@@ -399,4 +399,93 @@ def test_decompress_gets_a_long_timeout(client, ready, monkeypatch):
 @pytest.mark.parametrize("body", [{"path": "a.zip", "extra": 1}, {"path": "a\x00.zip"}, {}])
 def test_decompress_rejects_bad_bodies(client, ready, broker, body):
     assert _decompress(client, ready, body).status_code == 422
+    assert broker.calls == []
+
+
+TRANSFER_ORIGIN = "http://localhost:5183"
+TRANSFER_TOKEN = "T" * 43
+
+
+def _give_node_a_domain(db_session, server, fqdn="node.example.org"):
+    node_id = db_session.get(Server, uuid.UUID(server.id)).node_id
+    db_session.get(Node, node_id).fqdn = fqdn
+    db_session.commit()
+
+
+def _ticket(client, server, route, headers=None):
+    if headers is None:
+        headers = {**server.headers, "Origin": TRANSFER_ORIGIN}
+    return client.post(
+        server.url + "/files/" + route, json={"path": "/a/b.zip"}, headers=headers
+    )
+
+
+@pytest.mark.parametrize(
+    ("route", "direction"), [("upload-ticket", "upload"), ("download-ticket", "download")]
+)
+def test_transfer_ticket_gives_a_direct_url(client, db_session, ready, broker, route, direction):
+    _give_node_a_domain(db_session, ready)
+    broker.data["transfer.ticket"] = {"token": TRANSFER_TOKEN, "port": 8443, "expires_in": 60}
+    response = _ticket(client, ready, route)
+    assert response.status_code == 200
+    assert response.json() == {
+        "direct": True,
+        "url": f"https://node.example.org:8443/transfer/{TRANSFER_TOKEN}",
+        "expires_in": 60,
+    }
+    expected = {
+        "name": _name(ready),
+        "path": "/a/b.zip",
+        "direction": direction,
+        "origin": TRANSFER_ORIGIN,
+    }
+    assert broker.calls == [("transfer.ticket", expected)]
+    assert _audit(db_session, f"server.file.{direction}")[-1].details["path"] == "/a/b.zip"
+
+
+def test_transfer_ticket_without_a_domain_falls_back(client, ready, broker):
+    response = _ticket(client, ready, "upload-ticket")
+    assert response.status_code == 200
+    assert response.json() == {"direct": False}
+    assert broker.calls == []
+
+
+def test_transfer_ticket_without_an_origin_falls_back(client, db_session, ready, broker):
+    _give_node_a_domain(db_session, ready)
+    response = _ticket(client, ready, "upload-ticket", headers=ready.headers)
+    assert response.json() == {"direct": False}
+    assert broker.calls == []
+
+
+@pytest.mark.parametrize(
+    "error", ['unknown action "transfer.ticket"', "transfers are not enabled on this node"]
+)
+def test_transfer_ticket_falls_back_on_agent_answer(client, db_session, ready, broker, error):
+    _give_node_a_domain(db_session, ready)
+    broker.errors["transfer.ticket"] = error
+    assert _ticket(client, ready, "upload-ticket").json() == {"direct": False}
+    assert _audit(db_session, "server.file.upload") == []
+
+
+def test_transfer_ticket_for_a_missing_file_is_404(client, db_session, ready, broker):
+    _give_node_a_domain(db_session, ready)
+    broker.errors["transfer.ticket"] = "no such file or directory"
+    assert _ticket(client, ready, "download-ticket").status_code == 404
+    assert _audit(db_session, "server.file.download") == []
+
+
+def test_transfer_ticket_rejects_an_invalid_agent_answer(client, db_session, ready, broker):
+    _give_node_a_domain(db_session, ready)
+    broker.data["transfer.ticket"] = {"token": "short", "port": 8443}
+    assert _ticket(client, ready, "upload-ticket").status_code == 502
+    assert _audit(db_session, "server.file.upload") == []
+
+
+@pytest.mark.parametrize("state", ["new", "installing"])
+def test_transfer_ticket_is_blocked_before_the_install_is_done(
+    client, db_session, server, broker, state
+):
+    _set_status(db_session, server, state)
+    _give_node_a_domain(db_session, server)
+    assert _ticket(client, server, "upload-ticket").status_code == 409
     assert broker.calls == []

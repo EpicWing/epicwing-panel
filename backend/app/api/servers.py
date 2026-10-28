@@ -19,6 +19,7 @@ from app.agentlink import protocol
 from app.agentlink.commands import AgentOffline, broker
 from app.agentlink.console import hub
 from app.agentlink.registry import registry
+from app.config import get_settings
 from app.db import get_db
 from app.models import Allocation, Egg, EggVariable, Node, Server, ServerVariable, User
 from app.schemas.server import AllocationRef, ServerCreate, ServerOut, ServerUpdate
@@ -800,6 +801,100 @@ async def read_file(
         db, server_id, "file.read", path=path, offset=offset, length=length
     )
     return data
+
+
+class FileTransferRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    path: str = Field(min_length=1, max_length=1024)
+
+
+# Bei diesen Antworten geht es auf dieser Node nicht, das Frontend nimmt den alten Weg.
+TRANSFER_UNAVAILABLE = ("not enabled", "unknown action")
+TRANSFER_TOKEN_RE = re.compile(r"[A-Za-z0-9_-]{43}")
+TRANSFER_HOST_RE = re.compile(r"[A-Za-z0-9.-]{1,253}")
+
+
+async def _transfer_ticket(
+    db: Session,
+    request: Request,
+    auth: ServerAccess,
+    server_id: uuid.UUID,
+    path: str,
+    direction: Literal["upload", "download"],
+) -> dict[str, Any]:
+    server = _get(db, server_id)
+    if server.status in FILES_BLOCKED:
+        raise _conflict(f"Files are not available while the server is {server.status}.")
+    origin = request.headers.get("origin", "")
+    node = db.get(Node, server.node_id)
+    if (
+        not origin
+        or origin not in get_settings().allowed_origins
+        or node is None
+        or not node.fqdn
+        or not TRANSFER_HOST_RE.fullmatch(node.fqdn)
+    ):
+        return {"direct": False}
+    fqdn = node.fqdn
+    result = await _send(
+        server,
+        "transfer.ticket",
+        {
+            "name": lifecycle.container_name(server.id),
+            "path": path,
+            "direction": direction,
+            "origin": origin,
+        },
+    )
+    if not result.ok:
+        message = (result.error or "").lower()
+        if any(needle in message for needle in TRANSFER_UNAVAILABLE):
+            return {"direct": False}
+    data = _file_data(result)
+    token = data.get("token")
+    port = data.get("port")
+    if (
+        not isinstance(token, str)
+        or not TRANSFER_TOKEN_RE.fullmatch(token)
+        or isinstance(port, bool)
+        or not isinstance(port, int)
+        or not 0 < port < 65536
+    ):
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY, "The node sent an invalid transfer ticket."
+        )
+    expires = data.get("expires_in")
+    if isinstance(expires, bool) or not isinstance(expires, int):
+        expires = 60
+    _audit_file(db, request, auth, server, direction, {"path": path})
+    db.commit()
+    return {
+        "direct": True,
+        "url": f"https://{fqdn}:{port}/transfer/{token}",
+        "expires_in": expires,
+    }
+
+
+@router.post("/{server_id}/files/upload-ticket")
+async def upload_ticket(
+    server_id: uuid.UUID,
+    body: FileTransferRequest,
+    request: Request,
+    auth: FilesWrite,
+    db: DbSession,
+) -> dict[str, Any]:
+    return await _transfer_ticket(db, request, auth, server_id, body.path, "upload")
+
+
+@router.post("/{server_id}/files/download-ticket")
+async def download_ticket(
+    server_id: uuid.UUID,
+    body: FileTransferRequest,
+    request: Request,
+    auth: FilesRead,
+    db: DbSession,
+) -> dict[str, Any]:
+    return await _transfer_ticket(db, request, auth, server_id, body.path, "download")
 
 
 def _attachment(name: str) -> str:
