@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { onMounted, onUnmounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 
 import { ApiError, api } from "../api/client";
@@ -153,7 +153,22 @@ async function copyToken() {
   }
 }
 
-onMounted(load);
+let timer: number | undefined;
+
+// Background refresh: a failed request keeps the list on screen.
+async function refresh() {
+  try {
+    nodes.value = await api<NodeItem[]>("/nodes");
+  } catch {
+    // The next tick tries again.
+  }
+}
+
+onMounted(() => {
+  void load();
+  timer = window.setInterval(() => void refresh(), 5000);
+});
+onUnmounted(() => window.clearInterval(timer));
 </script>
 
 <template>
@@ -301,7 +316,12 @@ onMounted(load);
           </tr>
           <tr v-for="node in nodes" :key="node.id" class="hover:bg-ink-900/60">
             <td class="px-4 py-3">
-              <div class="font-medium">{{ node.name }}</div>
+              <RouterLink
+                :to="`/admin/nodes/${node.id}`"
+                class="font-medium transition hover:text-accent-400"
+              >
+                {{ node.name }}
+              </RouterLink>
               <div v-if="node.fqdn" class="font-mono text-xs text-ink-400">{{ node.fqdn }}</div>
             </td>
             <td class="px-4 py-3 text-ink-300">{{ node.location || "–" }}</td>
