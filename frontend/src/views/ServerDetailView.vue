@@ -7,6 +7,7 @@ import { useRoute, useRouter } from "vue-router";
 import { ApiError, api } from "../api/client";
 import AppLayout from "../components/AppLayout.vue";
 import FilesPanel from "../components/FilesPanel.vue";
+import StartupPanel from "../components/StartupPanel.vue";
 
 interface Allocation {
   ip: string;
@@ -317,7 +318,7 @@ onBeforeUnmount(() => socket?.close());
 
           <div v-else-if="active === 'users'" class="space-y-6"><div class="flex items-start justify-between"><div><h2 class="text-4xl font-bold">Users</h2><p class="mt-2 text-sm text-ink-400">Manage user access to your server and permissions.</p></div><button class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950">New User</button></div><div class="flex min-h-[24rem] items-center justify-center rounded-xl border border-ink-700 bg-ink-900 text-center"><div><h3 class="text-lg font-semibold">No users found</h3><p class="mt-2 text-sm text-ink-400">No additional users have access to this server.</p></div></div></div>
 
-          <div v-else-if="active === 'startup'" class="space-y-6"><div><h2 class="text-4xl font-bold">Startup Settings</h2><p class="mt-2 text-sm text-ink-400">Configure how your server starts and manage its environment variables.</p></div><div class="rounded-xl border border-ink-700 bg-ink-900 p-6"><h3 class="text-lg font-semibold">Startup Command</h3><p class="mt-2 text-sm text-ink-400">{{ server.startup_command || 'No startup command configured.' }}</p><div class="mt-5 rounded-lg bg-ink-950 p-4 font-mono text-sm text-ink-200">{{ server.startup_command || '—' }}</div></div><div class="rounded-xl border border-ink-700 bg-ink-900 p-6"><h3 class="text-lg font-semibold">Docker Image</h3><p class="mt-3 rounded-lg bg-ink-950 p-4 font-mono text-sm text-ink-200">{{ server.image || server.egg_name }}</p></div></div>
+          <StartupPanel v-else-if="active === 'startup'" :server-id="server.id" :status="server.status" />
 
           <div v-else-if="active === 'schedules'" class="space-y-6"><div class="flex items-start justify-between"><div><h2 class="text-4xl font-bold">Schedules</h2><p class="mt-2 text-sm text-ink-400">Automate server tasks with scheduled commands and backups.</p></div><button class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950">New Schedule</button></div><div class="min-h-[20rem] rounded-xl border border-ink-700 bg-ink-900"></div></div>
 
