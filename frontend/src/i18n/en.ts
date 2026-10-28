@@ -264,6 +264,12 @@ export default {
     removeSelfBody: "You will lose your own access to this server.",
     email: "Email",
     emailHint: "The person needs an existing account on this panel.",
+    selectUser: "User",
+    selectUserHint: "Only people with a panel account who do not have access yet are listed.",
+    searchUsers: "Search by email",
+    noCandidates: "No matching users without access.",
+    loadingUsers: "Loading users...",
+    selectUserFirst: "Choose a user first.",
     permissionsLabel: "Permissions",
     noPermissions: "View only",
     you: "you",
@@ -290,6 +296,65 @@ export default {
       allocations: "Ports",
       schedules: "Schedules",
       access: "Access",
+    },
+    groupDesc: {
+      console: "Watch the server output and send commands.",
+      power: "Start, stop and restart the server.",
+      files: "Browse and change the files of the server.",
+      startup: "See or change the startup command and variables.",
+      settings: "Server name, description and reinstall.",
+      backups: "Create, restore and delete backups.",
+      databases: "Databases that belong to this server.",
+      allocations: "The ports the server uses.",
+      schedules: "Automated tasks and timers.",
+      access: "Who else can use this server.",
+    },
+    permDesc: {
+      console: {
+        view: "See the live console output.",
+        command: "Type commands into the console.",
+      },
+      power: {
+        start: "Start the server when it is stopped.",
+        stop: "Stop or kill a running server.",
+        restart: "Restart the server. Also starts it when it is offline.",
+      },
+      files: {
+        read: "Open folders and read file contents.",
+        write: "Upload, edit, rename and delete files and folders.",
+      },
+      startup: {
+        view: "See the startup command and its variables.",
+        update: "Change the startup command and variables.",
+      },
+      settings: {
+        view: "See the server name and details.",
+        update: "Change name and description.",
+        reinstall: "Run the installation again. This can overwrite files.",
+      },
+      backups: {
+        view: "See the list of backups.",
+        create: "Create new backups.",
+        download: "Download backup archives.",
+        restore: "Replace the server files with a backup.",
+        delete: "Delete backups that are not locked.",
+      },
+      databases: {
+        view: "See the databases of this server.",
+        manage: "Create and delete databases.",
+      },
+      allocations: {
+        view: "See the ports of this server.",
+        manage: "Add, remove and set the primary port.",
+      },
+      schedules: {
+        view: "See scheduled tasks.",
+        manage: "Create, change and delete scheduled tasks.",
+      },
+      access: {
+        view: "See who has access to this server.",
+        manage: "Add people, change their rights and remove them.",
+      },
     },
     perm: {
       console: { view: "View console", command: "Send commands" },

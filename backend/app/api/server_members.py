@@ -261,3 +261,38 @@ def remove_member(
         permissions=sorted(current),
     )
     db.commit()
+
+
+CANDIDATE_MIN_QUERY = 0  # so viele Zeichen sind nötig, bevor Treffer kommen (0 = immer)
+CANDIDATE_LIMIT = 50
+
+
+@router.get("/candidates")
+def list_candidates(
+    server_id: uuid.UUID, access: AccessManage, db: DbSession, q: str = ""
+) -> list[dict[str, str]]:
+    """Benutzer, die diesem Server noch hinzugefügt werden können (für das Dropdown)."""
+    import sqlalchemy as sa
+
+    from app import models as orm
+    from app.models.server import ServerMember as Member
+
+    del access  # nur für die Rechteprüfung
+    term = q.strip()[:100]
+    if len(term) < CANDIDATE_MIN_QUERY:
+        return []
+    owner_id = db.execute(
+        sa.select(orm.Server.owner_id).where(orm.Server.id == server_id)
+    ).scalar_one_or_none()
+    members = sa.select(Member.user_id).where(Member.server_id == server_id)
+    query = sa.select(orm.User.id, orm.User.email).where(
+        orm.User.disabled_at.is_(None),
+        orm.User.is_admin.is_(False),
+        orm.User.id.not_in(members),
+        orm.User.id != owner_id,
+    )
+    if term:
+        escaped = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        query = query.where(orm.User.email.ilike(f"%{escaped}%", escape="\\"))
+    rows = db.execute(query.order_by(orm.User.email).limit(CANDIDATE_LIMIT)).all()
+    return [{"id": str(row.id), "email": row.email} for row in rows]
