@@ -85,6 +85,11 @@ DENIED_FOR_VIEWERS = [
     ("POST", "/files/folder", {}),
     ("POST", "/files/rename", {}),
     ("POST", "/files/delete", {}),
+    ("GET", "/allocations", None),
+    ("GET", "/allocations/free", None),
+    ("POST", "/allocations", {}),
+    ("DELETE", "/allocations/00000000-0000-4000-8000-000000000001", None),
+    ("PUT", "/allocations/00000000-0000-4000-8000-000000000001/primary", None),
 ]
 
 
@@ -294,3 +299,18 @@ def test_locked_and_hidden_variables_stay_admin_only(client, db_session, world):
     assert blocked.status_code == 403
     ok = {"variables": {"SERVER_NAME": "Mine"}}
     assert client.patch(world.url, json=ok, headers=headers).status_code == 200
+
+
+def test_allocation_rights_split_view_and_manage(client, db_session, world):
+    member = _grant(db_session, world, world.member, P.ALLOCATIONS_VIEW)
+    headers = _login(client, world.member)
+    listed = client.get(world.url + "/allocations", headers=headers)
+    assert listed.status_code == 200
+    assert [a["port"] for a in listed.json()] == [25001]
+    assert client.get(world.url + "/allocations/free", headers=headers).status_code == 403
+    unknown = {"allocation_id": str(uuid.uuid4())}
+    assert client.post(world.url + "/allocations", json=unknown, headers=headers).status_code == 403
+    _add(db_session, member, P.ALLOCATIONS_MANAGE)
+    assert client.get(world.url + "/allocations/free", headers=headers).status_code == 200
+    # 422 statt 403: Das Recht greift, die Allocation gibt es nur nicht.
+    assert client.post(world.url + "/allocations", json=unknown, headers=headers).status_code == 422
