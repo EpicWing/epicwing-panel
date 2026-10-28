@@ -116,11 +116,15 @@ func (c *consoleManager) sampleStats(ctx context.Context, name string) {
 	}
 	memoryUsed, memoryLimit := parsePair(fields[1])
 	networkRx, networkTx := parsePair(fields[2])
+	startedAt := ""
+	if started, err := runDocker(ctx, "inspect", "-f", "{{.State.StartedAt}}", name); err == nil {
+		startedAt = strings.TrimSpace(started)
+	}
 	c.send(map[string]any{
 		"type": "stats", "name": name, "cpu_percent": cpu,
 		"memory_used_bytes": memoryUsed, "memory_limit_bytes": memoryLimit,
 		"disk_used_bytes": c.diskUsage(name), "network_rx_bytes": networkRx,
-		"network_tx_bytes": networkTx,
+		"network_tx_bytes": networkTx, "started_at": startedAt,
 	})
 }
 

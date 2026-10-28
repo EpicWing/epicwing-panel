@@ -119,3 +119,4 @@ class StatsFrame(BaseModel):
     disk_used_bytes: int = Field(ge=0)
     network_rx_bytes: int = Field(ge=0)
     network_tx_bytes: int = Field(ge=0)
+    started_at: str | None = Field(default=None, max_length=64)

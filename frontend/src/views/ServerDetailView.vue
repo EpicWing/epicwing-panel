@@ -48,6 +48,8 @@ const active = ref("home");
 const command = ref("");
 const error = ref("");
 const metrics = ref({ cpu: 0, ram: 0, disk: 0, rx: 0, tx: 0 });
+const startedAt = ref<string | null>(null);
+const nowTick = ref(Date.now());
 const history = ref({ cpu: [] as number[], ram: [] as number[], disk: [] as number[], rx: [] as number[], tx: [] as number[] });
 let previousNetwork: { rx: number; tx: number; at: number } | null = null;
 
@@ -108,6 +110,15 @@ function scalePeak(key: string, values: number[]): number {
   return Math.max(...history.value.rx, ...history.value.tx, 1024);
 }
 
+function uptimeText(): string {
+  const iso = startedAt.value;
+  if (!isOnline() || !iso) return "0h 0m 0s";
+  const started = Date.parse(iso.replace(/(\.\d{3})\d+/, "$1"));
+  if (Number.isNaN(started)) return "0h 0m 0s";
+  const seconds = Math.max(0, Math.floor((nowTick.value - started) / 1000));
+  return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m ${seconds % 60}s`;
+}
+
 function isOnline(): boolean {
   return server.value?.status === "running" || server.value?.status === "starting";
 }
@@ -154,6 +165,7 @@ function handleFrame(frame: ConsoleFrame): void {
       disk_used_bytes: number;
       network_rx_bytes: number;
       network_tx_bytes: number;
+      started_at?: string;
     };
     const now = Date.now();
     let rxRate = 0;
@@ -170,6 +182,7 @@ function handleFrame(frame: ConsoleFrame): void {
     pushHistory("disk", stats.disk_used_bytes);
     pushHistory("rx", rxRate);
     pushHistory("tx", txRate);
+    if (stats.started_at) startedAt.value = stats.started_at;
   }
   if (frame.type === "status" && frame.status && server.value) server.value.status = frame.status;
 }
@@ -203,12 +216,22 @@ async function refreshStatus(): Promise<void> {
 onMounted(() => {
   statusTimer = window.setInterval(() => void refreshStatus(), 3000);
 });
-onBeforeUnmount(() => window.clearInterval(statusTimer));
+let clockTimer: number | undefined;
+onMounted(() => {
+  clockTimer = window.setInterval(() => {
+    nowTick.value = Date.now();
+  }, 1000);
+});
+onBeforeUnmount(() => {
+  window.clearInterval(statusTimer);
+  window.clearInterval(clockTimer);
+});
 
 async function power(action: "start" | "restart" | "stop" | "kill"): Promise<void> {
   if (!server.value) return;
   if (action === "start") {
     clearConsole();
+    startedAt.value = null;
     history.value = { cpu: [], ram: [], disk: [], rx: [], tx: [] };
   }
   try {
@@ -272,14 +295,14 @@ onMounted(async () => {
 
     <div v-if="server">
       <main class="min-w-0 space-y-3">
-        <div v-if="active === 'home'" class="flex flex-wrap items-center justify-between gap-3">
+        <div v-if="active === 'home'" class="flex flex-wrap items-center justify-start gap-3">
           <div>
             <span class="inline-flex items-center gap-2 rounded-full border border-ink-700 bg-ink-900 px-3 py-1.5 text-sm font-medium text-ink-200 shadow-sm">
               <span class="h-2 w-2 rounded-full" :class="server.status === 'running' ? 'bg-ok' : server.status === 'starting' ? 'bg-warn' : 'bg-bad'" />
               {{ server.status === 'running' ? 'Running' : server.status === 'starting' ? 'Starting' : server.status === 'error' ? 'Error' : 'Offline' }}
             </span>
           </div>
-          <span />
+          <span class="inline-flex items-center rounded-full border border-ink-700 bg-ink-900 px-3 py-1.5 text-sm font-medium text-ink-200 shadow-sm">Uptime: {{ uptimeText() }}</span>
         </div>
 
         <div v-if="active === 'home'" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
