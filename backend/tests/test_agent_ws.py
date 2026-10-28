@@ -343,3 +343,29 @@ def test_stats_feed_the_ddos_detector(client, user, clean_stats):
         assert _eventually(lambda: detector.snapshot(server_id, time.monotonic()) is not None)
     # Beim Trennen vergisst die Registry auch den Zustand des Detektors.
     assert _eventually(lambda: detector.snapshot(server_id, time.monotonic()) is None)
+
+
+def test_large_result_frame_keeps_the_connection(client, user):
+    # Ein 512-KiB-Datei-Block ist als Base64 etwa 700 KB groß.
+    node_id, key = _enroll_node(client, user)
+    with client.websocket_connect(WS_URL) as ws:
+        _login_agent(ws, node_id, key)
+        frame = {
+            "type": "result",
+            "id": str(uuid.uuid4()),
+            "ok": True,
+            "data": {"data": "A" * 700_000},
+        }
+        ws.send_json(frame)
+        ws.send_json(HEARTBEAT)
+        assert ws.receive_json() == {"type": "heartbeat_ack"}
+
+
+def test_frame_over_one_mebibyte_is_closed(client, user):
+    node_id, key = _enroll_node(client, user)
+    with client.websocket_connect(WS_URL) as ws:
+        _login_agent(ws, node_id, key)
+        ws.send_text("A" * (1024 * 1024 + 1))
+        with pytest.raises(WebSocketDisconnect) as exc:
+            ws.receive_json()
+        assert exc.value.code == 1009

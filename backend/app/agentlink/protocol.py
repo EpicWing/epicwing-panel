@@ -11,6 +11,8 @@ from pydantic import BaseModel, Field
 AUTH_CONTEXT = b"epicwing-agent-auth-v1\n"
 NONCE_BYTES = 32
 MAX_MESSAGE_CHARS = 16 * 1024
+# Frames vom Agent nach dem Login (Datei-Blöcke als Base64), passend zu maxMessageBytes im Agent.
+MAX_FRAME_CHARS = 1024 * 1024
 AUTH_TIMEOUT_SECONDS = 10
 IDLE_TIMEOUT_SECONDS = 30
 COMMAND_TIMEOUT_SECONDS = 90
