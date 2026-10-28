@@ -154,23 +154,21 @@ onBeforeUnmount(() => {
       <p class="mt-1 text-red-300/80">{{ loadError }}</p>
     </div>
 
-    <TransitionGroup
+    <div
       v-if="showDemo || servers.length > 0"
-      tag="div"
-      name="card"
-      appear
       :class="layout === 'grid' ? 'grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4' : 'flex flex-col gap-3'"
     >
       <ServerCard
         v-for="(server, index) in showDemo ? demoServers : servers"
         :key="server.id"
+        class="server-card-in"
         :style="{ '--i': index }"
         :server="server"
         :demo="showDemo"
         :layout="layout"
         @open="router.push(`/servers/${$event}`)"
       />
-    </TransitionGroup>
+    </div>
 
     <div v-else-if="loaded && !loadError" class="rounded-lg border border-dashed border-ink-700 px-6 py-14 text-center">
       <p class="font-medium">{{ t("servers.emptyTitle") }}</p>
