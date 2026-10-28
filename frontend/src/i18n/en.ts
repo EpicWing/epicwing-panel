@@ -54,6 +54,14 @@ export default {
       offline: "Offline",
     },
   },
+  console: {
+    title: "Console",
+    close: "Close",
+    waiting: "Waiting for console output…",
+    placeholder: "Enter a command…",
+    send: "Send",
+    connectionError: "The console connection failed.",
+  },
   eggs: {
     title: "Nests & Eggs",
     subtitle:
@@ -90,7 +98,7 @@ export default {
     stopCommand: "Stop command",
     stopHint: "Sent to the console to stop the server. Leave empty to send SIGTERM.",
     installScript: "Install script",
-    installHint: "Shell script for the first install. The agent does not run it yet.",
+    installHint: "Shell script run in the installer container during Install or Reinstall.",
     variables: "Variables",
     variablesHint: "Values that can be set when a server is created.",
     addVariable: "Add variable",
@@ -139,7 +147,7 @@ export default {
   adminServers: {
     title: "Servers",
     subtitle: "All servers on this panel.",
-    note: "Install creates the container and the data folder on the node. Egg install scripts are not run yet.",
+    note: "Install creates the container, prepares the data folder and runs the egg installation script.",
     create: "Create new",
     cancel: "Cancel",
     colName: "Name",
@@ -176,6 +184,7 @@ export default {
     deleteConfirm: "Delete {name}? Its ports are released.",
     install: "Install",
     reinstall: "Reinstall",
+    console: "Console",
     reinstallConfirm: "Reinstall {name}? The container is replaced, the files are kept.",
     start: "Start",
     stop: "Stop",

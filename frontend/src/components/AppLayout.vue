@@ -7,8 +7,8 @@ import { auth } from "../stores/auth";
 import LogoMark from "./LogoMark.vue";
 
 const props = withDefaults(
-  defineProps<{ title: string; subtitle?: string; area?: "user" | "admin"; wide?: boolean }>(),
-  { area: "user" },
+  defineProps<{ title: string; subtitle?: string; area?: "user" | "admin"; wide?: boolean; minimal?: boolean; hero?: boolean; hideHeader?: boolean }>(),
+  { area: "user", minimal: false },
 );
 
 interface NavItem {
@@ -85,11 +85,12 @@ async function logout() {
 </script>
 
 <template>
-  <div class="flex min-h-screen">
+  <div class="flex min-h-screen" :class="props.minimal ? 'server-detail-shell overflow-hidden' : ''">
     <aside
-      class="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-ink-700 bg-ink-900 md:flex"
+      class="sticky top-0 hidden h-screen shrink-0 flex-col border-r border-ink-700 bg-ink-900 md:flex"
+      :class="props.minimal ? 'w-60' : 'w-60'"
     >
-      <div class="flex items-center gap-2.5 px-5 py-5">
+      <div class="flex items-center gap-2.5 py-5" :class="props.minimal ? 'justify-center px-3' : 'px-5'">
         <LogoMark class="h-6 w-6 text-accent-500" />
         <span class="text-base font-semibold tracking-tight">EpicWing</span>
         <span
@@ -100,7 +101,7 @@ async function logout() {
         </span>
       </div>
 
-      <nav class="flex-1 overflow-y-auto px-3 pb-4">
+      <nav v-if="!props.minimal" class="flex-1 overflow-y-auto px-3 pb-4">
         <div v-for="section in sections" :key="section.heading" class="mb-6">
           <p class="px-3 pb-2 text-[11px] font-medium uppercase tracking-wider text-ink-400">
             {{ section.heading }}
@@ -125,7 +126,14 @@ async function logout() {
         </div>
       </nav>
 
-      <div class="space-y-3 border-t border-ink-700 p-4">
+      <div v-else class="flex min-h-0 flex-1 flex-col px-3 pb-4">
+        <nav class="flex-1 overflow-y-auto border-t border-ink-700 pt-8">
+          <slot name="sidebar" />
+        </nav>
+        <slot name="sidebar-footer" />
+      </div>
+
+      <div v-if="!props.minimal" class="space-y-3 border-t border-ink-700 p-4">
         <RouterLink
           v-if="switchLink"
           :to="switchLink.to"
@@ -168,10 +176,10 @@ async function logout() {
       </header>
 
       <main class="min-w-0 flex-1">
-        <div class="mx-auto w-full px-6 py-10" :class="wide ? 'max-w-[1600px]' : 'max-w-6xl'">
-          <div class="mb-8 flex items-end justify-between gap-4">
+        <div class="w-full px-4 py-6 lg:px-8" :class="wide ? 'mx-auto max-w-[1800px]' : 'mx-auto max-w-6xl'">
+          <div v-if="!hideHeader" class="mb-5 flex items-end justify-between gap-4">
             <div>
-              <h1 class="text-3xl font-semibold tracking-tight">{{ title }}</h1>
+              <h1 :class="hero ? 'text-4xl font-bold tracking-tight lg:text-5xl' : 'text-3xl font-semibold tracking-tight'">{{ title }}</h1>
               <p v-if="subtitle" class="mt-1 text-sm text-ink-400">{{ subtitle }}</p>
             </div>
             <slot name="actions" />

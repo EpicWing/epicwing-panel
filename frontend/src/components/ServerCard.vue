@@ -16,6 +16,7 @@ export interface ServerItem {
 }
 
 const props = defineProps<{ server: ServerItem; demo?: boolean; layout?: "grid" | "list" }>();
+const emit = defineEmits<{ open: [id: string] }>();
 
 const { t } = useI18n();
 const copied = ref(false);
@@ -63,6 +64,11 @@ async function copyAddress() {
         ? 'flex flex-wrap items-center justify-between gap-x-8 gap-y-4 py-4 pl-6 pr-5'
         : 'p-5 pl-6'
     "
+    role="button"
+    tabindex="0"
+    @click="emit('open', server.id)"
+    @keydown.enter="emit('open', server.id)"
+    @keydown.space.prevent="emit('open', server.id)"
   >
     <span class="absolute inset-y-0 left-0 w-1" :class="dot"></span>
 
@@ -94,7 +100,7 @@ async function copyAddress() {
         </p>
         <button
           class="shrink-0 rounded border border-ink-700 px-2 py-0.5 text-xs text-ink-300 transition hover:border-ink-600 hover:text-ink-100"
-          @click="copyAddress"
+          @click.stop="copyAddress"
         >
           {{ copied ? t("servers.copied") : t("servers.copy") }}
         </button>

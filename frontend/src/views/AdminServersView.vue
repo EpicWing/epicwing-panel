@@ -4,6 +4,7 @@ import { useI18n } from "vue-i18n";
 
 import { ApiError, api } from "../api/client";
 import AppLayout from "../components/AppLayout.vue";
+import ServerConsole from "../components/ServerConsole.vue";
 import { auth } from "../stores/auth";
 
 interface AllocationRef {
@@ -96,6 +97,7 @@ const error = ref("");
 const showForm = ref(false);
 const busy = ref(false);
 const form = ref<ServerForm>(emptyForm());
+const consoleServer = ref<ServerItem | null>(null);
 
 const inputClass =
   "w-full rounded-md border border-ink-700 bg-ink-950 px-3 py-2 text-sm outline-none transition focus:border-accent-500";
@@ -536,7 +538,7 @@ onUnmounted(() => window.clearInterval(timer));
           </tr>
           <tr v-for="server in servers" :key="server.id" class="hover:bg-ink-900/60">
             <td class="px-4 py-3">
-              <p class="font-medium">{{ server.name }}</p>
+              <router-link :to="`/servers/${server.id}`" class="font-medium hover:text-accent-300">{{ server.name }}</router-link>
               <p class="text-xs text-ink-400">{{ server.egg_name }}</p>
             </td>
             <td class="px-4 py-3 font-mono text-xs text-ink-400">{{ server.id }}</td>
@@ -554,6 +556,14 @@ onUnmounted(() => window.clearInterval(timer));
             </td>
             <td class="px-4 py-3 text-right">
               <div class="flex flex-wrap justify-end gap-2">
+                <button
+                  v-if="server.status === 'running' || server.status === 'starting' || server.status === 'error'"
+                  :class="buttonClass"
+                  :disabled="working === server.id"
+                  @click="consoleServer = server"
+                >
+                  {{ t("adminServers.console") }}
+                </button>
                 <button
                   v-if="canInstall(server)"
                   :class="buttonClass"
@@ -595,5 +605,12 @@ onUnmounted(() => window.clearInterval(timer));
         </tbody>
       </table>
     </div>
+
+    <ServerConsole
+      v-if="consoleServer"
+      :server-id="consoleServer.id"
+      :server-name="consoleServer.name"
+      @close="consoleServer = null"
+    />
   </AppLayout>
 </template>

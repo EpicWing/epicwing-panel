@@ -9,11 +9,13 @@ import NodeDetailView from "../views/NodeDetailView.vue";
 import NodesView from "../views/NodesView.vue";
 import ServersView from "../views/ServersView.vue";
 import SettingsView from "../views/SettingsView.vue";
+import ServerDetailView from "../views/ServerDetailView.vue";
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: "/", name: "servers", component: ServersView, meta: { requiresAuth: true } },
+    { path: "/servers/:id", name: "server-detail", component: ServerDetailView, meta: { requiresAuth: true } },
     { path: "/settings", name: "settings", component: SettingsView, meta: { requiresAuth: true } },
     {
       path: "/admin",
