@@ -21,6 +21,7 @@ from app.db import get_db
 from app.models import Node, NodeCredential
 from app.security.ratelimit import agent_auth_limiter
 from app.services import audit
+from app.services.node_alerts import on_node_online, schedule_offline_alert
 
 log = logging.getLogger("epicwing.agent")
 router = APIRouter(prefix="/agent", tags=["agent"])
@@ -161,6 +162,7 @@ async def agent_socket(websocket: WebSocket, db: Annotated[Session, Depends(get_
     try:
         # Erst online setzen, dann auth_ok senden: Wer auth_ok bekommt, ist auch online.
         await run_in_threadpool(_mark_online, db, node_id, None)
+        await on_node_online(node_id)
         await websocket.send_json({"type": "auth_ok"})
         log.info("Agent %s verbunden", node_id)
         spawn(hub.rewatch(node_id))
@@ -172,4 +174,5 @@ async def agent_socket(websocket: WebSocket, db: Annotated[Session, Depends(get_
         if registry.unregister(node_id, websocket):
             fail_pending(node_id)
             await run_in_threadpool(_mark_offline, db, node_id)
+            schedule_offline_alert(node_id)
         log.info("Agent %s getrennt", node_id)
