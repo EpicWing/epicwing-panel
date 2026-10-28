@@ -1,9 +1,12 @@
+import json
 import re
 import uuid
 from datetime import datetime
-from typing import Self
+from typing import Any, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from app.agentlink.protocol import COMMAND_ACTIONS
 
 NAME_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9 ._-]{0,63}")
 _LABEL = r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
@@ -154,3 +157,37 @@ class NodeDetail(NodeOut):
     cpu_percent: float | None
     ram_used_mb: int | None
     disk_used_mb: int | None
+
+
+CONTAINER_NAME_RE = re.compile(r"[a-z0-9][a-z0-9_.-]{0,62}")
+CREATE_PARAMS = {"name", "image", "ports", "env", "memory_mb", "cpus"}
+MAX_PARAMS_CHARS = 12_000
+
+
+class CommandRequest(BaseModel):
+    """Befehl an den Agent einer Node. Der Agent prüft die Parameter zusätzlich selbst."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    action: str
+    params: dict[str, Any]
+
+    @model_validator(mode="after")
+    def _check(self) -> Self:
+        if self.action not in COMMAND_ACTIONS:
+            raise ValueError("Unknown action.")
+        wanted = CREATE_PARAMS if self.action == "container.create" else {"name"}
+        if set(self.params) != wanted:
+            raise ValueError(f"The params must be exactly: {', '.join(sorted(wanted))}.")
+        name = self.params["name"]
+        if not isinstance(name, str) or not CONTAINER_NAME_RE.fullmatch(name):
+            raise ValueError("Invalid container name.")
+        if len(json.dumps(self.params)) > MAX_PARAMS_CHARS:
+            raise ValueError("The params are too large.")
+        return self
+
+
+class CommandOut(BaseModel):
+    ok: bool
+    data: dict[str, Any] | None = None
+    error: str | None = None

@@ -7,10 +7,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
+from app.agentlink.commands import AgentOffline, broker
 from app.agentlink.registry import registry
 from app.db import get_db
 from app.models import Node, NodeCredential
 from app.schemas.node import (
+    CommandOut,
+    CommandRequest,
     EnrollmentOut,
     NodeCreate,
     NodeCreated,
@@ -250,3 +253,52 @@ async def delete_node(
 ) -> None:
     await run_in_threadpool(_delete, db, node_id, auth.user.id, audit.client_ip(request))
     await registry.disconnect(node_id)
+
+
+def _audit_command(
+    db: Session, actor_id: uuid.UUID, node: Node, body: CommandRequest, ip: str, outcome: str
+) -> None:
+    # Nur Aktion und Containername, nie die Parameter (env kann Secrets enthalten).
+    audit.record(
+        db,
+        "node.command",
+        actor_id=actor_id,
+        target_type="node",
+        target_id=str(node.id),
+        ip=ip,
+        details={
+            "name": node.name,
+            "action": body.action,
+            "container": body.params["name"],
+            "outcome": outcome,
+        },
+    )
+
+
+@router.post("/{node_id}/commands")
+async def run_command(
+    node_id: uuid.UUID,
+    body: CommandRequest,
+    request: Request,
+    auth: ManageNodes,
+    db: Annotated[Session, Depends(get_db)],
+) -> CommandOut:
+    node = await run_in_threadpool(_get_node, db, node_id)
+    outcome = "offline"
+    result = None
+    if node.status != "pending" and registry.is_connected(node.id):
+        try:
+            result = await broker.send(node.id, body.action, body.params)
+            outcome = "ok" if result.ok else "failed"
+        except AgentOffline:
+            outcome = "offline"
+        except TimeoutError:
+            outcome = "timeout"
+    await run_in_threadpool(
+        _audit_command, db, auth.user.id, node, body, audit.client_ip(request), outcome
+    )
+    if outcome == "timeout":
+        raise HTTPException(status.HTTP_504_GATEWAY_TIMEOUT, "The agent did not answer in time.")
+    if result is None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "The agent of this node is not connected.")
+    return CommandOut(ok=result.ok, data=result.data, error=result.error)
