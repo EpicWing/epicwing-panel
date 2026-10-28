@@ -422,7 +422,7 @@ function exists(name: string): boolean {
 }
 
 interface Dialog {
-  kind: "file" | "folder" | "rename" | "move" | "moveMany";
+  kind: "file" | "folder" | "rename" | "move" | "moveMany" | "delete";
   entries: Entry[];
   value: string;
 }
@@ -432,6 +432,7 @@ const DIALOGS = {
   folder: { title: "New folder", label: "Folder name", hint: "Enter the name of the new folder.", submit: "Create folder" },
   rename: { title: "Rename", label: "New name or path", hint: "A path such as plugins/name.dll moves the item.", submit: "Rename" },
   move: { title: "Move", label: "New name or path", hint: "Relative to the current folder, a leading / starts at the root.", submit: "Move" },
+  delete: { title: "Delete", label: "", hint: "This cannot be undone.", submit: "Delete" },
   moveMany: { title: "Move items", label: "Destination folder", hint: "Relative to the current folder, a leading / starts at the root.", submit: "Move" },
 } as const;
 
@@ -441,11 +442,21 @@ const dialogInput = ref<HTMLInputElement | null>(null);
 const dialogText = computed(() => (dialog.value ? DIALOGS[dialog.value.kind] : null));
 const dialogPreview = computed(() => {
   const d = dialog.value;
-  if (!d || d.kind === "file" || d.kind === "folder") return "";
+  if (!d || d.kind === "file" || d.kind === "folder" || d.kind === "delete") return "";
   const target = resolveTarget(d.value.trim());
   if (target === null) return "";
   if (d.kind === "moveMany") return `/${target}`;
   return target === "" ? "" : `/${target}`;
+});
+
+const dialogSubmit = ref<HTMLButtonElement | null>(null);
+const deleteText = computed(() => {
+  const d = dialog.value;
+  if (!d || d.kind !== "delete") return "";
+  const folders = d.entries.some((entry) => entry.dir);
+  const count = d.entries.length;
+  const what = count === 1 ? "this item" : `these ${count} items`;
+  return folders ? `Delete ${what}? Folders are deleted with everything in them.` : `Delete ${what}?`;
 });
 
 function openDialog(kind: Dialog["kind"], entries: Entry[] = [], value = ""): void {
@@ -454,6 +465,10 @@ function openDialog(kind: Dialog["kind"], entries: Entry[] = [], value = ""): vo
   dialogError.value = "";
   dialog.value = { kind, entries, value };
   void nextTick(() => {
+    if (kind === "delete") {
+      dialogSubmit.value?.focus();
+      return;
+    }
     dialogInput.value?.focus();
     dialogInput.value?.select();
   });
@@ -533,6 +548,31 @@ async function submitDialog(): Promise<void> {
     return;
   }
 
+  if (d.kind === "delete") {
+    const targets = d.entries;
+    closeDialog();
+    selected.value = [];
+    await action(async () => {
+      const failed: string[] = [];
+      let reason = "";
+      for (const entry of targets) {
+        try {
+          await api(`${base()}/delete`, {
+            method: "POST",
+            body: { path: join(path.value, entry.name), recursive: entry.dir },
+          });
+        } catch (cause) {
+          failed.push(entry.name);
+          if (!reason && cause instanceof Error) reason = cause.message;
+        }
+      }
+      if (failed.length > 0) {
+        throw new LocalError(`Could not delete ${failed.join(", ")}${reason ? `: ${reason}` : ""}`);
+      }
+    });
+    return;
+  }
+
   const entry = d.entries[0];
   if (!entry) return;
   const from = join(path.value, entry.name);
@@ -568,37 +608,6 @@ function resolveTarget(input: string): string | null {
     }
   }
   return parts.join("/");
-}
-
-async function remove(entry: Entry): Promise<void> {
-  const what = entry.dir ? `the folder "${entry.name}" and everything in it` : `"${entry.name}"`;
-  if (!window.confirm(`Delete ${what}? This cannot be undone.`)) return;
-  await action(() =>
-    api(`${base()}/delete`, {
-      method: "POST",
-      body: { path: join(path.value, entry.name), recursive: entry.dir },
-    }),
-  );
-}
-
-async function removeSelected(): Promise<void> {
-  const targets = selectedEntries.value;
-  if (targets.length === 0) return;
-  if (!window.confirm(`Delete ${targets.length} selected items? This cannot be undone.`)) return;
-  await action(async () => {
-    const failed: string[] = [];
-    for (const entry of targets) {
-      try {
-        await api(`${base()}/delete`, {
-          method: "POST",
-          body: { path: join(path.value, entry.name), recursive: entry.dir },
-        });
-      } catch {
-        failed.push(entry.name);
-      }
-    }
-    if (failed.length > 0) throw new LocalError(`Could not delete: ${failed.join(", ")}`);
-  });
 }
 
 function saveBlob(blob: Blob, filename: string): void {
@@ -813,7 +822,7 @@ watch(blocked, (value) => {
                 <button role="menuitem" class="block w-full px-3 py-2 text-left text-ink-100 hover:bg-ink-800" @click="closeMenu(); download([entry])">{{ entry.dir ? "Download ZIP" : "Download" }}</button>
                 <button role="menuitem" class="block w-full px-3 py-2 text-left text-ink-100 hover:bg-ink-800" @click="closeMenu(); openDialog('rename', [entry], entry.name)">Rename</button>
                 <button role="menuitem" class="block w-full px-3 py-2 text-left text-ink-100 hover:bg-ink-800" @click="closeMenu(); openDialog('move', [entry], entry.name)">Move</button>
-                <button role="menuitem" class="block w-full px-3 py-2 text-left text-bad hover:bg-ink-800" @click="closeMenu(); remove(entry)">Delete</button>
+                <button role="menuitem" class="block w-full px-3 py-2 text-left text-bad hover:bg-ink-800" @click="closeMenu(); openDialog('delete', [entry])">Delete</button>
               </div>
             </div>
           </div>
@@ -834,7 +843,7 @@ watch(blocked, (value) => {
         <span class="text-ink-300">{{ selectedEntries.length }} selected</span>
         <button class="rounded-lg bg-accent-500 px-3 py-1.5 font-semibold text-ink-950 disabled:opacity-50" :disabled="busy" @click="download(selectedEntries)">{{ downloadLabel }}</button>
         <button class="rounded-lg border border-ink-700 px-3 py-1.5 text-ink-200 hover:bg-ink-800 disabled:opacity-50" :disabled="busy" @click="openDialog('moveMany', selectedEntries)">Move</button>
-        <button class="rounded-lg border border-ink-700 px-3 py-1.5 text-bad hover:bg-ink-800 disabled:opacity-50" :disabled="busy" @click="removeSelected">Delete</button>
+        <button class="rounded-lg border border-ink-700 px-3 py-1.5 text-bad hover:bg-ink-800 disabled:opacity-50" :disabled="busy" @click="openDialog('delete', selectedEntries)">Delete</button>
         <button class="px-2 py-1.5 text-ink-400 hover:text-ink-100" @click="selected = []">Clear</button>
       </template>
     </div>
@@ -847,7 +856,13 @@ watch(blocked, (value) => {
               <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
             </button>
           </div>
-          <label class="mt-5 block text-sm text-ink-300">
+          <div v-if="dialog.kind === 'delete'" class="mt-4 text-sm text-ink-300">
+            <p>{{ deleteText }}</p>
+            <ul class="mt-3 max-h-40 space-y-1 overflow-auto rounded-lg bg-ink-800 p-3 font-mono text-xs text-ink-100">
+              <li v-for="item in dialog.entries" :key="item.name" class="truncate">{{ item.dir ? item.name + "/" : item.name }}</li>
+            </ul>
+          </div>
+          <label v-else class="mt-5 block text-sm text-ink-300">
             {{ dialogText.label }}
             <input ref="dialogInput" v-model="dialog.value" type="text" autocomplete="off" spellcheck="false" class="mt-2 w-full rounded-lg border border-transparent bg-ink-800 px-3 py-2.5 text-sm text-ink-100 focus:border-accent-500 focus:outline-none" />
           </label>
@@ -858,7 +873,7 @@ watch(blocked, (value) => {
           </p>
           <p v-if="dialogError" class="mt-3 text-sm text-bad">{{ dialogError }}</p>
           <div class="mt-6 flex justify-end">
-            <button type="submit" class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950 disabled:opacity-50" :disabled="busy">{{ dialogText.submit }}</button>
+            <button type="submit" ref="dialogSubmit" class="rounded-lg px-4 py-2 text-sm font-semibold disabled:opacity-50" :class="dialog.kind === 'delete' ? 'bg-bad text-white' : 'bg-accent-500 text-ink-950'" :disabled="busy">{{ dialogText.submit }}</button>
           </div>
         </form>
       </div>
