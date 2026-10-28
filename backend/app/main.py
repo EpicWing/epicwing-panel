@@ -60,6 +60,7 @@ def create_app() -> FastAPI:
     app.include_router(two_factor.router, prefix="/api")
     app.include_router(users.router, prefix="/api")
     app.include_router(audit.router, prefix="/api")
+    app.include_router(audit.server_router, prefix="/api")
     app.include_router(nodes.router, prefix="/api")
     app.include_router(agent.router, prefix="/api")
     app.include_router(agent_ws.router, prefix="/api")
