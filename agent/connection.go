@@ -117,6 +117,7 @@ func session(ctx context.Context, url, nodeID string, key ed25519.PrivateKey, s 
 	sftpAuth.setSend(send)
 	defer sftpAuth.setSend(nil)
 	startSFTP(ctx)
+	startTransfer(ctx)
 	go watchEvents(sessionCtx, send)
 
 	readErr := make(chan error, 1)

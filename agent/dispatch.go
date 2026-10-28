@@ -120,6 +120,9 @@ func (d *commandDispatcher) execute(ctx context.Context, action string, params j
 	if strings.HasPrefix(action, "console.") {
 		return d.console.execute(ctx, action, params)
 	}
+	if strings.HasPrefix(action, "transfer.") {
+		return d.executeTransfer(action, params)
+	}
 	switch action {
 	case "container.create":
 		var spec ContainerSpec
