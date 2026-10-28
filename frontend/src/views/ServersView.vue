@@ -15,6 +15,7 @@ const router = useRouter();
 const servers = ref<ServerItem[]>([]);
 const nodeCount = ref<number | null>(null);
 const loadError = ref("");
+const loaded = ref(false);
 const layout = ref<"grid" | "list">("grid");
 
 interface ApiServer {
@@ -96,6 +97,7 @@ async function loadServers(): Promise<void> {
 
 onMounted(async () => {
   await loadServers();
+  loaded.value = true;
   refreshTimer = window.setInterval(loadServers, 5000);
 });
 
@@ -152,21 +154,25 @@ onBeforeUnmount(() => {
       <p class="mt-1 text-red-300/80">{{ loadError }}</p>
     </div>
 
-    <div
+    <TransitionGroup
       v-if="showDemo || servers.length > 0"
+      tag="div"
+      name="card"
+      appear
       :class="layout === 'grid' ? 'grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4' : 'flex flex-col gap-3'"
     >
       <ServerCard
-        v-for="server in showDemo ? demoServers : servers"
+        v-for="(server, index) in showDemo ? demoServers : servers"
         :key="server.id"
+        :style="{ '--i': index }"
         :server="server"
         :demo="showDemo"
         :layout="layout"
         @open="router.push(`/servers/${$event}`)"
       />
-    </div>
+    </TransitionGroup>
 
-    <div v-else-if="!loadError" class="rounded-lg border border-dashed border-ink-700 px-6 py-14 text-center">
+    <div v-else-if="loaded && !loadError" class="rounded-lg border border-dashed border-ink-700 px-6 py-14 text-center">
       <p class="font-medium">{{ t("servers.emptyTitle") }}</p>
       <p class="mx-auto mt-1 max-w-md text-sm text-ink-400">{{ t("servers.emptyBody") }}</p>
       <p v-if="nodeCount !== null" class="mt-4 font-mono text-xs text-ink-400">

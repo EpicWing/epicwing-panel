@@ -139,3 +139,24 @@ body:has(.server-detail-shell) {
 .ansi-bg-15 {
   background-color: #f0f0f5;
 }
+
+/* Server cards fade in and slide up when they first appear. The delay grows with the position
+   in the list, capped so long lists do not wait. Existing cards are patched in place on each
+   refresh and do not replay this. */
+.card-enter-active {
+  transition:
+    opacity 0.35s ease,
+    transform 0.35s ease;
+  transition-delay: calc(min(var(--i, 0), 8) * 45ms);
+}
+
+.card-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-enter-active {
+    transition: none;
+  }
+}
