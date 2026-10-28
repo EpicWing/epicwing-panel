@@ -82,3 +82,75 @@ class EnrollmentOut(BaseModel):
 class NodeCreated(BaseModel):
     node: NodeOut
     enrollment: EnrollmentOut
+
+
+def _validate_name(value: str) -> str:
+    value = value.strip()
+    if not NAME_RE.fullmatch(value):
+        raise ValueError(
+            "The name must be 1 to 64 characters and may only contain letters, "
+            "digits, spaces, dots, underscores and hyphens."
+        )
+    return value
+
+
+def _validate_location(value: str) -> str:
+    value = value.strip()
+    if len(value) > 64 or any(ord(c) < 32 for c in value):
+        raise ValueError("Invalid location: max. 64 characters, no control characters.")
+    return value
+
+
+def _validate_fqdn(value: str) -> str | None:
+    value = value.strip().lower()
+    if not value:
+        return None
+    if not HOSTNAME_RE.fullmatch(value):
+        raise ValueError("The hostname is invalid.")
+    return value
+
+
+class NodeUpdate(BaseModel):
+    """Teilweise Änderung. Nur mitgeschickte Felder werden geändert."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = None
+    location: str | None = None
+    fqdn: str | None = None
+    port_range_start: int | None = Field(default=None, ge=1024, le=65535)
+    port_range_end: int | None = Field(default=None, ge=1024, le=65535)
+
+    @field_validator("name")
+    @classmethod
+    def _check_name(cls, value: str | None) -> str | None:
+        return None if value is None else _validate_name(value)
+
+    @field_validator("location")
+    @classmethod
+    def _check_location(cls, value: str | None) -> str | None:
+        return None if value is None else _validate_location(value)
+
+    @field_validator("fqdn")
+    @classmethod
+    def _check_fqdn(cls, value: str | None) -> str | None:
+        return None if value is None else _validate_fqdn(value)
+
+    @model_validator(mode="after")
+    def _check(self) -> Self:
+        for field in ("name", "location", "port_range_start", "port_range_end"):
+            if field in self.model_fields_set and getattr(self, field) is None:
+                raise ValueError(f"{field} must not be null.")
+        start, end = self.port_range_start, self.port_range_end
+        if start is not None and end is not None and start > end:
+            raise ValueError("The port range is invalid: the start must not be after the end.")
+        return self
+
+
+class NodeDetail(NodeOut):
+    connected: bool
+    fingerprint: str | None
+    registered_at: datetime | None
+    cpu_percent: float | None
+    ram_used_mb: int | None
+    disk_used_mb: int | None

@@ -4,7 +4,7 @@ from typing import Any
 
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
-from app.agentlink.protocol import WS_REPLACED
+from app.agentlink.protocol import WS_POLICY_VIOLATION, WS_REPLACED
 
 
 class AgentRegistry:
@@ -30,6 +30,13 @@ class AgentRegistry:
         del self._connections[node_id]
         self.stats.pop(node_id, None)
         return True
+
+    async def disconnect(self, node_id: uuid.UUID) -> None:
+        """Schließt die Verbindung einer Node (Widerruf, Löschen)."""
+        websocket = self._connections.get(node_id)
+        if websocket is not None:
+            with contextlib.suppress(RuntimeError, WebSocketDisconnect):
+                await websocket.close(code=WS_POLICY_VIOLATION)
 
     def is_connected(self, node_id: uuid.UUID) -> bool:
         return node_id in self._connections

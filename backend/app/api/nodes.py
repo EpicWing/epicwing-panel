@@ -2,13 +2,22 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
+from app.agentlink.registry import registry
 from app.db import get_db
-from app.models import Node
-from app.schemas.node import EnrollmentOut, NodeCreate, NodeCreated, NodeOut
+from app.models import Node, NodeCredential
+from app.schemas.node import (
+    EnrollmentOut,
+    NodeCreate,
+    NodeCreated,
+    NodeDetail,
+    NodeOut,
+    NodeUpdate,
+)
 from app.security.permissions import Permission, require
 from app.security.sessions import AuthContext
 from app.services import audit
@@ -105,3 +114,139 @@ def new_enrollment(
         details={"name": node.name},
     )
     return EnrollmentOut(token=token, expires_at=enrollment.expires_at)
+
+
+def _get_node(db: Session, node_id: uuid.UUID) -> Node:
+    node = db.get(Node, node_id)
+    if node is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Node not found.")
+    return node
+
+
+def _detail(db: Session, node: Node) -> NodeDetail:
+    credential = db.scalar(select(NodeCredential).where(NodeCredential.node_id == node.id))
+    connected = node.status != "pending" and registry.is_connected(node.id)
+    stats = registry.stats.get(node.id, {}) if connected else {}
+    return NodeDetail(
+        **_node_out(node).model_dump(),
+        connected=connected,
+        # Nur der Fingerprint, nie der Schlüssel selbst.
+        fingerprint=credential.fingerprint if credential else None,
+        registered_at=credential.created_at if credential else None,
+        cpu_percent=stats.get("cpu_percent"),
+        ram_used_mb=stats.get("ram_used_mb"),
+        disk_used_mb=stats.get("disk_used_mb"),
+    )
+
+
+@router.get("/{node_id}")
+def get_node(
+    node_id: uuid.UUID, _auth: ManageNodes, db: Annotated[Session, Depends(get_db)]
+) -> NodeDetail:
+    return _detail(db, _get_node(db, node_id))
+
+
+@router.patch("/{node_id}")
+def update_node(
+    node_id: uuid.UUID,
+    body: NodeUpdate,
+    request: Request,
+    auth: ManageNodes,
+    db: Annotated[Session, Depends(get_db)],
+) -> NodeDetail:
+    node = _get_node(db, node_id)
+    data = body.model_dump(exclude_unset=True)
+
+    if "name" in data and db.scalar(
+        select(Node.id).where(func.lower(Node.name) == data["name"].lower(), Node.id != node.id)
+    ):
+        raise _name_taken()
+
+    start = data.get("port_range_start", node.port_range_start)
+    end = data.get("port_range_end", node.port_range_end)
+    if start > end:
+        raise HTTPException(
+            422, "The port range is invalid: the start must not be after the end."
+        )
+
+    for field, value in data.items():
+        setattr(node, field, value)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise _name_taken() from None
+
+    audit.record(
+        db,
+        "node.update",
+        actor_id=auth.user.id,
+        target_type="node",
+        target_id=str(node.id),
+        ip=audit.client_ip(request),
+        details={"name": node.name, "fields": sorted(data)},
+    )
+    return _detail(db, node)
+
+
+def _revoke(db: Session, node_id: uuid.UUID, actor_id: uuid.UUID, ip: str) -> NodeDetail:
+    node = _get_node(db, node_id)
+    if node.status == "pending":
+        raise HTTPException(status.HTTP_409_CONFLICT, "This node has no registered agent.")
+    # Ohne Schlüssel kann sich der Agent nicht mehr anmelden. Die Node wartet wieder
+    # auf einen Agent und lässt sich mit einem neuen Token erneut einrichten.
+    db.execute(delete(NodeCredential).where(NodeCredential.node_id == node.id))
+    node.status = "pending"
+    node.last_heartbeat_at = None
+    node.agent_version = None
+    db.commit()
+    audit.record(
+        db,
+        "node.revoke",
+        actor_id=actor_id,
+        target_type="node",
+        target_id=str(node.id),
+        ip=ip,
+        details={"name": node.name},
+    )
+    return _detail(db, node)
+
+
+@router.post("/{node_id}/revoke")
+async def revoke_node(
+    node_id: uuid.UUID,
+    request: Request,
+    auth: ManageNodes,
+    db: Annotated[Session, Depends(get_db)],
+) -> NodeDetail:
+    detail = await run_in_threadpool(_revoke, db, node_id, auth.user.id, audit.client_ip(request))
+    await registry.disconnect(node_id)
+    return detail
+
+
+def _delete(db: Session, node_id: uuid.UUID, actor_id: uuid.UUID, ip: str) -> None:
+    node = _get_node(db, node_id)
+    name = node.name
+    # Zugangsdaten und Token verschwinden über ON DELETE CASCADE.
+    db.delete(node)
+    db.commit()
+    audit.record(
+        db,
+        "node.delete",
+        actor_id=actor_id,
+        target_type="node",
+        target_id=str(node_id),
+        ip=ip,
+        details={"name": name},
+    )
+
+
+@router.delete("/{node_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_node(
+    node_id: uuid.UUID,
+    request: Request,
+    auth: ManageNodes,
+    db: Annotated[Session, Depends(get_db)],
+) -> None:
+    await run_in_threadpool(_delete, db, node_id, auth.user.id, audit.client_ip(request))
+    await registry.disconnect(node_id)

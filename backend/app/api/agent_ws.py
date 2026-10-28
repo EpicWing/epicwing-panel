@@ -37,7 +37,7 @@ def _load_public_key(db: Session, node_id: uuid.UUID) -> str | None:
 
 def _mark_online(db: Session, node_id: uuid.UUID, beat: protocol.Heartbeat | None) -> None:
     node = db.get(Node, node_id)
-    if node is not None:
+    if node is not None and node.status != "pending":
         node.status = "online"
         node.last_heartbeat_at = datetime.now(UTC)
         if beat is not None:

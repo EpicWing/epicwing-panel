@@ -94,7 +94,8 @@ func cmdRun(args []string) error {
 		switch {
 		case errors.Is(err, errAuthRejected):
 			// The panel blocks an IP after 10 failed logins in 15 minutes.
-			wait = 60 * time.Second
+			// Every 2 minutes gives at most 8 attempts in that window.
+			wait = 2 * time.Minute
 		case isReplaced(err):
 			wait = 30 * time.Second
 		default:
