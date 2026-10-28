@@ -11,7 +11,7 @@ from starlette.concurrency import run_in_threadpool
 from starlette.websockets import WebSocketDisconnect
 
 from app.agentlink import protocol
-from app.agentlink.console import hub
+from app.agentlink.console import hub, spawn
 from app.agentlink.registry import registry
 from app.models import Server
 from app.services import ddos_alerts, startup_ready
@@ -86,10 +86,10 @@ async def handle_frame(db: Session, node_id: uuid.UUID, raw: str) -> bool:
         except ValidationError:
             return True
         await hub.publish(node_id, frame.name, {"type": "output", "data": frame.data})
-        if startup_ready.watcher.feed(frame.name, frame.data) and await run_in_threadpool(
-            startup_ready.mark_running, db, node_id, frame.name
-        ):
-            await hub.publish(node_id, frame.name, {"type": "status", "status": "running"})
+        if startup_ready.watcher.feed(frame.name, frame.data):
+            if await run_in_threadpool(startup_ready.mark_running, db, node_id, frame.name):
+                await hub.publish(node_id, frame.name, {"type": "status", "status": "running"})
+            spawn(hub.release(node_id, frame.name))
         return True
     if kind == "state":
         try:
@@ -102,6 +102,9 @@ async def handle_frame(db: Session, node_id: uuid.UUID, raw: str) -> bool:
             if status in ("running", "starting"):
                 hub.clear_install(state.name)
         await run_in_threadpool(startup_ready.register, db, node_id, state.name, state.state)
+        if startup_ready.watcher.watching(state.name):
+            # Beim Neustart wurde der alte Container samt Watch entfernt: neu anmelden.
+            spawn(hub.ensure_watch(node_id, state.name))
         return True
     if kind == "install":
         # Ausgabe des Installer-Containers; kommt unter dem Namen des Server-Containers.
