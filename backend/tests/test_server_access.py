@@ -106,6 +106,7 @@ DENIED_FOR_VIEWERS = [
     ("POST", "/backups/00000000-0000-4000-8000-000000000003/restore", None),
     ("GET", "/backups/00000000-0000-4000-8000-000000000003/restore", None),
     ("GET", "/backups/00000000-0000-4000-8000-000000000003/download", None),
+    ("GET", "/activity", None),
 ]
 
 # Routen mit Server-ID, die absichtlich nicht in der Matrix stehen.
@@ -254,9 +255,9 @@ def test_file_rights_split_read_and_write(client, db_session, world):
         method = "PUT" if path.endswith("content") else "POST"
         response = client.request(method, world.url + path, json={}, headers=headers)
         assert response.status_code == 403, path
-    db_session.execute(delete(ServerMemberPermission).where(
-        ServerMemberPermission.member_id == member.id
-    ))
+    db_session.execute(
+        delete(ServerMemberPermission).where(ServerMemberPermission.member_id == member.id)
+    )
     db_session.commit()
     _add(db_session, member, P.FILES_WRITE)
     assert client.get(world.url + "/files?path=/", headers=headers).status_code == 403
@@ -277,12 +278,13 @@ def test_ticket_stops_working_after_the_right_is_revoked(client, db_session, wor
     member = _grant(db_session, world, world.member, P.CONSOLE_VIEW)
     headers = _login(client, world.member)
     ticket = client.post(world.url + "/console/ticket", json={}, headers=headers).json()["ticket"]
-    db_session.execute(delete(ServerMemberPermission).where(
-        ServerMemberPermission.member_id == member.id
-    ))
+    db_session.execute(
+        delete(ServerMemberPermission).where(ServerMemberPermission.member_id == member.id)
+    )
     db_session.commit()
-    with pytest.raises(WebSocketDisconnect), client.websocket_connect(
-        f"{world.url}/console?ticket={ticket}"
+    with (
+        pytest.raises(WebSocketDisconnect),
+        client.websocket_connect(f"{world.url}/console?ticket={ticket}"),
     ):
         pass
 
@@ -305,9 +307,11 @@ def test_owner_can_edit_settings_but_not_resources(client, world):
 
 
 def test_member_update_rights_follow_the_field(client, db_session, world):
-    db_session.execute(update(EggVariable).where(EggVariable.env_variable == "SERVER_NAME").values(
-        user_editable=True, user_viewable=True
-    ))
+    db_session.execute(
+        update(EggVariable)
+        .where(EggVariable.env_variable == "SERVER_NAME")
+        .values(user_editable=True, user_viewable=True)
+    )
     db_session.commit()
     db_session.expire_all()
     member = _grant(db_session, world, world.member, P.STARTUP_UPDATE)
@@ -320,12 +324,16 @@ def test_member_update_rights_follow_the_field(client, db_session, world):
 
 
 def test_locked_and_hidden_variables_stay_admin_only(client, db_session, world):
-    db_session.execute(update(EggVariable).where(EggVariable.env_variable == "SERVER_NAME").values(
-        user_editable=True, user_viewable=True
-    ))
-    db_session.execute(update(EggVariable).where(EggVariable.env_variable == "MOTD").values(
-        user_editable=False, user_viewable=False
-    ))
+    db_session.execute(
+        update(EggVariable)
+        .where(EggVariable.env_variable == "SERVER_NAME")
+        .values(user_editable=True, user_viewable=True)
+    )
+    db_session.execute(
+        update(EggVariable)
+        .where(EggVariable.env_variable == "MOTD")
+        .values(user_editable=False, user_viewable=False)
+    )
     db_session.commit()
     db_session.expire_all()
 

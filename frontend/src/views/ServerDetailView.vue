@@ -7,6 +7,7 @@ import { ApiError, api } from "../api/client";
 import AppLayout from "../components/AppLayout.vue";
 import ConsoleOutput from "../components/ConsoleOutput.vue";
 import AccessPanel from "../components/AccessPanel.vue";
+import ActivityPanel from "../components/ActivityPanel.vue";
 import FilesPanel from "../components/FilesPanel.vue";
 import BackupsPanel from "../components/BackupsPanel.vue";
 import BackupLimitField from "../components/BackupLimitField.vue";
@@ -393,7 +394,7 @@ onMounted(async () => {
 
           <div v-else-if="active === 'settings'" class="space-y-6"><div><h2 class="text-2xl font-semibold">Settings</h2><p class="mt-2 text-sm text-ink-400">Configure your server settings and maintenance actions.</p></div><div class="rounded-xl border border-ink-700 bg-ink-900 p-6"><h3 class="text-lg font-semibold">Server Details</h3><label class="mt-5 block text-sm text-ink-400">Server Name</label><input :value="server.name" class="mt-2 w-full rounded-lg border border-ink-700 bg-ink-950 px-4 py-3 text-sm text-ink-100" readonly /></div><div class="rounded-xl border border-ink-700 bg-ink-900 p-6"><h3 class="text-lg font-semibold">Reinstall Server</h3><p class="mt-2 text-sm text-ink-400">Reinstalling stops the server and runs its installation script again.</p><button class="mt-5 rounded-lg border border-bad/50 px-4 py-2 text-sm text-bad">Reinstall Server</button></div><BackupLimitField v-if="auth.state.user?.is_admin" :server-id="server.id" :limit="server.backup_limit" @saved="server.backup_limit = $event" /></div>
 
-          <div v-else-if="active === 'activity'" class="space-y-6"><div><h2 class="text-2xl font-semibold">Timeline</h2><p class="mt-2 text-sm text-ink-400">Monitor server activity and track actions performed on this server.</p></div><div class="min-h-[24rem] rounded-xl border border-ink-700 bg-ink-900 p-6"><h3 class="text-lg font-semibold">Events</h3><p class="mt-10 text-center text-sm text-ink-500">No activity events found.</p></div></div>
+          <div v-else-if="active === 'activity'" class="space-y-6"><div><h2 class="text-2xl font-semibold">Timeline</h2><p class="mt-2 text-sm text-ink-400">Monitor server activity and track actions performed on this server.</p></div><ActivityPanel :server-id="server.id" :permissions="permissions" /></div>
         </template>
       </main>
     </div>
