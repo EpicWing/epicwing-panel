@@ -66,9 +66,7 @@ async def _sftp_login(db: Session, node_id: uuid.UUID, data: dict) -> None:
         frame = SftpLoginFrame.model_validate(data)
     except ValidationError:
         return
-    await run_in_threadpool(
-        sftp_service.record_login, db, node_id, frame.fingerprint, frame.server
-    )
+    await run_in_threadpool(sftp_service.record_login, db, node_id, frame.fingerprint, frame.server)
 
 
 async def handle_frame(db: Session, node_id: uuid.UUID, raw: str) -> bool:

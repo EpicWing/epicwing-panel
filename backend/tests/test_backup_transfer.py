@@ -146,9 +146,7 @@ def test_transfer_needs_the_create_right_on_the_target(
     assert _target_rows(db_session, pair) == []
 
 
-def test_transfer_hides_a_target_without_any_right(
-    client, db_session, pair, broker, monkeypatch
-):
+def test_transfer_hides_a_target_without_any_right(client, db_session, pair, broker, monkeypatch):
     _limit_target_permissions(monkeypatch, set())
     backup = _backup(db_session, pair.source.id)
     assert _transfer(client, pair.source, backup.id, pair.target_id).status_code == 404

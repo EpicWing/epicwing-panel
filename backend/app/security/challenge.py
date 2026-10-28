@@ -4,6 +4,7 @@ Zustandslos und mit dem Server-Geheimnis signiert. Sie enthält nur Benutzer, Ab
 Teil des Passwort-Hashes. Ein Passwortwechsel macht offene Bestätigungen ungültig. Sie ersetzt
 keinen Code: ohne gültigen, einmaligen Code entsteht keine Sitzung.
 """
+
 import base64
 import hashlib
 import hmac

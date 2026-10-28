@@ -34,9 +34,7 @@ BackupsView = Annotated[ServerAccess, Depends(server_access(ServerPermission.BAC
 BackupsCreate = Annotated[ServerAccess, Depends(server_access(ServerPermission.BACKUPS_CREATE))]
 BackupsRestore = Annotated[ServerAccess, Depends(server_access(ServerPermission.BACKUPS_RESTORE))]
 BackupsDelete = Annotated[ServerAccess, Depends(server_access(ServerPermission.BACKUPS_DELETE))]
-BackupsDownload = Annotated[
-    ServerAccess, Depends(server_access(ServerPermission.BACKUPS_DOWNLOAD))
-]
+BackupsDownload = Annotated[ServerAccess, Depends(server_access(ServerPermission.BACKUPS_DOWNLOAD))]
 
 MAX_LISTED = 200
 REFRESH_LIMIT = 5
@@ -285,9 +283,7 @@ async def create_backup(
     body: BackupCreate, request: Request, auth: BackupsCreate, db: DbSession
 ) -> BackupOut:
     server = auth.server
-    backup = await perform_backup(
-        db, server, body.name, body.ignored, body.is_locked, auth.user.id
-    )
+    backup = await perform_backup(db, server, body.name, body.ignored, body.is_locked, auth.user.id)
     _audit(db, request, auth, "create", backup.name)
     db.refresh(backup)
     return BackupOut.model_validate(backup)
@@ -461,9 +457,7 @@ def _chunk(data: dict[str, Any]) -> bytes:
         ) from None
 
 
-async def _read_archive(
-    node_id: uuid.UUID, params: dict[str, Any], offset: int
-) -> dict[str, Any]:
+async def _read_archive(node_id: uuid.UUID, params: dict[str, Any], offset: int) -> dict[str, Any]:
     attempt = 0
     while True:
         try:

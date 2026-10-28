@@ -20,9 +20,7 @@ class DatabaseHost(Base):
     # Verschlüsselt über app.security.vault, nie im Klartext gespeichert.
     admin_password: Mapped[str] = mapped_column(Text)
     max_databases: Mapped[int | None] = mapped_column(Integer)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class ServerDatabase(Base):
@@ -44,6 +42,4 @@ class ServerDatabase(Base):
     remote: Mapped[str] = mapped_column(String(255), default="%")
     # Verschlüsselt, damit das Panel das Passwort wie bei Pyrodactyl anzeigen kann.
     password: Mapped[str] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

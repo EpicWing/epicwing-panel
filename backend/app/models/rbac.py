@@ -15,9 +15,7 @@ class Role(Base):
     # 'global' oder 'project'. Projektrollen kommen mit der projects-Tabelle.
     scope: Mapped[str] = mapped_column(String(16), default="global")
     is_system: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class RolePermission(Base):

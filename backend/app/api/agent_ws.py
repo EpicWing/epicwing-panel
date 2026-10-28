@@ -60,9 +60,7 @@ def _mark_offline(db: Session, node_id: uuid.UUID) -> None:
     db.commit()
 
 
-async def _check_auth(
-    db: Session, raw: str, nonce: bytes
-) -> tuple[uuid.UUID | None, str]:
+async def _check_auth(db: Session, raw: str, nonce: bytes) -> tuple[uuid.UUID | None, str]:
     """Gibt (node_id, "") bei Erfolg zurück, sonst (None, Grund)."""
     if len(raw) > protocol.MAX_MESSAGE_CHARS:
         return None, "bad_message"

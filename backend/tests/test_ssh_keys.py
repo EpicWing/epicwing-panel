@@ -7,8 +7,10 @@ from tests.test_api_keys import _bearer, _create, _login
 
 
 def _pub(comment: str = "laptop") -> str:
-    raw = Ed25519PrivateKey.generate().public_key().public_bytes(
-        Encoding.OpenSSH, PublicFormat.OpenSSH
+    raw = (
+        Ed25519PrivateKey.generate()
+        .public_key()
+        .public_bytes(Encoding.OpenSSH, PublicFormat.OpenSSH)
     )
     return raw.decode() + " " + comment
 

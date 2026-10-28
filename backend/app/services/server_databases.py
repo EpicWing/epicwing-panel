@@ -38,9 +38,7 @@ async def drop_all(db: Session, server_id: uuid.UUID) -> None:
         try:
             host = db.get(DatabaseHost, row.host_id)
             endpoint = endpoint_for(host)
-            await asyncio.to_thread(
-                dbhost.drop_database, endpoint, name, row.username, row.remote
-            )
+            await asyncio.to_thread(dbhost.drop_database, endpoint, name, row.username, row.remote)
         except dbhost.HostError as exc:
             raise HTTPException(
                 status.HTTP_502_BAD_GATEWAY, f"Could not remove database {name}: {exc}"

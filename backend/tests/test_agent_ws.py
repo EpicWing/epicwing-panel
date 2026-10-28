@@ -226,9 +226,7 @@ def test_websocket_routes_are_known():
 
 
 def _login(client, user):
-    response = client.post(
-        "/api/auth/login", json={"email": user.email, "password": PASSWORD}
-    )
+    response = client.post("/api/auth/login", json={"email": user.email, "password": PASSWORD})
     assert response.status_code == 200
     return {"X-CSRF-Token": response.json()["csrf_token"]}
 
@@ -320,9 +318,7 @@ def test_disconnecting_one_node_keeps_the_stats_of_others(client, user, clean_st
             _login_agent(ws_a, node_a, key_a)
             ws_a.send_json(_stats_frame(server_a))
             ws_b.send_json(_stats_frame(server_b))
-            assert _eventually(
-                lambda: set(registry.server_stats) == {server_a, server_b}
-            )
+            assert _eventually(lambda: set(registry.server_stats) == {server_a, server_b})
         # Node A ist getrennt: ihre Stats verschwinden, die von Node B bleiben.
         assert _eventually(lambda: set(registry.server_stats) == {server_b})
         assert server_a not in registry.server_stats

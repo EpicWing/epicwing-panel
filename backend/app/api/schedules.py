@@ -21,9 +21,7 @@ router = APIRouter(prefix="/servers", tags=["schedules"])
 
 DbSession = Annotated[Session, Depends(get_db)]
 SchedulesView = Annotated[ServerAccess, Depends(server_access(ServerPermission.SCHEDULES_VIEW))]
-SchedulesManage = Annotated[
-    ServerAccess, Depends(server_access(ServerPermission.SCHEDULES_MANAGE))
-]
+SchedulesManage = Annotated[ServerAccess, Depends(server_access(ServerPermission.SCHEDULES_MANAGE))]
 
 MAX_SCHEDULES = 20
 MAX_TASKS = 10
@@ -347,9 +345,7 @@ def delete_task(
     return _out(db, row)
 
 
-@router.post(
-    "/{server_id}/schedules/{schedule_id}/execute", status_code=status.HTTP_202_ACCEPTED
-)
+@router.post("/{server_id}/schedules/{schedule_id}/execute", status_code=status.HTTP_202_ACCEPTED)
 async def execute_schedule(
     schedule_id: uuid.UUID, auth: SchedulesManage, db: DbSession
 ) -> dict[str, str]:

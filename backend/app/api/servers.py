@@ -103,9 +103,7 @@ def _get(db: Session, server_id: uuid.UUID) -> Server:
     return server
 
 
-def _outs(
-    db: Session, servers: list[Server], viewer: User | None = None
-) -> list[ServerOut]:
+def _outs(db: Session, servers: list[Server], viewer: User | None = None) -> list[ServerOut]:
     if not servers:
         return []
     ids = [s.id for s in servers]
@@ -127,9 +125,7 @@ def _outs(
         if not is_server_admin(db, viewer):
             hidden = {
                 (v.egg_id, v.env_variable)
-                for v in db.scalars(
-                    select(EggVariable).where(EggVariable.user_viewable.is_(False))
-                )
+                for v in db.scalars(select(EggVariable).where(EggVariable.user_viewable.is_(False)))
             }
     outs = []
     for server in servers:
@@ -304,9 +300,7 @@ def update_server(
         _check_values(_egg_variables(db, server.egg_id), variables)
         rows = {
             v.env_variable: v
-            for v in db.scalars(
-                select(ServerVariable).where(ServerVariable.server_id == server.id)
-            )
+            for v in db.scalars(select(ServerVariable).where(ServerVariable.server_id == server.id))
         }
         if not auth.is_admin:
             # Gesperrte und nicht sichtbare Variablen dürfen nur Administratoren ändern.
@@ -751,9 +745,7 @@ async def _files(
     server = _get(db, server_id)
     if server.status in FILES_BLOCKED:
         raise _conflict(f"Files are not available while the server is {server.status}.")
-    result = await _send(
-        server, action, {"name": lifecycle.container_name(server.id), **params}
-    )
+    result = await _send(server, action, {"name": lifecycle.container_name(server.id), **params})
     return server, _file_data(result)
 
 
@@ -797,9 +789,7 @@ async def read_file(
     offset: Annotated[int, Query(ge=0, le=FILE_MAX_OFFSET)] = 0,
     length: Annotated[int, Query(ge=1, le=8 * 1024)] = 8 * 1024,
 ) -> dict[str, Any]:
-    _, data = await _files(
-        db, server_id, "file.read", path=path, offset=offset, length=length
-    )
+    _, data = await _files(db, server_id, "file.read", path=path, offset=offset, length=length)
     return data
 
 
@@ -1004,9 +994,7 @@ async def rename_file(
 async def delete_file(
     server_id: uuid.UUID, body: FileDelete, request: Request, auth: FilesWrite, db: DbSession
 ) -> None:
-    server, _ = await _files(
-        db, server_id, "file.delete", path=body.path, recursive=body.recursive
-    )
+    server, _ = await _files(db, server_id, "file.delete", path=body.path, recursive=body.recursive)
     _audit_file(
         db, request, auth, server, "delete", {"path": body.path, "recursive": body.recursive}
     )
@@ -1093,9 +1081,7 @@ MAX_ALLOCATIONS = 16
 # Nur hier läuft nichts im Container. Die neuen Ports gelten durch ein neues Erzeugen.
 ALLOCATIONS_EDIT_FROM = {"new", "offline", "error"}
 
-AllocationsView = Annotated[
-    ServerAccess, Depends(server_access(ServerPermission.ALLOCATIONS_VIEW))
-]
+AllocationsView = Annotated[ServerAccess, Depends(server_access(ServerPermission.ALLOCATIONS_VIEW))]
 AllocationsManage = Annotated[
     ServerAccess, Depends(server_access(ServerPermission.ALLOCATIONS_MANAGE))
 ]
@@ -1120,9 +1106,7 @@ def _spec_for(db: Session, server: Server) -> dict[str, Any]:
     )
 
 
-async def _change_allocations(
-    db: Session, server: Server, mutate: Callable[[], bool]
-) -> None:
+async def _change_allocations(db: Session, server: Server, mutate: Callable[[], bool]) -> None:
     """Ändert die Allocations und erzeugt den Container mit den neuen Ports neu.
 
     Das Datenverzeichnis bleibt, das Install-Script läuft nicht. Scheitert etwas, bleibt die

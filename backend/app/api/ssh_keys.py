@@ -48,9 +48,7 @@ def list_keys(auth: CurrentAuth, db: DbSession) -> list[SshKeyOut]:
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
-def create_key(
-    body: SshKeyCreate, request: Request, auth: CurrentAuth, db: DbSession
-) -> SshKeyOut:
+def create_key(body: SshKeyCreate, request: Request, auth: CurrentAuth, db: DbSession) -> SshKeyOut:
     name = body.name.strip()
     if not name:
         raise HTTPException(422, "The name must not be empty.")
@@ -106,9 +104,7 @@ def connections(auth: CurrentAuth, db: DbSession) -> list[SftpTarget]:
     node_ids = {s.node_id for s in servers}
     nodes = {n.id: n for n in db.scalars(select(Node).where(Node.id.in_(node_ids)))}
     prefixes: dict[tuple[uuid.UUID, str], int] = {}
-    server_nodes = db.execute(
-        select(Server.id, Server.node_id).where(Server.node_id.in_(node_ids))
-    )
+    server_nodes = db.execute(select(Server.id, Server.node_id).where(Server.node_id.in_(node_ids)))
     for sid, nid in server_nodes:
         key = (nid, str(sid)[:8])
         prefixes[key] = prefixes.get(key, 0) + 1

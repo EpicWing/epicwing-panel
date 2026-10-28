@@ -118,9 +118,7 @@ def notify(db: Session, title: str, text: str) -> dict[str, tuple[bool, str]]:
             "discord", lambda: send_discord(settings.discord_webhook, title, text)
         )
     if settings.email_enabled and settings.email_to:
-        results["email"] = _attempt(
-            "email", lambda: send_email(db, settings.email_to, title, text)
-        )
+        results["email"] = _attempt("email", lambda: send_email(db, settings.email_to, title, text))
     if results and not any(ok for ok, _ in results.values()):
         log.error("Notification '%s' could not be delivered on any channel", title)
     return results

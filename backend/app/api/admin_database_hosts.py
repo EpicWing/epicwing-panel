@@ -204,9 +204,7 @@ def test_host(host_id: uuid.UUID, auth: AdminAuth, db: DbSession) -> dict[str, o
 def delete_host(host_id: uuid.UUID, request: Request, auth: AdminAuth, db: DbSession) -> None:
     host = _get(db, host_id)
     if _out(db, host).database_count:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, "Delete the databases on this host first."
-        )
+        raise HTTPException(status.HTTP_409_CONFLICT, "Delete the databases on this host first.")
     name = host.name
     db.delete(host)
     db.commit()

@@ -77,9 +77,7 @@ def list_nests(_auth: ManageNodes, db: DbSession) -> list[NestOut]:
 
 
 @nests_router.post("", status_code=status.HTTP_201_CREATED)
-def create_nest(
-    body: NestCreate, request: Request, auth: ManageNodes, db: DbSession
-) -> NestOut:
+def create_nest(body: NestCreate, request: Request, auth: ManageNodes, db: DbSession) -> NestOut:
     if _nest_name_taken(db, body.name):
         raise _conflict("A nest with this name already exists.")
     nest = Nest(name=body.name, description=body.description)
@@ -194,9 +192,7 @@ def _variable_rows(egg_id: uuid.UUID, variables: list[EggVariableIn]) -> list[Eg
     ]
 
 
-def _check_free_name(
-    db: Session, nest_id: uuid.UUID, name: str, exclude: uuid.UUID | None
-) -> None:
+def _check_free_name(db: Session, nest_id: uuid.UUID, name: str, exclude: uuid.UUID | None) -> None:
     query = select(Egg.id).where(Egg.nest_id == nest_id, func.lower(Egg.name) == name.lower())
     if exclude is not None:
         query = query.where(Egg.id != exclude)
@@ -205,9 +201,7 @@ def _check_free_name(
 
 
 @router.get("")
-def list_eggs(
-    _auth: ManageNodes, db: DbSession, nest_id: uuid.UUID | None = None
-) -> list[EggOut]:
+def list_eggs(_auth: ManageNodes, db: DbSession, nest_id: uuid.UUID | None = None) -> list[EggOut]:
     query = select(Egg).order_by(Egg.name)
     if nest_id is not None:
         query = query.where(Egg.nest_id == nest_id)
@@ -275,9 +269,7 @@ def create_egg(body: EggCreate, request: Request, auth: AdminAuth, db: DbSession
 
 
 @router.post("/import", status_code=status.HTTP_201_CREATED)
-def import_egg(
-    body: EggImport, request: Request, auth: AdminAuth, db: DbSession
-) -> EggImported:
+def import_egg(body: EggImport, request: Request, auth: AdminAuth, db: DbSession) -> EggImported:
     try:
         data, config, warnings = eggio.import_egg(body.egg)
     except ValueError as exc:

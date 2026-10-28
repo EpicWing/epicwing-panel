@@ -50,9 +50,7 @@ def clean_image(value: str) -> str:
 def clean_env_name(value: str) -> str:
     value = value.strip()
     if not ENV_RE.fullmatch(value):
-        raise ValueError(
-            "The variable name may only use letters, digits and underscores."
-        )
+        raise ValueError("The variable name may only use letters, digits and underscores.")
     return value
 
 
@@ -79,8 +77,8 @@ CLEANERS: dict[str, Callable[[str], str]] = {
 
 class CleanedFields(BaseModel):
     """Basisklasse: prüft und bereinigt Textfelder anhand ihres Namens."""
-    cleaners: ClassVar[dict[str, Callable[[str], str]]] = CLEANERS
 
+    cleaners: ClassVar[dict[str, Callable[[str], str]]] = CLEANERS
 
     @field_validator("*", check_fields=False)
     @classmethod
@@ -147,8 +145,7 @@ class EggVariableIn(CleanedFields):
             problem = rule_engine.validate(self.default_value, self.rules)
             if problem:
                 raise ValueError(
-                    f"The default value of {self.env_variable} does not match its rules: "
-                    f"{problem}"
+                    f"The default value of {self.env_variable} does not match its rules: {problem}"
                 )
         return self
 

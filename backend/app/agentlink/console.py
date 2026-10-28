@@ -75,9 +75,7 @@ class ConsoleHub:
         self, node_id: uuid.UUID, action: str, name: str, data: str | None = None
     ) -> None:
         params = {"name": name} if data is None else {"name": name, "data": data}
-        result = await self._commands.send(
-            node_id, action, params, timeout=COMMAND_TIMEOUT_SECONDS
-        )
+        result = await self._commands.send(node_id, action, params, timeout=COMMAND_TIMEOUT_SECONDS)
         if not result.ok:
             raise ConsoleError(result.error or "The node reported an error.")
 

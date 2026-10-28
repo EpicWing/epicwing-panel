@@ -35,9 +35,7 @@ def _schedule(db_session, server, status):
 
 def test_skipped_run_is_stored(db_session, server):
     schedule = _schedule(db_session, server, "offline")
-    result = asyncio.run(
-        schedule_runner.run_schedule(db_session, schedule.id, trigger="schedule")
-    )
+    result = asyncio.run(schedule_runner.run_schedule(db_session, schedule.id, trigger="schedule"))
     assert result.state == "skipped"
     db_session.expire_all()
     stored = db_session.get(Schedule, schedule.id)
