@@ -7,6 +7,7 @@ import { ApiError, api } from "../api/client";
 import AppLayout from "../components/AppLayout.vue";
 import ConsoleOutput from "../components/ConsoleOutput.vue";
 import FilesPanel from "../components/FilesPanel.vue";
+import PortsPanel from "../components/PortsPanel.vue";
 import StartupPanel from "../components/StartupPanel.vue";
 import { type ConsoleFrame, useServerConsole } from "../composables/useServerConsole";
 
@@ -30,12 +31,14 @@ interface ServerData {
   node_name: string;
   egg_name: string;
   allocations: Allocation[];
+  permissions?: string[];
 }
 
 const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
 const server = ref<ServerData | null>(null);
+const permissions = ref<string[]>([]);
 const active = ref("home");
 const command = ref("");
 const error = ref("");
@@ -49,6 +52,10 @@ const groups = [
   { title: "Data", items: [["databases", "Databases"], ["backups", "Backups"]] },
   { title: "Admin", items: [["users", "Access"], ["settings", "Settings"]] },
 ] as const;
+
+function onAllocationsChanged(rows: Allocation[]): void {
+  if (server.value) server.value.allocations = rows;
+}
 
 function message(cause: unknown): string {
   return cause instanceof ApiError ? cause.message : t("common.unreachable");
@@ -162,6 +169,7 @@ async function power(action: "start" | "restart" | "stop" | "kill"): Promise<voi
 onMounted(async () => {
   try {
     server.value = await api<ServerData>(`/servers/${String(route.params.id)}`);
+    permissions.value = server.value.permissions ?? [];
     await connectConsole(String(route.params.id));
   } catch (cause) {
     error.value = message(cause);
@@ -270,7 +278,7 @@ onMounted(async () => {
 
           <div v-else-if="active === 'networking'" class="space-y-6">
             <div><h2 class="text-2xl font-semibold">Ports</h2><p class="mt-2 text-sm text-ink-400">Configure network settings, IP addresses and ports your server can bind to.</p></div>
-            <div class="rounded-xl border border-ink-700 bg-ink-900 p-5"><div class="flex items-center justify-between"><h3 class="text-lg font-semibold">Port Allocations</h3><button class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950">New Allocation</button></div><div class="mt-5 rounded-lg border border-ink-700 bg-ink-950 p-4"><p class="font-mono text-sm text-ink-200">◉ &nbsp; {{ server.allocations[0]?.ip }}:{{ server.allocations[0]?.port }} <span class="ml-2 rounded bg-accent-500/15 px-2 py-1 text-xs text-accent-300">Primary</span></p></div></div>
+            <PortsPanel :server-id="server.id" :permissions="permissions" @changed="onAllocationsChanged" />
           </div>
 
           <div v-else-if="active === 'users'" class="space-y-6"><div class="flex items-start justify-between"><div><h2 class="text-2xl font-semibold">Access</h2><p class="mt-2 text-sm text-ink-400">Manage user access to your server and permissions.</p></div><button class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950">New User</button></div><div class="flex min-h-[24rem] items-center justify-center rounded-xl border border-ink-700 bg-ink-900 text-center"><div><h3 class="text-lg font-semibold">No users found</h3><p class="mt-2 text-sm text-ink-400">No additional users have access to this server.</p></div></div></div>
