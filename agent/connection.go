@@ -114,6 +114,9 @@ func session(ctx context.Context, url, nodeID string, key ed25519.PrivateKey, s 
 	}
 	dispatcher.console = newConsoleManager(sessionCtx, dispatcher.containers, send)
 	go dispatcher.console.statsAllLoop(sessionCtx)
+	sftpAuth.setSend(send)
+	defer sftpAuth.setSend(nil)
+	startSFTP(ctx)
 	go watchEvents(sessionCtx, send)
 
 	readErr := make(chan error, 1)

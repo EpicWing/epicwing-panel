@@ -28,6 +28,9 @@ type panelFrame struct {
 	ID      string          `json:"id"`
 	Action  string          `json:"action"`
 	Params  json.RawMessage `json:"params"`
+	OK      bool            `json:"ok"`
+	Server  string          `json:"server"`
+	Write   bool            `json:"write"`
 }
 
 type policyFile struct {
@@ -237,6 +240,8 @@ func readLoop(ctx context.Context, conn *websocket.Conn, d *commandDispatcher) e
 		case "heartbeat_ack":
 		case "error":
 			log.Printf("the panel rejected a message: %s", f.Message)
+		case "sftp_auth_result":
+			sftpAuth.resolve(f.ID, sftpAuthResult{OK: f.OK, Server: f.Server, Write: f.Write})
 		case "command":
 			go d.run(ctx, conn, f)
 		}
