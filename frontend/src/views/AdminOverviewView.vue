@@ -33,12 +33,36 @@ const data = ref<Overview | null>(null);
 const failed = ref(false);
 let timer: number | undefined;
 
+interface HelpLink {
+  key: string;
+  label: string;
+  url: string;
+}
+
+const links = ref<HelpLink[]>([]);
+const linksLoaded = ref(false);
+
 async function load() {
   try {
     data.value = await api<Overview>("/admin/overview");
     failed.value = false;
   } catch {
     failed.value = true;
+  }
+}
+
+async function loadLinks() {
+  try {
+    const s = await api<Record<string, string>>("/admin/settings");
+    links.value = [
+      { key: "discord", label: t("admin.linkDiscord"), url: s.discord_url },
+      { key: "docs", label: t("admin.linkDocs"), url: s.docs_url },
+      { key: "github", label: t("admin.linkGithub"), url: s.github_url },
+      { key: "support", label: t("admin.linkSupport"), url: s.support_url },
+    ].filter((link) => link.url);
+    linksLoaded.value = true;
+  } catch {
+    // The quick links are optional.
   }
 }
 
@@ -104,6 +128,7 @@ function meters(n: NodeLoad) {
 
 onMounted(() => {
   void load();
+  void loadLinks();
   timer = window.setInterval(() => void load(), 10000);
 });
 onUnmounted(() => window.clearInterval(timer));
@@ -114,6 +139,25 @@ onUnmounted(() => window.clearInterval(timer));
     <p v-if="failed" role="alert" class="mb-6 rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">
       {{ t("admin.loadFailed") }}
     </p>
+
+    <section v-if="linksLoaded" class="mb-6">
+      <div v-if="links.length" class="flex flex-wrap gap-3">
+        <a
+          v-for="link in links"
+          :key="link.key"
+          :href="link.url"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="rounded-lg border border-ink-700 bg-ink-900 px-4 py-2 text-sm font-medium text-ink-100 transition hover:border-accent-500 hover:text-accent-400"
+        >
+          {{ link.label }}
+        </a>
+      </div>
+      <p v-else class="text-sm text-ink-400">
+        {{ t("admin.linksEmpty") }}
+        <RouterLink to="/admin/settings" class="text-accent-400 hover:underline">{{ t("admin.linksAdd") }}</RouterLink>
+      </p>
+    </section>
 
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <div class="rounded-xl border border-ink-700 bg-ink-900 p-5">
