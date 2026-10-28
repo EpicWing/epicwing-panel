@@ -15,7 +15,7 @@ from app.db import get_db
 from app.models import Schedule, ScheduleTask, Server
 from app.security.server_access import ServerAccess, ServerPermission, server_access
 from app.services import audit, schedule_runner
-from app.services.schedules import POWER_ACTIONS, build_expression, next_run
+from app.services.schedules import POWER_ACTIONS, build_expression, next_run, zone_name
 
 router = APIRouter(prefix="/servers", tags=["schedules"])
 
@@ -145,6 +145,7 @@ class ScheduleOut(BaseModel):
     is_running: bool
     last_result: str | None = None
     last_detail: str | None = None
+    timezone: str = "UTC"
     tasks: list[TaskOut]
 
 
@@ -179,6 +180,7 @@ def _out(db: Session, row: Schedule) -> ScheduleOut:
         is_running=schedule_runner.is_running(row.id),
         last_result=row.last_result,
         last_detail=row.last_detail,
+        timezone=zone_name(),
         tasks=[TaskOut.model_validate(task) for task in tasks],
     )
 
