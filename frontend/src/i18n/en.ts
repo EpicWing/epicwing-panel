@@ -125,7 +125,7 @@ export default {
   },
   allocations: {
     title: "Allocations",
-    body: "IP and port pairs on this node that servers can use. Any port from 1 to 65535 works, as long as nothing else on the node uses it.",
+    body: "IP and port pairs on this node that servers can use. Any port from 1024 to 65535 works, as long as nothing else on the node uses it.",
     ip: "IP address",
     ipHint: "The address the port is published on, for example the public IP of this node.",
     portStart: "Port",
@@ -250,7 +250,7 @@ export default {
     portStart: "First port",
     portEnd: "Last port",
     advancedHint:
-      "Only a suggestion, any port from 1 to 65535 can be added as an allocation. Default: 25000–25999. Fill in both fields or leave them empty.",
+      "Only a suggestion, any port from 1024 to 65535 can be added as an allocation. Default: 25000–25999. Fill in both fields or leave them empty.",
     portsBoth: "Fill in both ports or leave both empty.",
     create: "Create node",
     creating: "Creating…",
@@ -301,7 +301,7 @@ export default {
     saving: "Saving…",
     saved: "Changes saved.",
     portsHint:
-      "Only a suggestion, any port from 1 to 65535 can be added as an allocation.",
+      "Only a suggestion, any port from 1024 to 65535 can be added as an allocation.",
     nodeId: "Node ID",
     fingerprint: "Key fingerprint",
     fingerprintHint:

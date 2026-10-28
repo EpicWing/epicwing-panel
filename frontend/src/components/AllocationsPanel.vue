@@ -126,7 +126,7 @@ onMounted(() => void load());
           v-model.number="form.portStart"
           required
           type="number"
-          min="1"
+          min="1024"
           max="65535"
           :class="inputClass"
         />
@@ -139,7 +139,7 @@ onMounted(() => void load());
           id="a-end"
           v-model.number="form.portEnd"
           type="number"
-          min="1"
+          min="1024"
           max="65535"
           :class="inputClass"
         />
