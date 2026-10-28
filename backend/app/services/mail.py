@@ -34,7 +34,6 @@ class MailConfig:
     provider: str = "resend"
     sender: str = ""
     reply_to: str = ""
-    discord_url: str = ""
     resend_api_key: str = ""
     smtp_host: str = ""
     smtp_port: int = 587
@@ -115,22 +114,28 @@ def _button(label: str, url: str) -> str:
     )
 
 
-def _footer(year: int, discord_url: str, reply_hint: bool) -> str:
-    def link(label: str) -> str:
-        return (
-            f'<a href="{escape(discord_url, quote=True)}" '
-            f'style="color:{ACCENT};text-decoration:none;">{label}</a>'
-        )
+SITE_URL = "https://epicwing.de"
+DISCLAIMER = (
+    "This email was sent by the operator of this panel, not by EpicWing. "
+    "EpicWing is not responsible for how this email is used or for its content."
+)
+LOGO_NOTE = "The logo shown is a simplified version and not the official EpicWing logo."
+ABUSE_EMAIL = "abuse@epicwing.de"
 
-    if reply_hint and discord_url:
-        ask = f" Questions? Reply to this email or {link('join our Discord')}."
-    elif reply_hint:
-        ask = " Questions? Reply to this email."
-    elif discord_url:
-        ask = f" Questions? {link('Join our Discord')}."
-    else:
-        ask = ""
-    return f"Copyright &copy; {year} EpicWing.{ask}"
+
+def _footer(year: int, reply_hint: bool) -> str:
+    """Fester Footer. Betreiber können ihn nicht über Einstellungen ändern."""
+    site = f'<a href="{SITE_URL}" style="color:{ACCENT};text-decoration:none;">EpicWing</a>'
+    ask = " Questions? Reply to this email." if reply_hint else ""
+    abuse = (
+        f'<a href="mailto:{ABUSE_EMAIL}" '
+        f'style="color:{ACCENT};text-decoration:none;">{ABUSE_EMAIL}</a>'
+    )
+    return (
+        f"Powered by {site}.{ask}<br>{escape(DISCLAIMER)}<br>{escape(LOGO_NOTE)}<br>"
+        f"Report abuse: {abuse}<br>"
+        f"Copyright &copy; {year} EpicWing."
+    )
 
 
 def render(
@@ -138,14 +143,11 @@ def render(
     paragraphs: list[str],
     button: tuple[str, str] | None = None,
     *,
-    discord_url: str = "",
     reply_hint: bool = False,
 ) -> tuple[str, str]:
     """Baut HTML- und Textversion einer Mail im EpicWing-Design."""
     if button and not button[1].startswith(("https://", "http://")):
         raise ValueError("button url must start with http(s)://")
-    if discord_url and not discord_url.startswith(("https://", "http://")):
-        raise ValueError("discord url must start with http(s)://")
     year = datetime.now(UTC).year
     body = "".join(f'<p style="{_P}">{escape(p)}</p>' for p in paragraphs)
     action = _button(*button) if button else ""
@@ -168,7 +170,7 @@ def render(
         f"{escape(title)}</h1>{body}{action}</td></tr>"
         f'<tr><td style="padding:24px 4px 0;font-family:{FONT};font-size:12px;'
         'line-height:20px;color:#71717a;">'
-        f"{_footer(year, discord_url, reply_hint)}</td></tr></table></td></tr></table>"
+        f"{_footer(year, reply_hint)}</td></tr></table></td></tr></table>"
         "</body></html>"
     )
     lines = [title, ""]
@@ -176,11 +178,11 @@ def render(
         lines += [paragraph, ""]
     if button:
         lines += [f"{button[0]}: {button[1]}", ""]
-    lines.append(f"Copyright (c) {year} EpicWing")
+    lines.append(f"Powered by EpicWing ({SITE_URL})")
     if reply_hint:
         lines.append("Questions? Reply to this email.")
-    if discord_url:
-        lines.append(f"Discord: {discord_url}")
+    lines += [DISCLAIMER, LOGO_NOTE, f"Report abuse: {ABUSE_EMAIL}"]
+    lines.append(f"Copyright (c) {year} EpicWing")
     return html, "\n".join(lines)
 
 
@@ -190,14 +192,8 @@ def render_for(
     paragraphs: list[str],
     button: tuple[str, str] | None = None,
 ) -> tuple[str, str]:
-    """Wie render, mit Discord-Link und Antwort-Hinweis passend zu den Einstellungen."""
-    return render(
-        title,
-        paragraphs,
-        button,
-        discord_url=config.discord_url,
-        reply_hint=bool(config.reply_to),
-    )
+    """Wie render, mit Antwort-Hinweis nur wenn eine Reply-To-Adresse gesetzt ist."""
+    return render(title, paragraphs, button, reply_hint=bool(config.reply_to))
 
 
 def _send_resend(
@@ -283,7 +279,6 @@ if __name__ == "__main__":
         sys.exit("usage: python -m app.services.mail recipient@example.com")
     with Session(get_engine()) as session:
         cli_config = load_config(session)
-    cli_button = ("Open Discord", cli_config.discord_url) if cli_config.discord_url else None
     page, plain = render_for(
         cli_config,
         "Mail delivery works",
@@ -291,7 +286,6 @@ if __name__ == "__main__":
             "This is a test message from your EpicWing panel.",
             "If you can read this, the panel can send emails with your settings.",
         ],
-        cli_button,
     )
     ok, info = send_mail(sys.argv[1], "EpicWing test email", page, plain, cli_config)
     print(("OK, id: " if ok else "FAILED: ") + info)

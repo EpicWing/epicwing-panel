@@ -31,7 +31,7 @@ def test_render_has_layout_and_text_part():
 
 def test_render_without_button():
     html, text = mail.render("Hi", ["Body"])
-    assert "<a " not in html
+    assert html.count("<a ") == 2  # nur die Footer-Links, kein Button
     assert "Open" not in text
 
 
@@ -46,24 +46,16 @@ def test_render_rejects_non_http_button():
         mail.render("T", ["p"], ("Go", "javascript:alert(1)"))
 
 
-def test_render_rejects_non_http_discord_url():
-    with pytest.raises(ValueError):
-        mail.render("T", ["p"], discord_url="javascript:alert(1)")
-
-
 def test_footer_depends_on_settings():
-    html, text = mail.render("T", ["p"], discord_url="https://discord.gg/x", reply_hint=True)
-    assert "Reply to this email" in html and "join our Discord" in html
-    assert "Discord: https://discord.gg/x" in text
     html, _ = mail.render("T", ["p"], reply_hint=True)
-    assert "Reply to this email" in html and "Discord" not in html
+    assert "Reply to this email" in html
     html, _ = mail.render("T", ["p"])
     assert "Reply" not in html and "Discord" not in html
 
 
 def test_render_for_uses_config():
-    html, _ = mail.render_for(_config(discord_url="https://discord.gg/x"), "T", ["p"])
-    assert "Reply to this email" in html and "discord.gg/x" in html
+    html, _ = mail.render_for(_config(), "T", ["p"])
+    assert "Reply to this email" in html
     html, _ = mail.render_for(_config(reply_to=""), "T", ["p"])
     assert "Reply" not in html
 
