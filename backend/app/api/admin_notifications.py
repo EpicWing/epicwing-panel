@@ -61,6 +61,8 @@ class NotifyIn(BaseModel):
 
 class NotifyTestIn(BaseModel):
     channel: Literal["discord", "email"]
+    discord_webhook: str | None = Field(None, max_length=300)
+    email_to: str | None = Field(None, max_length=200)
 
 
 class NotifyTestOut(BaseModel):
@@ -108,17 +110,27 @@ def put_notifications(body: NotifyIn, _auth: AdminAuth, db: DbSession) -> Notify
     return _out(db)
 
 
+def _valid_address(value: str) -> bool:
+    return "\r" not in value and "\n" not in value and "@" in parseaddr(value)[1]
+
+
 @router.post("/test")
 def test_channel(body: NotifyTestIn, _auth: AdminAuth, db: DbSession) -> NotifyTestOut:
-    settings = load_settings(db)
+    saved = load_settings(db)
     title = "EpicWing test"
     text = "This is a test alert from your EpicWing panel."
     if body.channel == "discord":
-        if not settings.discord_webhook:
-            return NotifyTestOut(ok=False, detail="No webhook saved yet.")
-        ok, detail = send_discord(settings.discord_webhook, title, text)
+        url = (body.discord_webhook or "").strip() or saved.discord_webhook
+        if not url:
+            return NotifyTestOut(ok=False, detail="Enter a webhook URL first.")
+        if not url.startswith(WEBHOOK_PREFIXES) or any(c.isspace() for c in url):
+            return NotifyTestOut(ok=False, detail="This is not a Discord webhook URL.")
+        ok, detail = send_discord(url, title, text)
     else:
-        if not settings.email_to:
-            return NotifyTestOut(ok=False, detail="No recipient saved yet.")
-        ok, detail = send_email(db, settings.email_to, title, text)
+        to = (body.email_to or "").strip() or saved.email_to
+        if not to:
+            return NotifyTestOut(ok=False, detail="Enter a recipient first.")
+        if not _valid_address(to):
+            return NotifyTestOut(ok=False, detail="This is not a valid email address.")
+        ok, detail = send_email(db, to, title, text)
     return NotifyTestOut(ok=ok, detail=detail)

@@ -109,7 +109,11 @@ async function runTest(channel: Channel) {
   try {
     results[channel] = await api<TestResult>("/admin/notifications/test", {
       method: "POST",
-      body: { channel },
+      body: {
+        channel,
+        discord_webhook: form.discord_webhook.trim() || null,
+        email_to: form.email_to.trim() || null,
+      },
     });
   } catch (e) {
     error.value = message(e);
@@ -160,7 +164,7 @@ onMounted(() => void load());
             </p>
           </div>
           <div class="flex flex-wrap gap-3">
-            <button type="button" :class="buttonCls" :disabled="testing === 'discord' || !webhookSet" @click="runTest('discord')">
+            <button type="button" :class="buttonCls" :disabled="testing === 'discord' || !(webhookSet || form.discord_webhook.trim())" @click="runTest('discord')">
               {{ testing === "discord" ? t("notify.testing") : t("notify.test") }}
             </button>
             <button v-if="webhookSet" type="button" :class="buttonCls" :disabled="saving" @click="removeWebhook">
