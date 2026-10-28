@@ -39,6 +39,7 @@ Options:
   --token <token>   Enrollment token (asked for if omitted, input stays hidden)
   --bind-ip <ip>    IPv4 address game servers bind to (default: primary address)
   --force           Enroll again and replace the policy
+  --insecure        Allow http:// for local tests only
   -h, --help        Show this help
 
 The agent's enroll command takes the token as a command line argument, so it is
