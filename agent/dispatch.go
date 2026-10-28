@@ -136,7 +136,7 @@ func (d *commandDispatcher) execute(ctx context.Context, action string, params j
 		if err := decodeParams(params, &spec); err != nil {
 			return nil, err
 		}
-		logs, err := d.containers.Install(ctx, spec)
+		logs, err := installWithConsole(ctx, d.containers, d.console, spec)
 		data := map[string]any{}
 		if logs != "" {
 			data["output"] = logs

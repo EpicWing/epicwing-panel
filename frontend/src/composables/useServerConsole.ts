@@ -55,6 +55,8 @@ export function useServerConsole(options: Options = {}) {
       write(frame.data);
     } else if (frame.type === "status" && frame.status) {
       status.value = frame.status;
+    } else if (frame.type === "clear") {
+      clear();
     } else if (frame.type === "error") {
       error.value = frame.message ?? t("console.connectionError");
     }

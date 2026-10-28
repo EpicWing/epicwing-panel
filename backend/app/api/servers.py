@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.agentlink import protocol
 from app.agentlink.commands import AgentOffline, broker
+from app.agentlink.console import hub
 from app.agentlink.registry import registry
 from app.db import get_db
 from app.models import Allocation, Egg, EggVariable, Node, Server, ServerVariable, User
@@ -543,6 +544,7 @@ async def perform_power(db: Session, server: Server, action: str) -> None:
         async def work() -> None:
             if action == "restart":
                 await _agent(server, "container.stop", stop_params)
+                await hub.publish_clear(lifecycle.container_name(server.id))
                 _set_status(db, server, "starting")
                 await _agent(server, "container.start")
             elif action == "stop":

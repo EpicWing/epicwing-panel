@@ -2,6 +2,7 @@
 
 import contextlib
 import json
+import time
 import uuid
 
 from pydantic import BaseModel, Field, ValidationError
@@ -13,7 +14,9 @@ from app.agentlink import protocol
 from app.agentlink.console import hub
 from app.agentlink.registry import registry
 from app.models import Server
+from app.services import ddos_alerts
 from app.services import sftp as sftp_service
+from app.services.ddos_detect import detector
 from app.services.server_state import apply_state
 
 
@@ -92,6 +95,18 @@ async def handle_frame(db: Session, node_id: uuid.UUID, raw: str) -> bool:
         status = await run_in_threadpool(apply_state, db, node_id, state)
         if status is not None:
             await hub.publish(node_id, state.name, {"type": "status", "status": status})
+            if status in ("running", "starting"):
+                hub.clear_install(state.name)
+        return True
+    if kind == "install":
+        # Ausgabe des Installer-Containers; kommt unter dem Namen des Server-Containers.
+        name, text = data.get("name"), data.get("data")
+        if not isinstance(name, str) or not _owns_container(db, node_id, name):
+            return True
+        if data.get("reset") is True:
+            hub.start_install(name)
+        elif isinstance(text, str) and 0 < len(text) <= 16384:
+            await hub.publish_install(name, text)
         return True
     if kind == "sftp_login":
         await _sftp_login(db, node_id, data)
@@ -116,6 +131,29 @@ async def handle_frame(db: Session, node_id: uuid.UUID, raw: str) -> bool:
         }
         if not _owns_container(db, node_id, stats.name):
             return True
+        net = {
+            key: value
+            for key, value in (stats.net or {}).items()
+            if key in protocol.STATS_NET_KEYS
+            and isinstance(value, int)
+            and not isinstance(value, bool)
+            and value >= 0
+        }
+        if net:
+            payload["net"] = net
+        console = {
+            key: value
+            for key, value in (stats.console or {}).items()
+            if key in protocol.STATS_CONSOLE_KEYS
+            and isinstance(value, int)
+            and not isinstance(value, bool)
+            and value >= 0
+        }
+        verdict = detector.observe(
+            stats.name, time.monotonic(), stats.network_rx_bytes, net, console or None
+        )
+        if verdict.alert:
+            ddos_alerts.schedule(stats.name, verdict.reasons)
         registry.server_stats[stats.name] = payload
         registry.register_stats(node_id, stats.name)
         await hub.publish(

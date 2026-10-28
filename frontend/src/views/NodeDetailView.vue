@@ -70,7 +70,7 @@ function setHistory(n: NodeDetail) {
   };
 }
 
-const form = ref({ name: "", location: "", fqdn: "", portStart: 25000, portEnd: 25999 });
+const form = ref({ name: "", location: "", fqdn: "" });
 
 const inputClass =
   "w-full rounded-md border border-ink-700 bg-ink-950 px-3 py-2 text-sm outline-none transition focus:border-accent-500";
@@ -102,8 +102,6 @@ function fillForm(n: NodeDetail) {
     name: n.name,
     location: n.location,
     fqdn: n.fqdn ?? "",
-    portStart: n.port_range_start,
-    portEnd: n.port_range_end,
   };
 }
 
@@ -192,8 +190,6 @@ async function save() {
         name: form.value.name,
         location: form.value.location,
         fqdn: form.value.fqdn.trim() || null,
-        port_range_start: Number(form.value.portStart),
-        port_range_end: Number(form.value.portEnd),
       },
     });
     node.value = result;
@@ -404,35 +400,6 @@ onUnmounted(() => window.clearInterval(timer));
             :class="inputClass"
           />
         </div>
-        <div>
-          <label for="port-start" class="mb-1.5 block text-sm text-ink-300">
-            {{ t("nodes.portStart") }}
-          </label>
-          <input
-            id="port-start"
-            v-model.number="form.portStart"
-            required
-            type="number"
-            min="1024"
-            max="65535"
-            :class="inputClass"
-          />
-        </div>
-        <div>
-          <label for="port-end" class="mb-1.5 block text-sm text-ink-300">
-            {{ t("nodes.portEnd") }}
-          </label>
-          <input
-            id="port-end"
-            v-model.number="form.portEnd"
-            required
-            type="number"
-            min="1024"
-            max="65535"
-            :class="inputClass"
-          />
-        </div>
-        <p class="text-xs text-ink-400 sm:col-span-2">{{ t("nodeDetail.portsHint") }}</p>
         <div class="sm:col-span-2">
           <button type="submit" :disabled="busy" :class="primaryClass">
             {{ busy ? t("nodeDetail.saving") : t("nodeDetail.save") }}

@@ -120,12 +120,22 @@ func (c *consoleManager) sampleStats(ctx context.Context, name string) {
 	if started, err := runDocker(ctx, "inspect", "-f", "{{.State.StartedAt}}", name); err == nil {
 		startedAt = strings.TrimSpace(started)
 	}
-	c.send(map[string]any{
+	frame := map[string]any{
 		"type": "stats", "name": name, "cpu_percent": cpu,
 		"memory_used_bytes": memoryUsed, "memory_limit_bytes": memoryLimit,
 		"disk_used_bytes": c.diskUsage(name), "network_rx_bytes": networkRx,
 		"network_tx_bytes": networkTx, "started_at": startedAt,
-	})
+	}
+	// Packet and protocol counters of the container; left out if they cannot be read.
+	if counters := readContainerNet(ctx, name); counters != nil {
+		frame["net"] = counters
+	}
+	// Console line counters of the last window, see floodwatch.go.
+	c.ensureFloodWatch(name)
+	if flood := consoleFlood.snapshot(name); flood != nil {
+		frame["console"] = flood
+	}
+	c.send(frame)
 }
 
 func (c *consoleManager) diskUsage(name string) int64 {

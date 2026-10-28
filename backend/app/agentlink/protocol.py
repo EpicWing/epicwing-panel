@@ -113,6 +113,22 @@ class StateFrame(BaseModel):
     exit_code: int | None = None
 
 
+# Packet and protocol counters an agent may add to a stats frame (cumulative values).
+STATS_NET_KEYS = frozenset(
+    {
+        "rx_packets", "rx_errors", "rx_dropped", "tx_packets", "tx_errors", "tx_dropped",
+        "ip_in_receives", "ip_in_hdr_errors", "ip_in_addr_errors", "ip_reasm_reqds",
+        "icmp_in_msgs", "icmp_in_echos",
+        "tcp_in_segs", "tcp_passive_opens", "tcp_attempt_fails", "tcp_estab_resets",
+        "tcp_in_errs", "tcp_syncookies_sent", "tcp_listen_overflows", "tcp_listen_drops",
+        "udp_in_datagrams", "udp_no_ports", "udp_in_errors", "udp_rcvbuf_errors",
+    }
+)
+
+# Console line counters of the last measuring window (see agent/consoleflood.go).
+STATS_CONSOLE_KEYS = frozenset({"lines", "window_lines", "sources", "top"})
+
+
 class StatsFrame(BaseModel):
     """Live resource counters for one managed container."""
 
@@ -125,3 +141,5 @@ class StatsFrame(BaseModel):
     network_rx_bytes: int = Field(ge=0)
     network_tx_bytes: int = Field(ge=0)
     started_at: str | None = Field(default=None, max_length=64)
+    net: dict[str, Any] | None = None
+    console: dict[str, Any] | None = None

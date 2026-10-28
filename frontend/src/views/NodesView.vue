@@ -262,17 +262,16 @@ onUnmounted(() => window.clearInterval(timer));
             <th class="px-4 py-3 font-medium">{{ t("nodes.colName") }}</th>
             <th class="px-4 py-3 font-medium">{{ t("nodes.colLocation") }}</th>
             <th class="px-4 py-3 font-medium">{{ t("nodes.colStatus") }}</th>
-            <th class="px-4 py-3 font-medium">{{ t("nodes.colPorts") }}</th>
             <th class="px-4 py-3 font-medium">{{ t("nodes.colResources") }}</th>
             <th class="px-4 py-3"></th>
           </tr>
         </thead>
         <tbody class="divide-y divide-ink-700">
           <tr v-if="loading">
-            <td colspan="6" class="px-4 py-4"><div class="space-y-3" aria-busy="true"><div class="skeleton h-8"></div><div class="skeleton h-8"></div><div class="skeleton h-8"></div></div></td>
+            <td colspan="5" class="px-4 py-4"><div class="space-y-3" aria-busy="true"><div class="skeleton h-8"></div><div class="skeleton h-8"></div><div class="skeleton h-8"></div></div></td>
           </tr>
           <tr v-else-if="nodes.length === 0">
-            <td colspan="6" class="px-4 py-10 text-center">
+            <td colspan="5" class="px-4 py-10 text-center">
               <p class="font-medium">{{ t("nodes.emptyTitle") }}</p>
               <p class="mx-auto mt-1 max-w-md text-sm text-ink-400">{{ t("nodes.helpBody") }}</p>
             </td>
@@ -293,9 +292,6 @@ onUnmounted(() => window.clearInterval(timer));
                 <span class="h-2 w-2 rounded-full" :class="dots[node.status] ?? 'bg-ink-600'"></span>
                 {{ statusLabel(node.status) }}
               </span>
-            </td>
-            <td class="px-4 py-3 font-mono text-xs text-ink-300">
-              {{ node.port_range_start }}–{{ node.port_range_end }}
             </td>
             <td class="px-4 py-3 font-mono text-xs text-ink-300">{{ resources(node) }}</td>
             <td class="px-4 py-3 text-right">
