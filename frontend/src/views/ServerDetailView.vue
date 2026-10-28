@@ -313,8 +313,10 @@ onBeforeUnmount(() => {
   window.clearInterval(clockTimer);
 });
 
+const powerBusy = ref<string | null>(null);
+
 async function power(action: "start" | "restart" | "stop" | "kill"): Promise<void> {
-  if (!server.value) return;
+  if (!server.value || powerBusy.value !== null) return;
   if (action === "restart") {
     history.value = { cpu: [], ram: [], disk: [], rx: [], tx: [] };
     startedAt.value = null;
@@ -324,6 +326,7 @@ async function power(action: "start" | "restart" | "stop" | "kill"): Promise<voi
     startedAt.value = null;
     history.value = { cpu: [], ram: [], disk: [], rx: [], tx: [] };
   }
+  powerBusy.value = action;
   try {
     server.value = await api<ServerData>(`/servers/${server.value.id}/power`, {
       method: "POST",
@@ -331,6 +334,8 @@ async function power(action: "start" | "restart" | "stop" | "kill"): Promise<voi
     });
   } catch (cause) {
     error.value = message(cause);
+  } finally {
+    powerBusy.value = null;
   }
 }
 
@@ -377,9 +382,9 @@ onMounted(async () => {
 
     <template #actions>
       <div v-if="active === 'home'" class="flex overflow-hidden rounded-xl border border-ink-700 shadow-lg shadow-black/20">
-        <button class="px-6 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40" :class="server?.status === 'running' || server?.status === 'starting' ? 'text-ink-300' : 'bg-accent-500 text-ink-950 hover:bg-accent-400'" :disabled="server?.status === 'running' || server?.status === 'starting'" @click="power('start')">Start</button>
-        <button class="border-l border-ink-700 px-6 py-3 text-sm font-semibold text-ink-100 transition hover:bg-ink-800 disabled:cursor-not-allowed disabled:opacity-40" :disabled="server?.status !== 'running' && server?.status !== 'starting'" @click="power('restart')">Restart</button>
-        <button class="border-l px-6 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40" :class="server?.status === 'running' || server?.status === 'starting' ? 'border-accent-400/30 bg-accent-500 text-ink-950 hover:bg-accent-400' : 'border-ink-700 text-ink-300'" :disabled="server?.status !== 'running' && server?.status !== 'starting'" @click="power('stop')">Stop</button>
+        <button class="px-6 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40" :class="server?.status === 'running' || server?.status === 'starting' ? 'text-ink-300' : 'bg-accent-500 text-ink-950 hover:bg-accent-400'" :disabled="server?.status === 'running' || server?.status === 'starting' || powerBusy !== null" @click="power('start')"><span v-if="powerBusy === 'start'" class="spinner mr-2"></span>Start</button>
+        <button class="border-l border-ink-700 px-6 py-3 text-sm font-semibold text-ink-100 transition hover:bg-ink-800 disabled:cursor-not-allowed disabled:opacity-40" :disabled="(server?.status !== 'running' && server?.status !== 'starting') || powerBusy !== null" @click="power('restart')"><span v-if="powerBusy === 'restart'" class="spinner mr-2"></span>Restart</button>
+        <button class="border-l px-6 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40" :class="server?.status === 'running' || server?.status === 'starting' ? 'border-accent-400/30 bg-accent-500 text-ink-950 hover:bg-accent-400' : 'border-ink-700 text-ink-300'" :disabled="(server?.status !== 'running' && server?.status !== 'starting') || powerBusy !== null" @click="power('stop')"><span v-if="powerBusy === 'stop'" class="spinner mr-2"></span>Stop</button>
       </div>
     </template>
 
