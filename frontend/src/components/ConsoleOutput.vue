@@ -14,6 +14,13 @@ let pinned = true;
 
 const empty = computed(() => props.lines.length === 1 && props.lines[0].segments.length === 0);
 
+// "Prefix: message" is shown with a coloured prefix, like the container prompt in Pyrodactyl.
+const offlineParts = computed(() => {
+  const text = props.offlineText ?? "";
+  const index = text.indexOf(": ");
+  return index < 0 ? ["", text] : [text.slice(0, index + 1), text.slice(index + 2)];
+});
+
 function toBottom(): void {
   const el = scroller.value;
   if (el) el.scrollTop = el.scrollHeight;
@@ -44,7 +51,7 @@ onMounted(toBottom);
     role="log"
     @scroll.passive="onScroll"
   >
-    <p v-if="offlineText" class="text-ink-400">{{ offlineText }}</p>
+    <p v-if="offlineText" class="text-ink-200"><span class="font-semibold text-accent-400">{{ offlineParts[0] }}</span> {{ offlineParts[1] }}</p>
     <p v-else-if="empty" class="text-ink-400">{{ placeholder }}</p>
     <template v-else>
       <div v-for="line in lines" :key="line.id" v-memo="[line.rev]" class="min-h-5 whitespace-pre-wrap break-words">
