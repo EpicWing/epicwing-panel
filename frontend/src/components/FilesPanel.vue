@@ -280,6 +280,33 @@ async function remove(entry: Entry): Promise<void> {
   );
 }
 
+const editorCrumbs = computed(() => {
+  const parts = editor.value ? editor.value.path.split("/") : [];
+  return parts.map((name, index) => ({
+    name,
+    path: parts.slice(0, index + 1).join("/"),
+    last: index === parts.length - 1,
+  }));
+});
+
+function goTo(target: string): void {
+  if (editor.value) {
+    if (dirty.value && !window.confirm("Discard unsaved changes?")) return;
+    editor.value = null;
+  }
+  void load(target);
+}
+
+function formatDate(seconds: number): string {
+  return new Date(seconds * 1000).toLocaleString([], {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 onMounted(() => {
   if (!blocked.value) void load("");
 });
@@ -290,11 +317,11 @@ watch(blocked, (value) => {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-5">
     <div class="flex items-start justify-between gap-4">
       <div>
         <h2 class="text-4xl font-bold">Files</h2>
-        <p class="mt-2 text-sm text-ink-400">Browse and edit the files of your server.</p>
+        <p v-if="!editor" class="mt-2 text-sm text-ink-400">Browse and edit the files of your server.</p>
       </div>
       <div v-if="!blocked && !editor" class="flex gap-2">
         <button class="rounded-lg border border-ink-700 px-4 py-2 text-sm text-ink-200 hover:bg-ink-800 disabled:opacity-50" :disabled="busy" @click="newFolder">New Folder</button>
@@ -310,7 +337,14 @@ watch(blocked, (value) => {
 
     <div v-else-if="editor" class="space-y-3">
       <div class="flex flex-wrap items-center justify-between gap-3">
-        <p class="font-mono text-sm text-ink-200">{{ editor.path }}<span v-if="dirty" class="ml-2 text-ink-400">(unsaved)</span></p>
+        <nav class="flex min-w-0 flex-wrap items-center gap-1 rounded-lg border border-ink-700 bg-ink-900 px-3 py-2 font-mono text-sm text-ink-300">
+          <button class="rounded px-1.5 py-0.5 hover:bg-ink-800 hover:text-accent-300" @click="goTo('')">root</button>
+          <template v-for="crumb in editorCrumbs" :key="crumb.path">
+            <span class="text-ink-500">›</span>
+            <span v-if="crumb.last" class="px-1.5 text-ink-100">{{ crumb.name }}<span v-if="dirty" class="ml-2 text-accent-300">● unsaved</span></span>
+            <button v-else class="rounded px-1.5 py-0.5 hover:bg-ink-800 hover:text-accent-300" @click="goTo(crumb.path)">{{ crumb.name }}</button>
+          </template>
+        </nav>
         <div class="flex gap-2">
           <button class="rounded-lg border border-ink-700 px-4 py-2 text-sm text-ink-200 hover:bg-ink-800" @click="closeEditor">Close</button>
           <button class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950 disabled:opacity-50" :disabled="saving || !dirty" @click="save">{{ saving ? "Saving…" : "Save" }}</button>
@@ -319,48 +353,62 @@ watch(blocked, (value) => {
       <textarea
         v-model="editor.content"
         spellcheck="false"
-        class="h-[32rem] w-full resize-y rounded-xl border border-ink-700 bg-ink-950 p-4 font-mono text-sm text-ink-100"
+        class="w-full resize-none rounded-xl border border-ink-700 bg-ink-950 p-5 font-mono text-[13px] leading-6 text-ink-100 focus:border-accent-500 focus:outline-none"
+        style="height: calc(100vh - 15rem); min-height: 24rem"
         @keydown.ctrl.s.prevent="save"
       ></textarea>
     </div>
 
     <div v-else class="space-y-3">
-      <nav class="flex flex-wrap items-center gap-1 text-sm text-ink-300">
-        <button class="hover:text-accent-300" @click="load('')">root</button>
-        <template v-for="crumb in crumbs" :key="crumb.path">
-          <span class="text-ink-500">/</span>
-          <button class="hover:text-accent-300" @click="load(crumb.path)">{{ crumb.name }}</button>
+      <nav class="flex flex-wrap items-center gap-1 rounded-lg border border-ink-700 bg-ink-900 px-3 py-2 font-mono text-sm text-ink-300">
+        <button v-if="path" class="rounded px-1.5 py-0.5 hover:bg-ink-800 hover:text-accent-300" @click="goTo('')">root</button>
+        <span v-else class="px-1.5 text-ink-100">root</span>
+        <template v-for="(crumb, index) in crumbs" :key="crumb.path">
+          <span class="text-ink-500">›</span>
+          <span v-if="index === crumbs.length - 1" class="px-1.5 text-ink-100">{{ crumb.name }}</span>
+          <button v-else class="rounded px-1.5 py-0.5 hover:bg-ink-800 hover:text-accent-300" @click="goTo(crumb.path)">{{ crumb.name }}</button>
         </template>
       </nav>
 
       <div class="overflow-hidden rounded-xl border border-ink-700 bg-ink-900">
         <table class="w-full text-left text-sm">
-          <thead class="text-ink-400">
+          <thead class="bg-ink-950/40 text-xs uppercase tracking-wide text-ink-500">
             <tr>
-              <th class="px-4 py-2 font-medium">Name</th>
-              <th class="px-4 py-2 font-medium">Size</th>
-              <th class="px-4 py-2 font-medium">Modified</th>
-              <th class="px-4 py-2"></th>
+              <th class="px-5 py-3 font-medium">Name</th>
+              <th class="px-5 py-3 font-medium">Size</th>
+              <th class="px-5 py-3 font-medium">Modified</th>
+              <th class="px-5 py-3"></th>
             </tr>
           </thead>
           <tbody>
-            <tr v-if="path" class="border-t border-ink-800 hover:bg-ink-800/50">
-              <td class="px-4 py-2" colspan="4"><button class="text-ink-300 hover:text-accent-300" @click="goUp">..</button></td>
-            </tr>
-            <tr v-for="entry in entries" :key="entry.name" class="border-t border-ink-800 hover:bg-ink-800/50">
-              <td class="px-4 py-2">
-                <button class="text-left text-ink-100 hover:text-accent-300" @click="activate(entry)">{{ entry.name }}{{ entry.dir ? "/" : "" }}</button>
-                <span v-if="entry.link" class="ml-2 text-xs text-ink-500">link</span>
+            <tr v-if="path" class="cursor-pointer border-t border-ink-800 hover:bg-ink-800/60" @click="goUp">
+              <td class="px-5 py-3 text-ink-300" colspan="4">
+                <div class="flex items-center gap-3">
+                  <svg class="h-5 w-5 shrink-0 text-ink-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
+                  <span>Back</span>
+                </div>
               </td>
-              <td class="px-4 py-2 text-ink-400">{{ entry.dir ? "—" : formatBytes(entry.size) }}</td>
-              <td class="px-4 py-2 text-ink-400">{{ new Date(entry.mtime * 1000).toLocaleString() }}</td>
-              <td class="px-4 py-2 text-right">
-                <button class="mr-3 text-ink-300 hover:text-accent-300 disabled:opacity-50" :disabled="busy" @click="rename(entry)">Rename</button>
-                <button class="text-bad disabled:opacity-50" :disabled="busy" @click="remove(entry)">Delete</button>
+            </tr>
+            <tr v-for="entry in entries" :key="entry.name" class="group cursor-pointer border-t border-ink-800 hover:bg-ink-800/60" @click="activate(entry)">
+              <td class="px-5 py-3">
+                <div class="flex items-center gap-3">
+                  <svg v-if="entry.dir" class="h-5 w-5 shrink-0 text-accent-500" viewBox="0 0 24 24" fill="currentColor"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/></svg>
+                  <svg v-else class="h-5 w-5 shrink-0 text-ink-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>
+                  <span class="text-ink-100">{{ entry.name }}</span>
+                  <span v-if="entry.link" class="rounded bg-ink-800 px-1.5 py-0.5 text-xs text-ink-400">link</span>
+                </div>
+              </td>
+              <td class="px-5 py-3 text-ink-400">{{ entry.dir ? "—" : formatBytes(entry.size) }}</td>
+              <td class="px-5 py-3 text-ink-400">{{ formatDate(entry.mtime) }}</td>
+              <td class="px-5 py-3">
+                <div class="flex justify-end gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+                  <button class="rounded px-2 py-1 text-ink-300 hover:bg-ink-700 hover:text-ink-100 disabled:opacity-50" :disabled="busy" @click.stop="rename(entry)">Rename</button>
+                  <button class="rounded px-2 py-1 text-bad hover:bg-ink-700 disabled:opacity-50" :disabled="busy" @click.stop="remove(entry)">Delete</button>
+                </div>
               </td>
             </tr>
             <tr v-if="!loading && !error && entries.length === 0">
-              <td class="px-4 py-10 text-center text-ink-500" colspan="4">This folder is empty.</td>
+              <td class="px-5 py-12 text-center text-ink-500" colspan="4">This folder is empty.</td>
             </tr>
           </tbody>
         </table>
