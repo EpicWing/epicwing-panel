@@ -232,9 +232,9 @@ onMounted(async () => {
 
     <template #actions>
       <div v-if="active === 'home'" class="flex overflow-hidden rounded-xl border border-ink-700 shadow-lg shadow-black/20">
-        <button class="px-6 py-3 text-sm font-semibold text-ink-300 transition hover:bg-ink-800 disabled:cursor-not-allowed disabled:opacity-40" :disabled="server?.status === 'running' || server?.status === 'starting'" @click="power('start')">Start</button>
+        <button class="px-6 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40" :class="server?.status === 'running' || server?.status === 'starting' ? 'text-ink-300' : 'bg-accent-500 text-ink-950 hover:bg-accent-400'" :disabled="server?.status === 'running' || server?.status === 'starting'" @click="power('start')">Start</button>
         <button class="border-l border-ink-700 px-6 py-3 text-sm font-semibold text-ink-100 transition hover:bg-ink-800 disabled:cursor-not-allowed disabled:opacity-40" :disabled="server?.status !== 'running' && server?.status !== 'starting'" @click="power('restart')">Restart</button>
-        <button class="border-l border-accent-400/30 bg-accent-500 px-6 py-3 text-sm font-semibold text-ink-950 transition hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-40" :disabled="server?.status !== 'running' && server?.status !== 'starting'" @click="power('stop')">Stop</button>
+        <button class="border-l px-6 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40" :class="server?.status === 'running' || server?.status === 'starting' ? 'border-accent-400/30 bg-accent-500 text-ink-950 hover:bg-accent-400' : 'border-ink-700 text-ink-300'" :disabled="server?.status !== 'running' && server?.status !== 'starting'" @click="power('stop')">Stop</button>
       </div>
     </template>
 
@@ -252,8 +252,8 @@ onMounted(async () => {
 
         <div v-if="active === 'home'" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <div class="rounded-xl border border-ink-700 bg-ink-900 p-4"><p class="text-xs uppercase text-ink-400">IP address</p><p class="mt-2 truncate font-mono text-lg font-semibold">{{ server.allocations[0]?.ip }}:{{ server.allocations[0]?.port }}</p></div>
-          <div class="rounded-xl border border-ink-700 bg-ink-900 p-4"><p class="text-xs uppercase text-ink-400">CPU usage</p><p class="mt-2 text-xl font-semibold">{{ metrics.cpu.toFixed(1) }}%</p></div>
-          <div class="rounded-xl border border-ink-700 bg-ink-900 p-4"><p class="text-xs uppercase text-ink-400">RAM usage</p><p class="mt-2 text-xl font-semibold">{{ formatBytes(metrics.ram) }}</p></div>
+          <div class="rounded-xl border border-ink-700 bg-ink-900 p-4"><p class="text-xs uppercase text-ink-400">CPU usage</p><p class="mt-2 text-xl font-semibold">{{ server?.status === 'running' || server?.status === 'starting' ? metrics.cpu.toFixed(1) + '%' : 'Offline' }}</p></div>
+          <div class="rounded-xl border border-ink-700 bg-ink-900 p-4"><p class="text-xs uppercase text-ink-400">RAM usage</p><p class="mt-2 text-xl font-semibold">{{ server?.status === 'running' || server?.status === 'starting' ? formatBytes(metrics.ram) : 'Offline' }}</p></div>
           <div class="rounded-xl border border-ink-700 bg-ink-900 p-4"><p class="text-xs uppercase text-ink-400">Storage usage</p><p class="mt-2 text-xl font-semibold">{{ formatBytes(metrics.disk) }}</p></div>
         </div>
 
