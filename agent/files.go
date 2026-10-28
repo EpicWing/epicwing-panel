@@ -78,6 +78,8 @@ func (d *commandDispatcher) executeFile(action string, raw json.RawMessage) (map
 		return nil, root.Mkdir(rel, 0o755)
 	case "file.rename":
 		return nil, fileRename(root, p.Path, p.To)
+	case "file.decompress":
+		return fileDecompress(root, p.Path, p.To)
 	case "file.delete":
 		return nil, fileDelete(root, p.Path, p.Recursive)
 	default:
