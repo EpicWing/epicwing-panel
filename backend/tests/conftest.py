@@ -14,7 +14,11 @@ from app.db import Base, get_db  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import User  # noqa: E402
 from app.security.passwords import hash_password  # noqa: E402
-from app.security.ratelimit import login_email_limiter, login_ip_limiter  # noqa: E402
+from app.security.ratelimit import (  # noqa: E402
+    login_email_limiter,
+    login_ip_limiter,
+    password_change_limiter,
+)
 
 TEST_PASSWORD = "correct-horse-battery"
 
@@ -36,6 +40,7 @@ def client(db_session):
     app.dependency_overrides[get_db] = lambda: db_session
     login_ip_limiter.clear()
     login_email_limiter.clear()
+    password_change_limiter.clear()
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()

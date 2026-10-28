@@ -104,3 +104,16 @@ def get_auth(request: Request, db: Annotated[Session, Depends(get_db)]) -> AuthC
 
 
 CurrentAuth = Annotated[AuthContext, Depends(get_auth)]
+
+
+def revoke_other_sessions(db: Session, keep: UserSession) -> None:
+    """Beendet alle Sessions des Benutzers außer der übergebenen."""
+    db.execute(
+        update(UserSession)
+        .where(
+            UserSession.user_id == keep.user_id,
+            UserSession.id != keep.id,
+            UserSession.revoked_at.is_(None),
+        )
+        .values(revoked_at=_utcnow())
+    )

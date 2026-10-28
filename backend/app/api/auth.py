@@ -8,14 +8,15 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.db import get_db
 from app.models import User
-from app.schemas.auth import AuthResponse, LoginRequest, UserOut
+from app.schemas.auth import AuthResponse, LoginRequest, PasswordChangeRequest, UserOut
 from app.security.passwords import hash_password, needs_rehash, verify_password
-from app.security.ratelimit import login_email_limiter, login_ip_limiter
+from app.security.ratelimit import login_email_limiter, login_ip_limiter, password_change_limiter
 from app.security.sessions import (
     SESSION_COOKIE,
     SESSION_MAX_AGE,
     CurrentAuth,
     create_session,
+    revoke_other_sessions,
     revoke_session,
     revoke_token,
 )
@@ -106,3 +107,39 @@ def me(auth: CurrentAuth) -> AuthResponse:
     return AuthResponse(
         user=UserOut.model_validate(auth.user), csrf_token=auth.session.csrf_token
     )
+
+
+@router.post("/password", status_code=status.HTTP_204_NO_CONTENT)
+def change_password(
+    body: PasswordChangeRequest,
+    request: Request,
+    auth: CurrentAuth,
+    db: Annotated[Session, Depends(get_db)],
+) -> None:
+    ip = _client_ip(request)
+    key = str(auth.user.id)
+
+    wait = password_change_limiter.retry_after(key)
+    if wait:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            "Too many attempts. Please try again later.",
+            headers={"Retry-After": str(wait)},
+        )
+
+    if not verify_password(auth.user.password_hash, body.current_password):
+        password_change_limiter.add_failure(key)
+        audit.record(db, "auth.password_change_failed", actor_id=auth.user.id, ip=ip)
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "The current password is incorrect.")
+
+    if body.new_password == body.current_password:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "The new password must differ from the current one."
+        )
+
+    auth.user.password_hash = hash_password(body.new_password)
+    revoke_other_sessions(db, auth.session)
+    db.commit()
+    password_change_limiter.reset(key)
+    # Das Passwort selbst gehört nie ins Audit-Log.
+    audit.record(db, "auth.password_change", actor_id=auth.user.id, ip=ip)
