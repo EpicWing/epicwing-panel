@@ -290,6 +290,12 @@ onUnmounted(() => window.clearInterval(timer));
       {{ notice }}
     </p>
 
+    <div v-if="!node && !error" class="space-y-6" aria-busy="true">
+      <div class="skeleton h-9 w-72"></div>
+      <div class="grid gap-4 lg:grid-cols-3"><div v-for="n in 3" :key="n" class="skeleton h-44"></div></div>
+      <div class="skeleton h-32"></div>
+    </div>
+
     <template v-if="node">
       <nav class="mb-6 flex gap-1 overflow-x-auto border-b border-ink-700">
         <button

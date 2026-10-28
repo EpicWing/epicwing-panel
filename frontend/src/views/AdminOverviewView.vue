@@ -219,6 +219,11 @@ onUnmounted(() => window.clearInterval(timer));
       </ul>
     </section>
 
+    <section v-if="!data && !failed" class="mt-8" aria-busy="true">
+      <div class="skeleton mb-3 h-6 w-48"></div>
+      <div class="skeleton h-52"></div>
+    </section>
+
     <section v-if="data" class="mt-8">
       <h2 class="mb-3 text-lg font-semibold">{{ t("admin.loadTitle") }}</h2>
       <p v-if="data.node_load.length === 0" class="text-sm text-ink-400">{{ t("admin.loadEmpty") }}</p>
@@ -256,9 +261,9 @@ onUnmounted(() => window.clearInterval(timer));
                     fill="none"
                     stroke-width="3.2"
                     stroke-linecap="round"
-                    class="transition-all"
+                    class="transition-all duration-700 ease-out"
                     :class="ringClass(m.percent)"
-                    :stroke-dasharray="`${m.percent} 100`"
+                    :style="{ strokeDasharray: `${m.percent} 100` }"
                   />
                 </svg>
                 <span class="absolute inset-0 flex items-center justify-center font-mono text-lg font-semibold">
