@@ -6,6 +6,7 @@ from typing import Any
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from app.agentlink.protocol import WS_POLICY_VIOLATION, WS_REPLACED, WS_REPLACED_REASON
+from app.services.ddos_detect import detector
 
 HISTORY_POINTS = 60  # bei 10 s Abstand 10 Minuten
 
@@ -49,6 +50,7 @@ class AgentRegistry:
         self.history.pop(node_id, None)
         for name in self._stats_nodes.pop(node_id, set()):
             self.server_stats.pop(name, None)
+            detector.forget(name)
         return True
 
     async def disconnect(self, node_id: uuid.UUID) -> None:

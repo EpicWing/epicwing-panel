@@ -1,0 +1,214 @@
+"""Erkennung von ungewöhnlichem Eingangsverkehr und Konsolen-Fluten je Server.
+
+Reine Logik ohne Datenbank und Netzwerk. Der Agent schickt alle paar Sekunden
+kumulative Zähler, daraus werden hier Raten und eine Stufe berechnet.
+"""
+
+from collections import deque
+from dataclasses import dataclass, field
+from statistics import median
+from typing import Any
+
+LEVELS = ("learning", "normal", "watch", "attack")
+
+HISTORY_POINTS = 300  # bei 2 s Abstand 10 Minuten
+RECENT_POINTS = 3
+MIN_SAMPLES = 15
+MIN_INTERVAL = 0.5  # kürzere Abstände liefern keine brauchbare Rate
+STALE_SECONDS = 15.0
+
+WATCH_FACTOR = 3
+ATTACK_FACTOR = 10
+
+BYTES_WATCH, BYTES_ATTACK = 512 * 1024, 2 * 1024 * 1024  # Bytes pro Sekunde
+PPS_WATCH, PPS_ATTACK = 1_000, 10_000  # Pakete pro Sekunde
+DROP_WATCH, DROP_ATTACK = 200, 2_000  # verworfene Pakete pro Sekunde
+LINES_WATCH, LINES_ATTACK = 100, 500  # Konsolenzeilen pro Sekunde
+SOURCES_WATCH, SOURCES_ATTACK = 30, 150  # verschiedene Quellen pro Sekunde
+SOURCES_MIN_LINES = 30  # Quellen zählen erst ab dieser Zeilenrate
+
+# Zähler, die steigen, wenn Pakete abgelehnt oder verworfen werden.
+DROP_KEYS = (
+    "rx_dropped",
+    "ip_in_hdr_errors",
+    "ip_in_addr_errors",
+    "tcp_listen_drops",
+    "tcp_listen_overflows",
+    "tcp_syncookies_sent",
+    "tcp_in_errs",
+    "udp_no_ports",
+    "udp_in_errors",
+    "udp_rcvbuf_errors",
+)
+
+
+@dataclass(frozen=True)
+class Verdict:
+    level: str
+    reasons: tuple[str, ...]
+    alert: bool  # True genau beim Wechsel auf "attack"
+
+
+class _Series:
+    """Letzte Werte und Baseline einer Rate."""
+
+    def __init__(self) -> None:
+        self.recent: deque[float] = deque(maxlen=RECENT_POINTS)
+        self.history: deque[float] = deque(maxlen=HISTORY_POINTS)
+
+    def add(
+        self, rate: float, watch_floor: float, attack_floor: float
+    ) -> tuple[int, float | None, float]:
+        """Gibt (Stufe als Index in LEVELS, übliche Rate, Faktor) zurück. 0 = lernt noch."""
+        self.recent.append(rate)
+        if len(self.history) < MIN_SAMPLES:
+            self.history.append(rate)
+            return 0, None, 1.0
+        recent = sum(self.recent) / len(self.recent)
+        usual = float(median(self.history))
+        factor = recent / max(usual, 1.0)
+        index = 1
+        if recent >= attack_floor and factor >= ATTACK_FACTOR:
+            index = 3
+        elif recent >= watch_floor and factor >= WATCH_FACTOR:
+            index = 2
+        if index < 2:
+            # Auffällige Werte fließen nicht in die Baseline ein, sonst würde ein
+            # langer Angriff irgendwann zum Normalzustand.
+            self.history.append(rate)
+        return index, usual, factor
+
+
+@dataclass
+class _State:
+    at: float
+    rx_bytes: int
+    counters: dict[str, int]
+    bytes: _Series = field(default_factory=_Series)
+    packets: _Series = field(default_factory=_Series)
+    samples: int = 0
+    level: str = "learning"
+    reasons: tuple[str, ...] = ()
+    rates: dict[str, float | None] = field(default_factory=dict)
+
+
+def _absolute(value: float, watch: float, attack: float) -> int:
+    if value >= attack:
+        return 3
+    if value >= watch:
+        return 2
+    return 1
+
+
+def _delta(now: dict[str, int], before: dict[str, int], key: str) -> int:
+    if key in now and key in before:
+        return now[key] - before[key]
+    return 0
+
+
+class Detector:
+    def __init__(self) -> None:
+        self._states: dict[str, _State] = {}
+
+    def forget(self, name: str) -> None:
+        self._states.pop(name, None)
+
+    def snapshot(self, name: str, now: float) -> dict[str, Any] | None:
+        state = self._states.get(name)
+        if state is None:
+            return None
+        return {
+            "level": state.level,
+            "reasons": list(state.reasons),
+            "samples": state.samples,
+            "rates": dict(state.rates),
+            "age": now - state.at,
+        }
+
+    def observe(
+        self,
+        name: str,
+        now: float,
+        rx_bytes: int,
+        net: dict[str, int] | None = None,
+        console: dict[str, int] | None = None,
+    ) -> Verdict:
+        net = net or {}
+        state = self._states.get(name)
+        if state is None:
+            self._states[name] = _State(at=now, rx_bytes=rx_bytes, counters=dict(net))
+            return Verdict("learning", (), False)
+        dt = now - state.at
+        if dt < MIN_INTERVAL:
+            return Verdict(state.level, state.reasons, False)
+
+        before, previous_rx = state.counters, state.rx_bytes
+        state.at, state.rx_bytes, state.counters = now, rx_bytes, dict(net)
+        # Ein Zähler, der kleiner wird, heißt: der Container wurde neu gestartet.
+        if rx_bytes < previous_rx or any(
+            value < before[key] for key, value in net.items() if key in before
+        ):
+            return Verdict(state.level, state.reasons, False)
+
+        state.samples += 1
+        found: list[tuple[int, str]] = []
+
+        rx_rate = (rx_bytes - previous_rx) / dt
+        bytes_index, usual, factor = state.bytes.add(rx_rate, BYTES_WATCH, BYTES_ATTACK)
+        if bytes_index >= 2:
+            found.append((bytes_index, f"Incoming traffic is {factor:.0f}x the usual rate"))
+
+        pps: float | None = None
+        packets_index = 1
+        if "rx_packets" in net and "rx_packets" in before:
+            pps = (net["rx_packets"] - before["rx_packets"]) / dt
+            packets_index, _, packets_factor = state.packets.add(pps, PPS_WATCH, PPS_ATTACK)
+            if packets_index >= 2:
+                found.append(
+                    (packets_index, f"Incoming packet rate is {packets_factor:.0f}x the usual rate")
+                )
+
+        dropped = sum(_delta(net, before, key) for key in DROP_KEYS) / dt
+        dropped_index = _absolute(dropped, DROP_WATCH, DROP_ATTACK)
+        if dropped_index >= 2:
+            found.append((dropped_index, f"{dropped:.0f} packets/s are dropped or rejected"))
+
+        lines_rate: float | None = None
+        sources_rate: float | None = None
+        console_index = 1
+        if console is not None and "window_lines" in console:
+            lines_rate = console["window_lines"] / dt
+            sources_rate = console.get("sources", 0) / dt
+            console_index = _absolute(lines_rate, LINES_WATCH, LINES_ATTACK)
+            if lines_rate >= SOURCES_MIN_LINES:
+                console_index = max(
+                    console_index, _absolute(sources_rate, SOURCES_WATCH, SOURCES_ATTACK)
+                )
+            if console_index >= 2:
+                found.append(
+                    (
+                        console_index,
+                        f"Console flooded with {lines_rate:.0f} lines/s "
+                        f"from about {sources_rate:.0f} sources/s",
+                    )
+                )
+
+        index = max(1, bytes_index, packets_index, dropped_index, console_index)
+        if index < 2 and bytes_index == 0:
+            index = 0
+        level = LEVELS[index]
+        alert = level == "attack" and state.level != "attack"
+        state.level = level
+        state.reasons = tuple(text for _, text in sorted(found, key=lambda f: -f[0]))
+        state.rates = {
+            "rx_bytes_per_s": rx_rate,
+            "rx_packets_per_s": pps,
+            "dropped_per_s": dropped,
+            "console_lines_per_s": lines_rate,
+            "console_sources_per_s": sources_rate,
+            "usual_rx_bytes_per_s": usual,
+        }
+        return Verdict(level, state.reasons, alert)
+
+
+detector = Detector()
