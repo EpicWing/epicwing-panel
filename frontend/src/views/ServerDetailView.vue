@@ -6,6 +6,7 @@ import { useRoute, useRouter } from "vue-router";
 
 import { ApiError, api } from "../api/client";
 import AppLayout from "../components/AppLayout.vue";
+import FilesPanel from "../components/FilesPanel.vue";
 
 interface Allocation {
   ip: string;
@@ -298,11 +299,7 @@ onBeforeUnmount(() => socket?.close());
         </section>
 
         <template v-else>
-          <div v-if="active === 'files'" class="space-y-6">
-            <div class="flex items-start justify-between gap-4"><div><h2 class="text-4xl font-bold">Files</h2><p class="mt-2 text-sm text-ink-400">Manage your server files and directories. Upload, download, edit, and organize your server filesystem.</p></div><div class="flex gap-2"><button class="rounded-lg border border-ink-700 px-4 py-2 text-sm text-ink-200">New Folder</button><button class="rounded-lg border border-ink-700 px-4 py-2 text-sm text-ink-200">New File</button><button class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950">Upload</button></div></div>
-            <div class="rounded-xl border border-ink-700 bg-ink-900 p-5"><p class="font-mono text-sm text-ink-200">☐ &nbsp; root &nbsp;›</p><p class="mt-12 text-center text-sm text-ink-500">No files have been installed yet.</p></div>
-          </div>
-
+          <FilesPanel v-if="active === 'files'" :server-id="server.id" :status="server.status" />
           <div v-else-if="active === 'databases'" class="space-y-6">
             <div class="flex items-start justify-between gap-4"><div><h2 class="text-4xl font-bold">Databases</h2><p class="mt-2 text-sm text-ink-400">Create and manage databases for your server and configure access details.</p></div><button class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950">New Database</button></div>
             <div class="flex min-h-[24rem] items-center justify-center rounded-xl border border-ink-700 bg-ink-900 text-center"><div><div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-ink-800 text-2xl">▣</div><h3 class="text-lg font-semibold">No databases found</h3><p class="mt-2 text-sm text-ink-400">Your server does not have any databases yet.</p></div></div>
