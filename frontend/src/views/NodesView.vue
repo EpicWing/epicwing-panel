@@ -4,7 +4,6 @@ import { useI18n } from "vue-i18n";
 
 import { ApiError, api } from "../api/client";
 import AppLayout from "../components/AppLayout.vue";
-import { ui } from "../stores/ui";
 
 interface NodeItem {
   id: string;
@@ -168,14 +167,6 @@ onMounted(load);
       </button>
     </template>
 
-    <div
-      v-if="ui.state.mode === 'simple'"
-      class="mb-6 rounded-lg border border-ink-700 bg-ink-900 p-4 text-sm text-ink-300"
-    >
-      <p class="font-medium text-ink-100">{{ t("nodes.helpTitle") }}</p>
-      <p class="mt-1">{{ t("nodes.helpBody") }}</p>
-    </div>
-
     <p
       v-if="error"
       role="alert"
@@ -237,10 +228,7 @@ onMounted(load);
         />
       </div>
 
-      <details
-        v-if="ui.state.mode === 'advanced'"
-        class="rounded-md border border-ink-700 bg-ink-950/40 px-4 py-3 sm:col-span-2"
-      >
+      <details class="rounded-md border border-ink-700 bg-ink-950/40 px-4 py-3 sm:col-span-2">
         <summary class="cursor-pointer select-none text-sm text-ink-300">
           {{ t("nodes.advanced") }}
         </summary>
@@ -296,9 +284,7 @@ onMounted(load);
             <th class="px-4 py-3 font-medium">{{ t("nodes.colName") }}</th>
             <th class="px-4 py-3 font-medium">{{ t("nodes.colLocation") }}</th>
             <th class="px-4 py-3 font-medium">{{ t("nodes.colStatus") }}</th>
-            <th v-if="ui.state.mode === 'advanced'" class="px-4 py-3 font-medium">
-              {{ t("nodes.colPorts") }}
-            </th>
+            <th class="px-4 py-3 font-medium">{{ t("nodes.colPorts") }}</th>
             <th class="px-4 py-3 font-medium">{{ t("nodes.colResources") }}</th>
             <th class="px-4 py-3"></th>
           </tr>
@@ -308,7 +294,10 @@ onMounted(load);
             <td colspan="6" class="px-4 py-8 text-center text-ink-400">{{ t("nodes.loading") }}</td>
           </tr>
           <tr v-else-if="nodes.length === 0">
-            <td colspan="6" class="px-4 py-8 text-center text-ink-400">{{ t("nodes.empty") }}</td>
+            <td colspan="6" class="px-4 py-10 text-center">
+              <p class="font-medium">{{ t("nodes.emptyTitle") }}</p>
+              <p class="mx-auto mt-1 max-w-md text-sm text-ink-400">{{ t("nodes.helpBody") }}</p>
+            </td>
           </tr>
           <tr v-for="node in nodes" :key="node.id" class="hover:bg-ink-900/60">
             <td class="px-4 py-3">
@@ -322,10 +311,7 @@ onMounted(load);
                 {{ statusLabel(node.status) }}
               </span>
             </td>
-            <td
-              v-if="ui.state.mode === 'advanced'"
-              class="px-4 py-3 font-mono text-xs text-ink-300"
-            >
+            <td class="px-4 py-3 font-mono text-xs text-ink-300">
               {{ node.port_range_start }}–{{ node.port_range_end }}
             </td>
             <td class="px-4 py-3 font-mono text-xs text-ink-300">{{ resources(node) }}</td>

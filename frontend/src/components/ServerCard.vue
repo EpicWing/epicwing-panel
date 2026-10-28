@@ -2,8 +2,6 @@
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 
-import { ui } from "../stores/ui";
-
 export interface ServerItem {
   id: string;
   name: string;
@@ -80,10 +78,7 @@ async function copyAddress() {
 
       <div class="mt-3 flex items-center gap-3">
         <div class="min-w-0">
-          <p
-            v-if="ui.state.mode === 'simple'"
-            class="text-[11px] uppercase tracking-wider text-ink-400"
-          >
+          <p class="text-[11px] uppercase tracking-wider text-ink-400">
             {{ t("servers.connectWith") }}
           </p>
           <p class="truncate font-mono text-sm text-ink-300">{{ server.address }}</p>

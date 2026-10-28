@@ -4,7 +4,6 @@ import { useI18n } from "vue-i18n";
 
 import { api } from "../api/client";
 import AppLayout from "../components/AppLayout.vue";
-import { ui } from "../stores/ui";
 
 const { t } = useI18n();
 const nodeCount = ref<number | null>(null);
@@ -19,6 +18,9 @@ const steps = computed(() => [
   { title: t("admin.step2Title"), body: t("admin.step2Body"), done: false, to: null },
   { title: t("admin.step3Title"), body: t("admin.step3Body"), done: false, to: null },
 ]);
+
+// The checklist disappears on its own once every step is done.
+const allDone = computed(() => steps.value.every((step) => step.done));
 
 onMounted(async () => {
   try {
@@ -48,16 +50,14 @@ onMounted(async () => {
       </div>
     </div>
 
-    <section v-if="ui.state.mode === 'simple'" class="mt-8">
+    <section v-if="!allDone" class="mt-8">
       <h2 class="mb-4 text-lg font-semibold">{{ t("admin.startTitle") }}</h2>
       <ol class="divide-y divide-ink-700 rounded-xl border border-ink-700 bg-ink-900">
         <li v-for="(step, index) in steps" :key="step.title" class="flex items-center gap-4 p-5">
           <span
             class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-sm font-semibold"
             :class="
-              step.done
-                ? 'border-ok/50 bg-ok/10 text-ok'
-                : 'border-ink-600 text-ink-400'
+              step.done ? 'border-ok/50 bg-ok/10 text-ok' : 'border-ink-600 text-ink-400'
             "
           >
             {{ step.done ? "✓" : index + 1 }}

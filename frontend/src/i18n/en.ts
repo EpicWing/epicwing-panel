@@ -53,19 +53,6 @@ export default {
       offline: "Offline",
     },
   },
-  settings: {
-    title: "Settings",
-    subtitle: "Make the panel fit the way you work.",
-    interfaceTitle: "Interface",
-    interfaceBody: "Choose how much detail the panel shows. You can change this at any time.",
-    modeSimple: "Simple",
-    modeSimpleBody:
-      "Plain explanations and only the essentials. Recommended if you are new to hosting.",
-    modeAdvanced: "Advanced",
-    modeAdvancedBody:
-      "A compact technical view with ports, raw values and extra options, without help texts.",
-    storedLocal: "This choice is saved in this browser only.",
-  },
   admin: {
     title: "Administration",
     subtitle: "Manage nodes, servers and users.",
@@ -87,7 +74,7 @@ export default {
   nodes: {
     title: "Nodes",
     subtitle: "The machines your servers run on.",
-    helpTitle: "What is a node?",
+    emptyTitle: "No nodes yet",
     helpBody:
       "A node is a machine that runs your servers, for example a rented VPS or a dedicated server. Add your machine here, then connect the node agent on it. The agent is not implemented yet.",
     add: "Add node",
@@ -120,7 +107,6 @@ export default {
     colPorts: "Ports",
     colResources: "Resources",
     newToken: "New token",
-    empty: "No nodes yet. Add your first node to get started.",
     loading: "Loading…",
     resourcesValue: "{cpu} CPU · {ram} GB RAM",
     status: {
