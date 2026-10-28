@@ -243,43 +243,6 @@ onUnmounted(() => window.clearInterval(timer));
         />
       </div>
 
-      <details class="rounded-md border border-ink-700 bg-ink-950/40 px-4 py-3 sm:col-span-2">
-        <summary class="cursor-pointer select-none text-sm text-ink-300">
-          {{ t("nodes.advanced") }}
-        </summary>
-        <div class="mt-3 grid gap-4 sm:grid-cols-2">
-          <div>
-            <label for="port-start" class="mb-1.5 block text-sm text-ink-300">
-              {{ t("nodes.portStart") }}
-            </label>
-            <input
-              id="port-start"
-              v-model.number="form.portStart"
-              type="number"
-              min="1024"
-              max="65535"
-              placeholder="25000"
-              :class="inputClass"
-            />
-          </div>
-          <div>
-            <label for="port-end" class="mb-1.5 block text-sm text-ink-300">
-              {{ t("nodes.portEnd") }}
-            </label>
-            <input
-              id="port-end"
-              v-model.number="form.portEnd"
-              type="number"
-              min="1024"
-              max="65535"
-              placeholder="25999"
-              :class="inputClass"
-            />
-          </div>
-          <p class="text-xs text-ink-400 sm:col-span-2">{{ t("nodes.advancedHint") }}</p>
-        </div>
-      </details>
-
       <p class="text-xs text-ink-400 sm:col-span-2">{{ t("nodes.formHint") }}</p>
       <div class="sm:col-span-2">
         <button
