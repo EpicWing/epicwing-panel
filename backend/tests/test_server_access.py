@@ -278,7 +278,13 @@ def test_file_rights_split_read_and_write(client, db_session, world):
     member = _grant(db_session, world, world.member, P.FILES_READ)
     headers = _login(client, world.member)
     assert _reached_the_endpoint(client, "GET", world.url + "/files?path=/", headers=headers)
-    for path in ("/files/content", "/files/folder", "/files/rename", "/files/delete"):
+    for path in (
+        "/files/content",
+        "/files/folder",
+        "/files/rename",
+        "/files/delete",
+        "/files/decompress",
+    ):
         method = "PUT" if path.endswith("content") else "POST"
         response = client.request(method, world.url + path, json={}, headers=headers)
         assert response.status_code == 403, path
