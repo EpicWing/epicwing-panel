@@ -5,7 +5,6 @@ import { useRouter } from "vue-router";
 
 import { auth } from "../stores/auth";
 import LogoMark from "./LogoMark.vue";
-import UserAvatar from "./UserAvatar.vue";
 import CopyrightFooter from "./CopyrightFooter.vue";
 
 const props = withDefaults(
@@ -16,6 +15,7 @@ const props = withDefaults(
 interface NavItem {
   label: string;
   to: string | null;
+  badge?: string;
 }
 
 interface NavSection {
@@ -51,7 +51,9 @@ const sections = computed<NavSection[]>(() => {
         { label: t("nav.servers"), to: "/" },
         { label: t("nav.apiKeys"), to: null },
         { label: t("nav.sshKeys"), to: null },
-        { label: t("nav.settings"), to: "/settings" },
+        ...(auth.state.user?.is_admin
+          ? [{ label: t("nav.adminPanel"), to: "/admin", badge: t("nav.adminBadge") }]
+          : []),
       ],
     },
   ];
@@ -60,9 +62,6 @@ const sections = computed<NavSection[]>(() => {
 const switchLink = computed<{ label: string; to: string; badge?: string } | null>(() => {
   if (props.area === "admin") {
     return { label: t("nav.backToPanel"), to: "/" };
-  }
-  if (auth.state.user?.is_admin) {
-    return { label: t("nav.adminPanel"), to: "/admin", badge: t("nav.adminBadge") };
   }
   return null;
 });
@@ -73,6 +72,9 @@ const mobileLinks = computed(() => {
     .filter((i): i is NavItem & { to: string } => !!i.to);
   if (switchLink.value) {
     links.push({ label: switchLink.value.label, to: switchLink.value.to });
+  }
+  if (props.area === "user") {
+    links.push({ label: t("nav.settings"), to: "/settings" });
   }
   return links;
 });
@@ -117,7 +119,13 @@ async function logout() {
               class="mb-0.5 block border-l-2 border-transparent px-3 py-1.5 text-sm text-ink-300 transition hover:bg-ink-800 hover:text-ink-100"
               exact-active-class="!border-accent-500 !bg-accent-500/10 !text-accent-400"
             >
-              {{ item.label }}
+              <span class="flex items-center justify-between gap-2">
+                <span>{{ item.label }}</span>
+                <span
+                  v-if="item.badge"
+                  class="rounded bg-accent-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent-400"
+                >{{ item.badge }}</span>
+              </span>
             </RouterLink>
             <div
               v-else
@@ -152,16 +160,19 @@ async function logout() {
           </span>
         </RouterLink>
         <RouterLink
-          v-if="auth.state.user"
+          v-if="area === 'user'"
           to="/settings"
-          class="flex items-center gap-2.5 text-sm text-ink-300 transition hover:text-accent-400"
+          class="block text-sm text-ink-300 transition hover:text-accent-400"
+          exact-active-class="!text-accent-400"
         >
-          <UserAvatar :user-id="auth.state.user.id" :label="auth.state.user.email" :size="28" />
-          <span class="min-w-0 truncate">{{ auth.state.user.email }}</span>
+          {{ t("nav.settings") }}
         </RouterLink>
         <button class="text-sm text-ink-300 transition hover:text-accent-400" @click="logout">
           {{ t("common.signOut") }}
         </button>
+      </div>
+      <div class="px-5 pb-4" :class="props.minimal ? 'border-t border-ink-700 pt-3' : ''">
+        <CopyrightFooter />
       </div>
     </aside>
 
@@ -200,7 +211,6 @@ async function logout() {
           </div>
           <slot />
         </div>
-        <CopyrightFooter v-if="!props.minimal" />
       </main>
     </div>
   </div>
