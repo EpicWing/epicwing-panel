@@ -1,8 +1,9 @@
 from datetime import UTC, datetime
 
 import pytest
+from sqlalchemy import select
 
-from app.models import SshKey, User
+from app.models import AuditLog, SshKey, User
 from app.models.server import ServerMember, ServerMemberPermission
 from app.services import sftp as sftp_service
 from tests.test_admin_overview import _egg, _node, _server
@@ -59,7 +60,7 @@ def test_owner_gets_read_and_write(db_session, user, world):
     assert grant is not None
     assert grant.server_id == server.id
     assert grant.write is True
-    assert key.last_used_at is not None
+    assert key.last_used_at is None  # erst die fertige Anmeldung setzt es
 
 
 def test_unknown_fingerprint_is_rejected(db_session, world):
@@ -155,3 +156,67 @@ def test_agent_frame_roundtrip(client, db_session, user):
             {"type": "sftp_auth", "id": "a2", "fingerprint": "SHA256:nope", "server": server_id[:8]}
         )
         assert _read_result(ws) == {"type": "sftp_auth_result", "id": "a2", "ok": False}
+
+
+def test_record_login_audits_and_marks_the_key(db_session, user, world):
+    node_id, server = world
+    key = _key(db_session, user, "SHA256:owner")
+    sftp_service.record_login(db_session, node_id, "SHA256:owner", str(server.id))
+    assert key.last_used_at is not None
+    entry = db_session.scalars(select(AuditLog).where(AuditLog.action == "sftp.login")).one()
+    assert entry.actor_id == user.id
+    assert entry.target_id == str(server.id)
+
+
+def test_record_login_ignores_a_server_of_another_node(client, headers, db_session, user, world):
+    _, server = world
+    other_node = _node(client, headers, "node-b")
+    key = _key(db_session, user, "SHA256:owner")
+    sftp_service.record_login(db_session, other_node, "SHA256:owner", str(server.id))
+    sftp_service.record_login(db_session, other_node, "SHA256:owner", "not-a-uuid")
+    assert key.last_used_at is None
+    assert db_session.scalars(select(AuditLog).where(AuditLog.action == "sftp.login")).all() == []
+
+
+def test_rejection_is_audited_without_a_reason(db_session, world):
+    node_id, server = world
+    assert sftp_service.authorize(db_session, node_id, "SHA256:nope", str(server.id)[:8]) is None
+    entry = db_session.scalars(
+        select(AuditLog).where(AuditLog.action == "sftp.login_rejected")
+    ).one()
+    assert entry.details == {"fingerprint": "SHA256:nope"}
+
+
+def test_agent_login_frame_is_audited(client, db_session, user):
+    node_id, key = _enroll_node(client, user)
+    server_id = _server_on(client, user, node_id, 25001)
+    _key(db_session, user, "SHA256:owner")
+    with client.websocket_connect(WS_URL) as ws:
+        _login_agent(ws, node_id, key)
+        ws.send_json({"type": "sftp_login", "fingerprint": "SHA256:owner", "server": server_id})
+        from tests.test_agent_ws import _eventually
+
+        assert _eventually(
+            lambda: db_session.scalars(
+                select(AuditLog).where(AuditLog.action == "sftp.login")
+            ).first()
+            is not None
+        )
+
+
+def test_connections_lists_servers_with_file_access(client, headers, world):
+    _, server = world
+    assert client.get("/api/ssh-keys/connections").json() == [
+        {
+            "server_id": str(server.id),
+            "server_name": "Test",
+            "username": str(server.id)[:8],
+            "host": None,
+            "port": 2222,
+            "write": True,
+        }
+    ]
+
+
+def test_connections_need_a_session(client):
+    assert client.get("/api/ssh-keys/connections").status_code == 401

@@ -13,7 +13,17 @@ interface KeyRow {
   created_at: string;
 }
 
+interface Target {
+  server_id: string;
+  server_name: string;
+  username: string;
+  host: string | null;
+  port: number;
+  write: boolean;
+}
+
 const keys = ref<KeyRow[]>([]);
+const targets = ref<Target[]>([]);
 const loading = ref(true);
 const error = ref("");
 const busy = ref(false);
@@ -38,6 +48,7 @@ function formatDate(value: string | null, empty: string): string {
 async function load(): Promise<void> {
   try {
     keys.value = await api<KeyRow[]>("/ssh-keys");
+    targets.value = await api<Target[]>("/ssh-keys/connections");
   } catch (cause) {
     error.value = message(cause);
   } finally {
@@ -100,6 +111,20 @@ onMounted(() => void load());
         </button>
       </div>
     </form>
+
+    <div v-if="targets.length" class="mb-6 rounded-xl border border-ink-700 bg-ink-900 p-5">
+      <p class="font-medium">Connect with SFTP</p>
+      <p class="mt-1 text-xs text-ink-400">The user name is the short ID of the server. Your private key stays on your computer.</p>
+      <ul class="mt-3 space-y-3">
+        <li v-for="target in targets" :key="target.server_id">
+          <p class="flex items-center gap-2 text-sm">
+            <span class="truncate">{{ target.server_name }}</span>
+            <span v-if="!target.write" class="rounded bg-ink-700 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink-300">Read only</span>
+          </p>
+          <code class="mt-1 block select-all break-all rounded-md border border-ink-700 bg-ink-950 px-3 py-2 font-mono text-xs">sftp -P {{ target.port }} {{ target.username }}@{{ target.host ?? "NODE-ADDRESS" }}</code>
+        </li>
+      </ul>
+    </div>
 
     <div v-if="loading" class="space-y-3" aria-busy="true">
       <div v-for="n in 3" :key="n" class="skeleton h-16"></div>

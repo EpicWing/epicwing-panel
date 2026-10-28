@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Server, SshKey, User
+from app.services import audit
 from app.security.server_access import ServerPermission, effective_permissions
 
 _HEX = set("0123456789abcdef-")
@@ -19,7 +20,7 @@ class SftpGrant:
     write: bool
 
 
-def authorize(
+def _check(
     db: Session, node_id: uuid.UUID, fingerprint: str, server_ref: str
 ) -> SftpGrant | None:
     """None heißt abgelehnt, ohne Grund: Der Agent erfährt nicht, woran es lag."""
@@ -45,6 +46,42 @@ def authorize(
     if ServerPermission.FILES_READ.value not in granted:
         return None
 
+    return SftpGrant(server.id, ServerPermission.FILES_WRITE.value in granted)
+
+
+def authorize(
+    db: Session, node_id: uuid.UUID, fingerprint: str, server_ref: str
+) -> SftpGrant | None:
+    """None heißt abgelehnt, ohne Grund: Der Agent erfährt nicht, woran es lag."""
+    grant = _check(db, node_id, fingerprint, server_ref)
+    if grant is None:
+        audit.record(
+            db,
+            "sftp.login_rejected",
+            target_type="node",
+            target_id=str(node_id),
+            details={"fingerprint": fingerprint[:64]},
+        )
+    return grant
+
+
+def record_login(db: Session, node_id: uuid.UUID, fingerprint: str, server_id: str) -> None:
+    """Der Agent meldet eine fertige Anmeldung: Audit-Eintrag und zuletzt benutzt."""
+    try:
+        sid = uuid.UUID(server_id)
+    except ValueError:
+        return
+    key = db.scalar(select(SshKey).where(SshKey.fingerprint == fingerprint))
+    server = db.get(Server, sid)
+    if key is None or server is None or server.node_id != node_id:
+        return
     key.last_used_at = datetime.now(UTC)
     db.commit()
-    return SftpGrant(server.id, ServerPermission.FILES_WRITE.value in granted)
+    audit.record(
+        db,
+        "sftp.login",
+        actor_id=key.user_id,
+        target_type="server",
+        target_id=str(server.id),
+        details={"fingerprint": fingerprint},
+    )

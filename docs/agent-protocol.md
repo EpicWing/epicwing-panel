@@ -76,3 +76,7 @@ The agent runs an SFTP server and never decides alone who may log in.
    On `ok: false` there is no reason. `write` is true only with the `files.write` permission.
 - The key must belong to an active account that has `files.read` on exactly one server of this node.
 - SFTP needs the node's SFTP port reachable from outside, unlike the rest of the protocol.
+
+3. Agent to panel, after the SSH login completed: `{"type": "sftp_login", "fingerprint": "SHA256:...", "server": "<full id>"}`.
+   The panel writes the audit entry `sftp.login` and sets "last used" on the key. Rejected checks
+   are audited by the panel itself as `sftp.login_rejected`, without a reason.
