@@ -113,6 +113,22 @@ DENIED_FOR_VIEWERS = [
     ),
     ("GET", "/activity", None),
     ("GET", "/activity/export", None),
+    ("GET", "/schedules", None),
+    ("POST", "/schedules", {"name": "x"}),
+    ("GET", "/schedules/00000000-0000-4000-8000-000000000005", None),
+    ("PATCH", "/schedules/00000000-0000-4000-8000-000000000005", {"enabled": False}),
+    ("DELETE", "/schedules/00000000-0000-4000-8000-000000000005", None),
+    (
+        "POST",
+        "/schedules/00000000-0000-4000-8000-000000000005/tasks",
+        {"action": "power", "payload": "start"},
+    ),
+    (
+        "DELETE",
+        "/schedules/00000000-0000-4000-8000-000000000005/tasks/00000000-0000-4000-8000-000000000006",
+        None,
+    ),
+    ("POST", "/schedules/00000000-0000-4000-8000-000000000005/execute", None),
 ]
 
 # Routen mit Server-ID, die absichtlich nicht in der Matrix stehen.

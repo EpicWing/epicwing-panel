@@ -229,11 +229,15 @@ async def list_backups(auth: BackupsView, db: DbSession) -> BackupList:
     return BackupList(limit=server.backup_limit, items=[BackupOut.model_validate(r) for r in rows])
 
 
-@router.post("/{server_id}/backups", status_code=status.HTTP_201_CREATED)
-async def create_backup(
-    body: BackupCreate, request: Request, auth: BackupsCreate, db: DbSession
-) -> BackupOut:
-    server = auth.server
+async def perform_backup(
+    db: Session,
+    server: Server,
+    name: str | None,
+    ignored: str,
+    is_locked: bool,
+    created_by: uuid.UUID | None,
+) -> ServerBackup:
+    """Legt ein Backup an. Endpunkt und Zeitpläne nutzen dieselbe Logik."""
     _check_available(server)
     if server.backup_limit <= 0:
         raise _conflict("Backups are disabled for this server.")
@@ -248,15 +252,15 @@ async def create_backup(
         )
         if used >= server.backup_limit:
             raise _conflict("The backup limit for this server is reached.")
-        name = body.name or datetime.now(UTC).strftime("Backup %Y-%m-%d %H:%M")
+        name = name or datetime.now(UTC).strftime("Backup %Y-%m-%d %H:%M")
         backup = ServerBackup(
             id=uuid.uuid4(),
             server_id=server.id,
-            created_by=auth.user.id,
+            created_by=created_by,
             name=name,
             status="running",
-            ignored=body.ignored,
-            is_locked=body.is_locked,
+            ignored=ignored,
+            is_locked=is_locked,
         )
         db.add(backup)
         db.commit()
@@ -273,7 +277,18 @@ async def create_backup(
                 db.delete(backup)
             db.commit()
             raise
-    _audit(db, request, auth, "create", name)
+    return backup
+
+
+@router.post("/{server_id}/backups", status_code=status.HTTP_201_CREATED)
+async def create_backup(
+    body: BackupCreate, request: Request, auth: BackupsCreate, db: DbSession
+) -> BackupOut:
+    server = auth.server
+    backup = await perform_backup(
+        db, server, body.name, body.ignored, body.is_locked, auth.user.id
+    )
+    _audit(db, request, auth, "create", backup.name)
     db.refresh(backup)
     return BackupOut.model_validate(backup)
 
