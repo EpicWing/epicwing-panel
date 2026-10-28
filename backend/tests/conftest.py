@@ -5,6 +5,7 @@ os.environ.setdefault("EPICWING_SECRET_KEY", "x" * 48)
 os.environ.setdefault("EPICWING_ENCRYPTION_KEY", "test")
 
 import pytest  # noqa: E402
+from argon2 import PasswordHasher  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import create_engine, event  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
@@ -13,6 +14,7 @@ from sqlalchemy.pool import StaticPool  # noqa: E402
 from app.db import Base, get_db  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import User  # noqa: E402
+from app.security import passwords  # noqa: E402
 from app.security.passwords import hash_password  # noqa: E402
 from app.security.ratelimit import (  # noqa: E402
     enroll_limiter,
@@ -23,6 +25,25 @@ from app.security.ratelimit import (  # noqa: E402
 )
 
 TEST_PASSWORD = "correct-horse-battery"
+
+# Der Original-Hasher mit den Produktionsparametern, bevor die Fixture ihn ersetzt.
+PRODUCTION_PASSWORD_HASHER = passwords._hasher
+
+
+@pytest.fixture(autouse=True)
+def fast_password_hashing(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Argon2 ist absichtlich teuer; in Tests reichen Minimalparameter. monkeypatch
+    # stellt den Produktions-Hasher nach jedem Test automatisch wieder her.
+    monkeypatch.setattr(
+        passwords,
+        "_hasher",
+        PasswordHasher(time_cost=1, memory_cost=8, parallelism=1),
+    )
+
+
+@pytest.fixture
+def production_password_hasher() -> PasswordHasher:
+    return PRODUCTION_PASSWORD_HASHER
 
 
 @pytest.fixture
