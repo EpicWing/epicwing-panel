@@ -1,7 +1,9 @@
-"""Cron-Ausdrücke für Zeitpläne prüfen und den nächsten Lauf berechnen (alles in UTC)."""
+"""Cron-Ausdrücke für Zeitpläne prüfen und den nächsten Lauf berechnen (Zeitzone des Panels)."""
 
+import os
 import re
-from datetime import UTC, datetime
+from datetime import UTC, datetime, tzinfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from croniter import croniter
 
@@ -27,8 +29,27 @@ def build_expression(
 
 
 def next_run(expression: str, after: datetime | None = None) -> datetime:
-    """Nächster Lauf nach dem Zeitpunkt after (Standard: jetzt), mit Zeitzone UTC."""
+    """Nächster Lauf nach dem Zeitpunkt after (Standard: jetzt). Die Cron-Felder gelten in der
+    Zeitzone des Panels, das Ergebnis kommt in UTC."""
     base = after or datetime.now(UTC)
     if base.tzinfo is None:
         base = base.replace(tzinfo=UTC)
-    return croniter(expression, base).get_next(datetime)
+    local = base.astimezone(zone())
+    return croniter(expression, local).get_next(datetime).astimezone(UTC)
+
+
+def zone_name() -> str:
+    """Zeitzone des Panels. Standard Europe/Berlin, änderbar mit EPICWING_TIMEZONE."""
+    name = os.environ.get("EPICWING_TIMEZONE", "Europe/Berlin")
+    if name == "UTC":
+        return name
+    try:
+        ZoneInfo(name)
+    except (ZoneInfoNotFoundError, ValueError):
+        return "UTC"
+    return name
+
+
+def zone() -> tzinfo:
+    name = zone_name()
+    return UTC if name == "UTC" else ZoneInfo(name)

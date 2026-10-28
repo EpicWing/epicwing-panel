@@ -26,6 +26,7 @@ interface Schedule {
   next_run_at: string | null;
   last_result: string | null;
   last_detail: string | null;
+  timezone: string;
   is_running: boolean;
   tasks: Task[];
 }
@@ -86,16 +87,7 @@ function when(iso: string | null): string {
   return new Date(fixed).toLocaleString();
 }
 
-function localHint(): string {
-  const h = form.value.hour.trim();
-  const m = form.value.minute.trim();
-  if (!/^\d+$/.test(h) || !/^\d+$/.test(m) || Number(h) > 23 || Number(m) > 59) return "";
-  const now = new Date();
-  const t = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), Number(h), Number(m)),
-  );
-  return t.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
+const zoneName = computed(() => rows.value[0]?.timezone ?? "the panel time zone");
 
 function taskLabel(t: Task): string {
   if (t.action === "power") return `Power: ${t.payload}`;
@@ -313,7 +305,7 @@ onBeforeUnmount(() => {
       <div>
         <h2 class="text-2xl font-semibold">Automations</h2>
         <p class="mt-2 text-sm text-ink-400">
-          Automate server tasks with scheduled commands, power actions and backups. Times are in UTC.
+          Automate server tasks with scheduled commands, power actions and backups. Times are in {{ zoneName }}.
         </p>
       </div>
       <button v-if="manage" :class="primaryClass" @click="openNew">New Schedule</button>
@@ -355,7 +347,7 @@ onBeforeUnmount(() => {
         </div>
       </div>
       <p class="text-xs text-ink-400">
-        Time in UTC<span v-if="localHint()"> (today {{ localHint() }} your time)</span>. Use * for "every". Day of week: 0 is Sunday, 1 is Monday.
+        Time in {{ zoneName }}. Use * for "every". Day of week: 0 is Sunday, 1 is Monday.
       </p>
       <label class="flex items-center gap-2 text-sm text-ink-300">
         <input v-model="form.only_when_online" type="checkbox" /> Only when the server is online
