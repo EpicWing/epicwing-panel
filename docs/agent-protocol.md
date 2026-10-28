@@ -65,3 +65,14 @@ leaves the node. The token is single use and valid for one hour.
   `{"type":"stats","name","cpu_percent","memory_used_bytes","memory_limit_bytes",
   "disk_used_bytes","network_rx_bytes","network_tx_bytes"}`. Network values are
   cumulative Docker counters; the panel calculates the current rate.
+
+## SFTP login (agent asks the panel)
+
+The agent runs an SFTP server and never decides alone who may log in.
+
+1. Agent to panel: `{"type": "sftp_auth", "id": "<any>", "fingerprint": "SHA256:...", "server": "<id prefix>"}`
+   where `server` is the SFTP user name: the first 4 to 36 hex characters of the server ID.
+2. Panel to agent: `{"type": "sftp_auth_result", "id": "<same>", "ok": true, "server": "<full id>", "write": false}`.
+   On `ok: false` there is no reason. `write` is true only with the `files.write` permission.
+- The key must belong to an active account that has `files.read` on exactly one server of this node.
+- SFTP needs the node's SFTP port reachable from outside, unlike the rest of the protocol.
