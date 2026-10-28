@@ -250,7 +250,7 @@ onMounted(load);
       </div>
       <div class="flex gap-2">
         <button :class="buttonClass" :disabled="loading" @click="apply">Apply</button>
-        <button :class="buttonClass" :disabled="loading" @click="clear">Clear</button>
+        <button :class="buttonClass" :disabled="loading" @click="clear">Reset filters</button>
       </div>
     </div>
 

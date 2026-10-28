@@ -844,7 +844,7 @@ watch(blocked, (value) => {
         <button class="rounded-lg bg-accent-500 px-3 py-1.5 font-semibold text-ink-950 disabled:opacity-50" :disabled="busy" @click="download(selectedEntries)">{{ downloadLabel }}</button>
         <button class="rounded-lg border border-ink-700 px-3 py-1.5 text-ink-200 hover:bg-ink-800 disabled:opacity-50" :disabled="busy" @click="openDialog('moveMany', selectedEntries)">Move</button>
         <button class="rounded-lg border border-ink-700 px-3 py-1.5 text-bad hover:bg-ink-800 disabled:opacity-50" :disabled="busy" @click="openDialog('delete', selectedEntries)">Delete</button>
-        <button class="px-2 py-1.5 text-ink-400 hover:text-ink-100" @click="selected = []">Clear</button>
+        <button class="px-2 py-1.5 text-ink-400 hover:text-ink-100" @click="selected = []">Deselect all</button>
       </template>
     </div>
     <Teleport to="body">
