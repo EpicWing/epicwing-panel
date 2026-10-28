@@ -140,6 +140,7 @@ DENIED_FOR_VIEWERS = [
 # Die Konsole per WebSocket steht nicht im OpenAPI-Schema, ihre Rechte prüfen die Ticket-Tests.
 NOT_IN_MATRIX = {
     ("GET", "/"),  # Ansicht: server.view reicht
+    ("GET", "/ddos"),  # Ansicht: server.view reicht, nur Lesen
     ("DELETE", "/"),  # nur Admin, siehe test_owner_cannot_create_or_delete_servers
 }
 UUID_RE = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
