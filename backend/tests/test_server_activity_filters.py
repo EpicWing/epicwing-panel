@@ -3,7 +3,10 @@ import io
 import re
 import uuid
 
+from sqlalchemy import select
+
 from app.api.audit import _csv_cell
+from app.models import AuditLog
 from tests import test_server_power as base
 from tests.test_server_activity import _add, _get
 
@@ -11,6 +14,7 @@ server = base.server
 broker = base.broker
 
 TAG = "filter-test"
+EXPORT = "server.activity.export"
 
 
 def _seed(db_session, server, n, action, actor=None, **extra):
@@ -28,6 +32,11 @@ def _ns(response):
 
 def _export(client, server, **params):
     return client.get(server.url + "/activity/export", params=params, headers=server.headers)
+
+
+def _export_entries(client, server):
+    items = _get(client, server, limit=100).json()["items"]
+    return [item for item in items if item["action"] == EXPORT]
 
 
 def test_group_filter(client, db_session, server):
@@ -105,6 +114,53 @@ def test_json_export_follows_the_filters(client, db_session, server):
 
 def test_export_rejects_unknown_formats(client, server):
     assert _export(client, server, format="xml").status_code == 422
+
+
+def test_csv_export_writes_one_entry(client, db_session, server):
+    _seed(db_session, server, 1, "server.file.write", path="plugins/a.dll")
+    response = _export(client, server, format="csv", groups=["files"])
+    assert response.status_code == 200, response.text
+
+    entries = _export_entries(client, server)
+    assert len(entries) == 1
+    details = entries[0]["details"]
+    assert details["format"] == "csv"
+    assert details["rows"] == len(list(csv.reader(io.StringIO(response.text)))) - 1
+    assert details["filters"] == {"groups": ["files"]}
+
+    row = db_session.scalars(select(AuditLog).where(AuditLog.action == EXPORT)).one()
+    assert row.target_type == "server"
+    assert row.target_id == str(server.id)
+
+
+def test_json_export_writes_the_filters(client, db_session, server):
+    _seed(db_session, server, 1, "server.power")
+    response = _export(
+        client,
+        server,
+        format="json",
+        groups=["power"],
+        since="2026-01-01",
+        until="2026-01-02",
+        q="n",
+    )
+    assert response.status_code == 200, response.text
+
+    details = _export_entries(client, server)[0]["details"]
+    assert details["format"] == "json"
+    assert details["filters"] == {
+        "groups": ["power"],
+        "since": "2026-01-01",
+        "until": "2026-01-02",
+        "q": "n",
+    }
+
+
+def test_failed_export_writes_no_entry(client, db_session, server):
+    assert _export(client, server, format="xml").status_code == 422
+    assert _export(client, server, since="2026-02-01", until="2026-01-01").status_code == 422
+    assert _export_entries(client, server) == []
+    assert db_session.scalars(select(AuditLog).where(AuditLog.action == EXPORT)).all() == []
 
 
 def test_csv_cells_cannot_start_a_formula():
