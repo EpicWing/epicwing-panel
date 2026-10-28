@@ -33,6 +33,9 @@ See [Limitations](#limitations).
   are kept in memory, so do not run several workers.
 - Backups are stored on the node. There is no S3 or cross-node storage yet.
 - No web hosting features (domains, vhosts, TLS).
+- Only the Minecraft EULA is handled. When a server stops because it is not accepted,
+  the console offers a dialog that links the EULA and sets `eula=true` after a click.
+  The panel does not record who accepted.
 - The agent needs access to the Docker socket, which is equivalent to root on the
   node. Run nodes on dedicated machines.
 

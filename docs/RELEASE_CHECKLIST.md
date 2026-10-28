@@ -43,7 +43,7 @@ Status dieses Audits: **nicht release-ready**. Die Checkboxen sind bewusst nicht
 - [ ] Schedule once, retry, DST and node-offline behavior.
 - [ ] Database host test/create/rotate/delete.
 - [ ] Egg import/export round-trip with official fixture corpus.
-- [ ] EULA/rules dialog blocks and records consent before install.
+- [ ] EULA dialog appears when the game stops for an unaccepted EULA, sets `eula=true` after the click and starts the server (the panel does not record who accepted, see README).
 - [ ] DDoS detection handles samples, stale data and offline status; mitigation scope is documented.
 
 ## Observability und Sicherheit
@@ -70,7 +70,7 @@ Status dieses Audits: **nicht release-ready**. Die Checkboxen sind bewusst nicht
 1. Keine frische Installation auf einem leeren Host.
 2. Kein Nachweis mit externem SFTP-Client, Backup-Restore und Direct Transfer.
 3. Das Backend läuft als root, der Code liegt unter /root.
-4. Die EULA-Zustimmung blockiert die Installation nicht und wird nicht gespeichert.
+4. Die EULA-Zustimmung wird nicht gespeichert (in der README als Einschränkung dokumentiert).
 5. Kein Update-/Rollback-Ablauf, keine Release-Artefakte, kein Git-Remote.
 6. Egg-Kompatibilität ist nicht mit einem Fixture-Korpus belegt.
 
@@ -82,5 +82,4 @@ Status dieses Audits: **nicht release-ready**. Die Checkboxen sind bewusst nicht
 - [ ] Mitgelieferte Eggs in `backend/fixtures/eggs/` mit Herkunft und Lizenz je Datei dokumentiert.
 - [ ] Agent-Binary auf allen Nodes auf dem Stand des Panels (Port-Check beim Start).
 - [ ] Egg-Seed (`seed-eggs` und Autostart auf leerer DB) auf einer frischen Installation getestet.
-- [ ] EULA-Dialog: Verhalten mit der Zeile "EULA/rules dialog" oben abgeglichen (er erscheint nach dem Abbruch, er sperrt den Install nicht).
 - [ ] Backend unter einem eigenen Benutzer statt root betreiben.
