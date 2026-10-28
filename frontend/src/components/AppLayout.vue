@@ -91,8 +91,10 @@ async function logout() {
       :class="props.minimal ? 'w-60' : 'w-60'"
     >
       <div class="flex items-center gap-2.5 py-5" :class="props.minimal ? 'justify-center px-3' : 'px-5'">
-        <LogoMark class="h-6 w-6 text-accent-500" />
-        <span class="text-base font-semibold tracking-tight">EpicWing</span>
+        <RouterLink to="/" class="flex items-center gap-2.5 rounded outline-offset-4">
+          <LogoMark class="h-6 w-6 text-accent-500" />
+          <span class="text-base font-semibold tracking-tight">EpicWing</span>
+        </RouterLink>
         <span
           v-if="area === 'admin'"
           class="ml-auto rounded bg-accent-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent-400"
@@ -157,8 +159,10 @@ async function logout() {
       <header class="border-b border-ink-700 bg-ink-900 md:hidden">
         <div class="flex items-center justify-between px-4 py-3">
           <div class="flex items-center gap-2">
-            <LogoMark class="h-5 w-5 text-accent-500" />
-            <span class="text-sm font-semibold">EpicWing</span>
+            <RouterLink to="/" class="flex items-center gap-2">
+              <LogoMark class="h-5 w-5 text-accent-500" />
+              <span class="text-sm font-semibold">EpicWing</span>
+            </RouterLink>
           </div>
           <button class="text-sm text-ink-300" @click="logout">{{ t("common.signOut") }}</button>
         </div>
