@@ -46,17 +46,11 @@ const history = ref({ cpu: [] as number[], ram: [] as number[], disk: [] as numb
 let previousNetwork: { rx: number; tx: number; at: number } | null = null;
 let socket: WebSocket | null = null;
 
-const sections = [
-  ["home", "Home"],
-  ["files", "Files"],
-  ["databases", "Databases"],
-  ["backups", "Backups"],
-  ["networking", "Networking"],
-  ["users", "Users"],
-  ["startup", "Startup"],
-  ["schedules", "Schedules"],
-  ["settings", "Settings"],
-  ["activity", "Activity"],
+const groups = [
+  { title: "Overview", items: [["home", "Home"], ["activity", "Timeline"]] },
+  { title: "Manage", items: [["files", "Files"], ["startup", "Launch"], ["networking", "Ports"], ["schedules", "Automations"]] },
+  { title: "Data", items: [["databases", "Databases"], ["backups", "Backups"]] },
+  { title: "Admin", items: [["users", "Access"], ["settings", "Settings"]] },
 ] as const;
 
 function message(cause: unknown): string {
@@ -223,15 +217,18 @@ onBeforeUnmount(() => socket?.close());
         <span aria-hidden="true">←</span>
         Back to servers
       </button>
-      <button
-        v-for="section in sections"
-        :key="section[0]"
-        class="mb-1 flex w-full items-center rounded-md px-3 py-2.5 text-left text-sm font-medium transition last:mb-0"
-        :class="active === section[0] ? 'bg-accent-500/15 text-accent-300' : 'text-ink-200 hover:bg-ink-800 hover:text-ink-100'"
-        @click="active = section[0]"
-      >
-        {{ section[1] }}
-      </button>
+      <div v-for="group in groups" :key="group.title" class="mb-5 last:mb-0">
+        <p class="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-wider text-ink-500">{{ group.title }}</p>
+        <button
+          v-for="item in group.items"
+          :key="item[0]"
+          class="mb-0.5 flex w-full items-center rounded-md px-3 py-2 text-left text-sm font-medium transition last:mb-0"
+          :class="active === item[0] ? 'bg-accent-500/15 text-accent-300' : 'text-ink-200 hover:bg-ink-800 hover:text-ink-100'"
+          @click="active = item[0]"
+        >
+          {{ item[1] }}
+        </button>
+      </div>
     </template>
 
     <template #sidebar-footer>
@@ -302,29 +299,29 @@ onBeforeUnmount(() => socket?.close());
         <template v-else>
           <FilesPanel v-if="active === 'files'" :server-id="server.id" :status="server.status" />
           <div v-else-if="active === 'databases'" class="space-y-6">
-            <div class="flex items-start justify-between gap-4"><div><h2 class="text-4xl font-bold">Databases</h2><p class="mt-2 text-sm text-ink-400">Create and manage databases for your server and configure access details.</p></div><button class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950">New Database</button></div>
+            <div class="flex items-start justify-between gap-4"><div><h2 class="text-2xl font-semibold">Databases</h2><p class="mt-2 text-sm text-ink-400">Create and manage databases for your server and configure access details.</p></div><button class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950">New Database</button></div>
             <div class="flex min-h-[24rem] items-center justify-center rounded-xl border border-ink-700 bg-ink-900 text-center"><div><div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-ink-800 text-2xl">▣</div><h3 class="text-lg font-semibold">No databases found</h3><p class="mt-2 text-sm text-ink-400">Your server does not have any databases yet.</p></div></div>
           </div>
 
           <div v-else-if="active === 'backups'" class="space-y-6">
-            <div class="flex items-start justify-between gap-4"><div><h2 class="text-4xl font-bold">Backups</h2><p class="mt-2 text-sm text-ink-400">Create and manage server backups to protect your data.</p></div><div class="flex gap-2"><button class="rounded-lg border border-bad/50 px-4 py-2 text-sm text-bad">Delete All Backups</button><button class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950">New Backup</button></div></div>
+            <div class="flex items-start justify-between gap-4"><div><h2 class="text-2xl font-semibold">Backups</h2><p class="mt-2 text-sm text-ink-400">Create and manage server backups to protect your data.</p></div><div class="flex gap-2"><button class="rounded-lg border border-bad/50 px-4 py-2 text-sm text-bad">Delete All Backups</button><button class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950">New Backup</button></div></div>
             <div class="rounded-xl border border-ink-700 bg-ink-900 p-5 text-sm text-ink-300">☐ &nbsp; Select backups</div>
           </div>
 
           <div v-else-if="active === 'networking'" class="space-y-6">
-            <div><h2 class="text-4xl font-bold">Networking</h2><p class="mt-2 text-sm text-ink-400">Configure network settings, IP addresses and ports your server can bind to.</p></div>
+            <div><h2 class="text-2xl font-semibold">Ports</h2><p class="mt-2 text-sm text-ink-400">Configure network settings, IP addresses and ports your server can bind to.</p></div>
             <div class="rounded-xl border border-ink-700 bg-ink-900 p-5"><div class="flex items-center justify-between"><h3 class="text-lg font-semibold">Port Allocations</h3><button class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950">New Allocation</button></div><div class="mt-5 rounded-lg border border-ink-700 bg-ink-950 p-4"><p class="font-mono text-sm text-ink-200">◉ &nbsp; {{ server.allocations[0]?.ip }}:{{ server.allocations[0]?.port }} <span class="ml-2 rounded bg-accent-500/15 px-2 py-1 text-xs text-accent-300">Primary</span></p></div></div>
           </div>
 
-          <div v-else-if="active === 'users'" class="space-y-6"><div class="flex items-start justify-between"><div><h2 class="text-4xl font-bold">Users</h2><p class="mt-2 text-sm text-ink-400">Manage user access to your server and permissions.</p></div><button class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950">New User</button></div><div class="flex min-h-[24rem] items-center justify-center rounded-xl border border-ink-700 bg-ink-900 text-center"><div><h3 class="text-lg font-semibold">No users found</h3><p class="mt-2 text-sm text-ink-400">No additional users have access to this server.</p></div></div></div>
+          <div v-else-if="active === 'users'" class="space-y-6"><div class="flex items-start justify-between"><div><h2 class="text-2xl font-semibold">Access</h2><p class="mt-2 text-sm text-ink-400">Manage user access to your server and permissions.</p></div><button class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950">New User</button></div><div class="flex min-h-[24rem] items-center justify-center rounded-xl border border-ink-700 bg-ink-900 text-center"><div><h3 class="text-lg font-semibold">No users found</h3><p class="mt-2 text-sm text-ink-400">No additional users have access to this server.</p></div></div></div>
 
           <StartupPanel v-else-if="active === 'startup'" :server-id="server.id" :status="server.status" />
 
-          <div v-else-if="active === 'schedules'" class="space-y-6"><div class="flex items-start justify-between"><div><h2 class="text-4xl font-bold">Schedules</h2><p class="mt-2 text-sm text-ink-400">Automate server tasks with scheduled commands and backups.</p></div><button class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950">New Schedule</button></div><div class="min-h-[20rem] rounded-xl border border-ink-700 bg-ink-900"></div></div>
+          <div v-else-if="active === 'schedules'" class="space-y-6"><div class="flex items-start justify-between"><div><h2 class="text-2xl font-semibold">Automations</h2><p class="mt-2 text-sm text-ink-400">Automate server tasks with scheduled commands and backups.</p></div><button class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950">New Schedule</button></div><div class="min-h-[20rem] rounded-xl border border-ink-700 bg-ink-900"></div></div>
 
-          <div v-else-if="active === 'settings'" class="space-y-6"><div><h2 class="text-4xl font-bold">Settings</h2><p class="mt-2 text-sm text-ink-400">Configure your server settings and maintenance actions.</p></div><div class="rounded-xl border border-ink-700 bg-ink-900 p-6"><h3 class="text-lg font-semibold">Server Details</h3><label class="mt-5 block text-sm text-ink-400">Server Name</label><input :value="server.name" class="mt-2 w-full rounded-lg border border-ink-700 bg-ink-950 px-4 py-3 text-sm text-ink-100" readonly /></div><div class="rounded-xl border border-ink-700 bg-ink-900 p-6"><h3 class="text-lg font-semibold">Reinstall Server</h3><p class="mt-2 text-sm text-ink-400">Reinstalling stops the server and runs its installation script again.</p><button class="mt-5 rounded-lg border border-bad/50 px-4 py-2 text-sm text-bad">Reinstall Server</button></div></div>
+          <div v-else-if="active === 'settings'" class="space-y-6"><div><h2 class="text-2xl font-semibold">Settings</h2><p class="mt-2 text-sm text-ink-400">Configure your server settings and maintenance actions.</p></div><div class="rounded-xl border border-ink-700 bg-ink-900 p-6"><h3 class="text-lg font-semibold">Server Details</h3><label class="mt-5 block text-sm text-ink-400">Server Name</label><input :value="server.name" class="mt-2 w-full rounded-lg border border-ink-700 bg-ink-950 px-4 py-3 text-sm text-ink-100" readonly /></div><div class="rounded-xl border border-ink-700 bg-ink-900 p-6"><h3 class="text-lg font-semibold">Reinstall Server</h3><p class="mt-2 text-sm text-ink-400">Reinstalling stops the server and runs its installation script again.</p><button class="mt-5 rounded-lg border border-bad/50 px-4 py-2 text-sm text-bad">Reinstall Server</button></div></div>
 
-          <div v-else-if="active === 'activity'" class="space-y-6"><div><h2 class="text-4xl font-bold">Activity Log</h2><p class="mt-2 text-sm text-ink-400">Monitor server activity and track actions performed on this server.</p></div><div class="min-h-[24rem] rounded-xl border border-ink-700 bg-ink-900 p-6"><h3 class="text-lg font-semibold">Events</h3><p class="mt-10 text-center text-sm text-ink-500">No activity events found.</p></div></div>
+          <div v-else-if="active === 'activity'" class="space-y-6"><div><h2 class="text-2xl font-semibold">Timeline</h2><p class="mt-2 text-sm text-ink-400">Monitor server activity and track actions performed on this server.</p></div><div class="min-h-[24rem] rounded-xl border border-ink-700 bg-ink-900 p-6"><h3 class="text-lg font-semibold">Events</h3><p class="mt-10 text-center text-sm text-ink-500">No activity events found.</p></div></div>
         </template>
       </main>
     </div>
