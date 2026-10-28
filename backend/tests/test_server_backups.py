@@ -1,4 +1,6 @@
 import importlib
+import re
+import sys
 import uuid
 
 import pytest
@@ -7,7 +9,7 @@ from sqlalchemy import select
 from app.models import AuditLog, Server
 from app.models.server import ServerBackup
 from tests import test_server_power as base
-from tests.test_server_files import FileBroker
+from tests.test_server_files import BlobBroker, FileBroker
 
 # Der Fixture "server" legt einen Server mit Node, Egg und Allocation an.
 server = base.server
@@ -217,3 +219,117 @@ def test_delete_removes_the_file_and_the_row(client, db_session, ready, broker):
     assert response.status_code == 204, response.text
     assert broker.calls == [("backup.delete", {"name": _name(ready), "id": backup_id})]
     assert _rows(db_session) == []
+
+
+# --- Download -----------------------------------------------------------------
+
+DOWNLOAD_NAME = re.compile(r'attachment; filename="(backup-[0-9a-f]{8}\.tar\.gz)"')
+
+
+class EmptyChunkBroker(BlobBroker):
+    """Meldet eine Größe, schickt aber keine Daten: der Probe-Block ist dann unvollständig."""
+
+    async def send(self, node_id, action, params, timeout=90):
+        result = await super().send(node_id, action, params, timeout)
+        result.data["data"] = ""
+        return result
+
+
+def _serve(monkeypatch, content, cls=BlobBroker):
+    """Ersetzt den Broker überall, wo der Download ihn nutzt.
+
+    Der Fixture "ready" hat in manchen Modulen schon einen FileBroker eingesetzt,
+    dazu kommt das Modul, in dem _send liegt.
+    """
+    from app.agentlink.commands import broker as real
+
+    fake = cls(content)
+    backups = importlib.import_module("app.api.backups")
+    holders = {backups, sys.modules[backups._send.__module__]}
+    for name, module in list(sys.modules.items()):
+        if not name.startswith("app."):
+            continue
+        current = getattr(module, "broker", None)
+        if current is real or isinstance(current, FileBroker):
+            holders.add(module)
+    for module in holders:
+        if hasattr(module, "broker"):
+            monkeypatch.setattr(module, "broker", fake)
+    assert backups.broker is fake
+    return fake
+
+
+def _download(client, server, backup_id):
+    return client.get(f"{server.url}/backups/{backup_id}/download", headers=server.headers)
+
+
+def _download_audits(db_session):
+    db_session.expire_all()
+    rows = db_session.scalars(select(AuditLog))
+    return [row for row in rows if "backup" in row.action and "download" in row.action]
+
+
+def test_download_streams_the_whole_archive(client, db_session, ready, monkeypatch):
+    content = bytes(range(256)) * 200 + b"tail"
+    fake = _serve(monkeypatch, content)
+    backup_id = _add(db_session, ready, status="ok")
+    response = _download(client, ready, backup_id)
+    assert response.status_code == 200, response.text
+    assert response.content == content
+    assert response.headers["content-length"] == str(len(content))
+    assert response.headers["content-type"] == "application/gzip"
+    assert response.headers["cache-control"] == "no-store"
+    assert DOWNLOAD_NAME.fullmatch(response.headers["content-disposition"])
+    assert sorted(params["offset"] for _, params in fake.calls) == list(
+        range(0, len(content), 8 * 1024)
+    )
+    assert {action for action, _ in fake.calls} == {"backup.read"}
+    assert {params["id"] for _, params in fake.calls} == {backup_id}
+
+
+def test_download_of_an_empty_archive(client, db_session, ready, monkeypatch):
+    _serve(monkeypatch, b"")
+    response = _download(client, ready, _add(db_session, ready, status="ok"))
+    assert response.status_code == 200, response.text
+    assert response.content == b""
+    assert response.headers["content-length"] == "0"
+
+
+def test_download_name_is_random_and_hides_the_backup_name(client, db_session, ready, monkeypatch):
+    _serve(monkeypatch, b"x")
+    backup_id = _add(db_session, ready, status="ok", name="Secret Name")
+    responses = [_download(client, ready, backup_id) for _ in range(2)]
+    assert [r.status_code for r in responses] == [200, 200], [r.text for r in responses]
+    names = {DOWNLOAD_NAME.fullmatch(r.headers["content-disposition"])[1] for r in responses}
+    assert len(names) == 2
+    assert all("Secret" not in name for name in names)
+
+
+def test_download_is_audited_once(client, db_session, ready, monkeypatch):
+    _serve(monkeypatch, bytes(20000))
+    response = _download(client, ready, _add(db_session, ready, status="ok"))
+    assert response.status_code == 200, response.text
+    assert len(_download_audits(db_session)) == 1
+
+
+def test_unfinished_backup_cannot_be_downloaded(client, db_session, ready, monkeypatch):
+    fake = _serve(monkeypatch, b"data")
+    response = _download(client, ready, _add(db_session, ready))
+    assert response.status_code == 409, response.text
+    assert fake.calls == []
+    assert _download_audits(db_session) == []
+
+
+def test_unknown_backup_gives_404(client, db_session, ready, monkeypatch):
+    fake = _serve(monkeypatch, b"data")
+    response = _download(client, ready, uuid.uuid4())
+    assert response.status_code == 404, response.text
+    assert fake.calls == []
+    assert _download_audits(db_session) == []
+
+
+def test_incomplete_first_chunk_gives_502(client, db_session, ready, monkeypatch):
+    _serve(monkeypatch, b"x" * 100, EmptyChunkBroker)
+    response = _download(client, ready, _add(db_session, ready, status="ok"))
+    assert response.status_code == 502, response.text
+    assert _download_audits(db_session) == []
