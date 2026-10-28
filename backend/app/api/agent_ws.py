@@ -119,7 +119,7 @@ async def _heartbeat_loop(websocket: WebSocket, db: Session, node_id: uuid.UUID)
             await websocket.close(code=protocol.WS_UNSUPPORTED)
             return
 
-        if len(raw) > protocol.MAX_MESSAGE_CHARS:
+        if len(raw) > protocol.MAX_FRAME_CHARS:
             await websocket.close(code=protocol.WS_TOO_BIG)
             return
 
