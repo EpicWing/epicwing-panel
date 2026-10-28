@@ -57,3 +57,4 @@ class FailureLimiter:
 login_ip_limiter = FailureLimiter(max_failures=20, window_seconds=900)
 login_email_limiter = FailureLimiter(max_failures=5, window_seconds=900)
 password_change_limiter = FailureLimiter(max_failures=5, window_seconds=900)
+enroll_limiter = FailureLimiter(max_failures=10, window_seconds=900)

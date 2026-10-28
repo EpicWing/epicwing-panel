@@ -15,6 +15,7 @@ from app.main import app  # noqa: E402
 from app.models import User  # noqa: E402
 from app.security.passwords import hash_password  # noqa: E402
 from app.security.ratelimit import (  # noqa: E402
+    enroll_limiter,
     login_email_limiter,
     login_ip_limiter,
     password_change_limiter,
@@ -41,6 +42,7 @@ def client(db_session):
     login_ip_limiter.clear()
     login_email_limiter.clear()
     password_change_limiter.clear()
+    enroll_limiter.clear()
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()

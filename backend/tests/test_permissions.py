@@ -13,7 +13,12 @@ ADMIN_EMAIL = "admin@example.test"
 USER_EMAIL = "user@example.test"
 
 # Routen, die ohne Anmeldung erreichbar sein dürfen.
-PUBLIC_ROUTES = {("/api/health", "GET"), ("/api/auth/login", "POST")}
+PUBLIC_ROUTES = {
+    ("/api/health", "GET"),
+    ("/api/auth/login", "POST"),
+    # Der Agent hat noch kein Konto und weist sich mit einem einmaligen Token aus.
+    ("/api/agent/enroll", "POST"),
+}
 
 
 @pytest.fixture

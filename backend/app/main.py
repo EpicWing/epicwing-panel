@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import audit, auth, health, nodes, users
+from app.api import agent, audit, auth, health, nodes, users
 from app.config import get_settings
 
 _SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
@@ -37,7 +37,7 @@ def create_app() -> FastAPI:
             and origin
             and origin not in settings.allowed_origins
         ):
-            return JSONResponse({"detail": "Origin nicht erlaubt."}, status_code=403)
+            return JSONResponse({"detail": "Origin not allowed."}, status_code=403)
         return await call_next(request)
 
     app.include_router(health.router, prefix="/api")
@@ -45,6 +45,7 @@ def create_app() -> FastAPI:
     app.include_router(users.router, prefix="/api")
     app.include_router(audit.router, prefix="/api")
     app.include_router(nodes.router, prefix="/api")
+    app.include_router(agent.router, prefix="/api")
     return app
 
 
