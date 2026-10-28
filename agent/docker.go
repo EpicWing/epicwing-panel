@@ -46,6 +46,7 @@ type ContainerPolicy struct {
 	PortMin       int
 	PortMax       int
 	ImageCaps     map[string][]string
+	BindIP        string
 }
 
 type dockerRunner func(ctx context.Context, args ...string) (string, error)
@@ -135,7 +136,7 @@ func (m *containerManager) createArgs(spec ContainerSpec) []string {
 		args = append(args, "--cap-add", c)
 	}
 	for _, p := range spec.Ports {
-		args = append(args, "-p", fmt.Sprintf("%d:%d/%s", p.Host, p.Container, p.Proto))
+		args = append(args, "-p", fmt.Sprintf("%s:%d:%d/%s", m.bindAddr(), p.Host, p.Container, p.Proto))
 	}
 	keys := make([]string, 0, len(spec.Env))
 	for k := range spec.Env {

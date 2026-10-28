@@ -35,6 +35,7 @@ type policyFile struct {
 	PortMin       int                 `json:"port_min"`
 	PortMax       int                 `json:"port_max"`
 	ImageCaps     map[string][]string `json:"image_caps"`
+	BindIP        string              `json:"bind_ip"`
 }
 
 // loadContainerPolicy reads policy.json next to the config file.
@@ -64,7 +65,11 @@ func loadPolicyFile(file string) ContainerPolicy {
 		log.Printf("invalid image_caps in %s, creating containers is disabled", file)
 		return deny
 	}
-	return ContainerPolicy{AllowedImages: p.AllowedImages, PortMin: p.PortMin, PortMax: p.PortMax, ImageCaps: p.ImageCaps}
+	if p.BindIP != "" && !validBindIP(p.BindIP) {
+		log.Printf("invalid bind_ip in %s, creating containers is disabled", file)
+		return deny
+	}
+	return ContainerPolicy{AllowedImages: p.AllowedImages, PortMin: p.PortMin, PortMax: p.PortMax, ImageCaps: p.ImageCaps, BindIP: p.BindIP}
 }
 
 type commandDispatcher struct {

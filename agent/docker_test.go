@@ -74,7 +74,7 @@ func TestContainerCreateArgs(t *testing.T) {
 		"--label epicwing.managed=true",
 		"--cap-drop ALL",
 		"--security-opt no-new-privileges",
-		"-p 25001:80/tcp",
+		"-p 127.0.0.1:25001:80/tcp",
 		"--memory 256m",
 	} {
 		if !strings.Contains(joined, want) {
