@@ -17,6 +17,7 @@ frontend/dist/
 
 # Go
 agent/bin/
+agent/agent
 
 # Editor
 .idea/
