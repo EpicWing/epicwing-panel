@@ -135,19 +135,44 @@ onMounted(load);
 </script>
 
 <template>
-  <div class="space-y-6">
-    <div>
-      <h2 class="text-4xl font-bold">Startup Settings</h2>
-      <p class="mt-2 text-sm text-ink-400">Configure how your server starts and manage its environment variables.</p>
+  <div class="space-y-4">
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <h2 class="text-2xl font-semibold">Launch</h2>
+        <p class="mt-2 text-sm text-ink-400">Configure how your server starts and manage its environment variables.</p>
+      </div>
+      <div v-if="data" class="flex items-center gap-2">
+        <p v-if="saved && !dirty" class="mr-1 text-sm text-ok">Saved.</p>
+        <button
+          v-if="dirty"
+          class="rounded-lg border border-ink-700 px-4 py-2 text-sm text-ink-300 transition hover:bg-ink-800 disabled:opacity-40"
+          :disabled="saving"
+          @click="discard"
+        >
+          Discard
+        </button>
+        <button
+          class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950 transition hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-40"
+          :disabled="!dirty || saving"
+          @click="save"
+        >
+          {{ saving ? "Saving…" : "Save changes" }}
+        </button>
+      </div>
     </div>
+
+    <p v-if="error && data" class="rounded-lg border border-bad/30 bg-bad/10 px-4 py-2 text-sm text-bad">{{ error }}</p>
+    <p v-if="data && running" class="rounded-lg border border-ink-700 bg-ink-900 px-4 py-2 text-sm text-ink-400">
+      The server is running. Changes apply on the next start.
+    </p>
 
     <div v-if="loading" class="rounded-xl border border-ink-700 bg-ink-900 p-8 text-ink-400">Loading startup settings…</div>
     <div v-else-if="!data" class="rounded-xl border border-bad/30 bg-bad/10 p-8 text-bad">{{ error || "Startup settings could not be loaded." }}</div>
 
     <template v-else>
-      <section class="rounded-xl border border-ink-700 bg-ink-900 p-6">
+      <section class="rounded-xl border border-ink-700 bg-ink-900 p-4">
         <div class="flex flex-wrap items-center justify-between gap-3">
-          <h3 class="text-lg font-semibold">Startup command</h3>
+          <h3 class="text-base font-semibold">Startup command</h3>
           <button
             v-if="startup !== data.egg_startup"
             class="text-xs text-ink-400 transition hover:text-accent-300"
@@ -159,20 +184,20 @@ onMounted(load);
         <p class="mt-2 text-sm text-ink-400">
           This is the command the server runs. Use {{ placeholderHint }} to insert the value of a variable.
         </p>
-        <pre class="mt-4 overflow-x-auto whitespace-pre-wrap break-all rounded-lg bg-ink-950 p-4 font-mono text-sm text-ink-200">{{ commandPreview }}</pre>
+        <pre class="mt-3 overflow-x-auto whitespace-pre-wrap break-all rounded-lg bg-ink-950 px-3 py-2 font-mono text-xs text-ink-200">{{ commandPreview }}</pre>
         <label class="mt-5 block text-xs uppercase tracking-wider text-ink-400" for="startup-template">Command template</label>
         <textarea
           id="startup-template"
           v-model="startup"
-          rows="3"
+          rows="2"
           spellcheck="false"
-          class="mt-2 w-full rounded-lg border border-ink-700 bg-ink-950 px-4 py-3 font-mono text-sm text-ink-100 outline-none focus:border-accent-500"
+          class="mt-2 w-full rounded-lg border border-ink-700 bg-ink-950 px-3 py-2 font-mono text-xs text-ink-100 outline-none focus:border-accent-500"
         />
       </section>
 
-      <section class="rounded-xl border border-ink-700 bg-ink-900 p-6">
+      <section class="rounded-xl border border-ink-700 bg-ink-900 p-4">
         <div class="flex flex-wrap items-center justify-between gap-3">
-          <h3 class="text-lg font-semibold">Docker image</h3>
+          <h3 class="text-base font-semibold">Docker image</h3>
           <button
             v-if="image !== data.egg_image"
             class="text-xs text-ink-400 transition hover:text-accent-300"
@@ -184,17 +209,17 @@ onMounted(load);
         <input
           v-model="image"
           spellcheck="false"
-          class="mt-4 w-full rounded-lg border border-ink-700 bg-ink-950 px-4 py-3 font-mono text-sm text-ink-100 outline-none focus:border-accent-500"
+          class="mt-3 w-full rounded-lg border border-ink-700 bg-ink-950 px-3 py-2 font-mono text-xs text-ink-100 outline-none focus:border-accent-500"
         />
       </section>
 
       <section v-if="data.variables.length">
-        <h3 class="mb-3 text-lg font-semibold">Variables</h3>
-        <div class="grid gap-4 md:grid-cols-2">
+        <h3 class="mb-3 text-base font-semibold">Variables</h3>
+        <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           <div
             v-for="variable in data.variables"
             :key="variable.env_variable"
-            class="rounded-xl border bg-ink-900 p-5"
+            class="rounded-xl border bg-ink-900 p-4"
             :class="fieldErrors[variable.env_variable] ? 'border-bad/60' : 'border-ink-700'"
           >
             <div class="flex items-start justify-between gap-3">
@@ -202,13 +227,13 @@ onMounted(load);
               <span v-if="!variable.user_editable" class="rounded bg-ink-800 px-2 py-0.5 text-[10px] uppercase tracking-wider text-ink-400">Locked</span>
             </div>
             <p class="mt-1 font-mono text-xs text-accent-300">{{ variable.env_variable }}</p>
-            <p v-if="variable.description" class="mt-2 text-sm text-ink-400">{{ variable.description }}</p>
+            <p v-if="variable.description" class="mt-1.5 text-xs leading-5 text-ink-400">{{ variable.description }}</p>
 
             <select
               v-if="choices(variable).length"
               v-model="values[variable.env_variable]"
               :disabled="!variable.user_editable"
-              class="mt-4 w-full rounded-lg border border-ink-700 bg-ink-950 px-4 py-2.5 text-sm text-ink-100 outline-none focus:border-accent-500 disabled:opacity-50"
+              class="mt-3 w-full rounded-lg border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-ink-100 outline-none focus:border-accent-500 disabled:opacity-50"
             >
               <option v-for="choice in choices(variable)" :key="choice" :value="choice">{{ choice }}</option>
             </select>
@@ -217,7 +242,7 @@ onMounted(load);
               v-model="values[variable.env_variable]"
               :readonly="!variable.user_editable"
               spellcheck="false"
-              class="mt-4 w-full rounded-lg border border-ink-700 bg-ink-950 px-4 py-2.5 font-mono text-sm text-ink-100 outline-none focus:border-accent-500 read-only:opacity-50"
+              class="mt-3 w-full rounded-lg border border-ink-700 bg-ink-950 px-3 py-2 font-mono text-xs text-ink-100 outline-none focus:border-accent-500 read-only:opacity-50"
             />
 
             <p v-if="fieldErrors[variable.env_variable]" class="mt-2 text-xs text-bad">{{ fieldErrors[variable.env_variable] }}</p>
@@ -235,27 +260,6 @@ onMounted(load);
         </div>
       </section>
 
-      <p v-if="error" class="rounded-lg border border-bad/30 bg-bad/10 px-4 py-2 text-sm text-bad">{{ error }}</p>
-
-      <div class="flex flex-wrap items-center gap-3">
-        <button
-          class="rounded-lg bg-accent-500 px-5 py-2.5 text-sm font-semibold text-ink-950 transition hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-40"
-          :disabled="!dirty || saving"
-          @click="save"
-        >
-          {{ saving ? "Saving…" : "Save changes" }}
-        </button>
-        <button
-          v-if="dirty"
-          class="rounded-lg border border-ink-700 px-5 py-2.5 text-sm text-ink-300 transition hover:bg-ink-800 disabled:opacity-40"
-          :disabled="saving"
-          @click="discard"
-        >
-          Discard
-        </button>
-        <p v-if="saved && !dirty" class="text-sm text-ok">Saved.<span v-if="running"> Restart the server to apply the changes.</span></p>
-        <p v-else-if="running" class="text-sm text-ink-400">The server is running. Changes apply on the next start.</p>
-      </div>
     </template>
   </div>
 </template>
