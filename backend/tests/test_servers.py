@@ -120,7 +120,8 @@ def test_update_server(client, env):
     body = response.json()
     assert (body["name"], body["memory_mb"]) == ("Web 2", 2048)
     assert body["variables"] == {"SERVER_NAME": "My Server", "MOTD": "New"}
-    assert client.patch(url, json={"variables": {"NOPE": "x"}}, headers=env.headers).status_code == 422
+    unknown = client.patch(url, json={"variables": {"NOPE": "x"}}, headers=env.headers)
+    assert unknown.status_code == 422
     assert client.patch(url, json={"name": None}, headers=env.headers).status_code == 422
 
 
@@ -144,7 +145,8 @@ def test_running_server_cannot_be_deleted(client, db_session, env):
 def test_things_in_use_cannot_be_deleted(client, env):
     server_id = _post(client, env).json()["id"]
     headers = env.headers
-    assert client.delete(f"/api/allocations/{env.allocations[0]}", headers=headers).status_code == 409
+    allocation_url = f"/api/allocations/{env.allocations[0]}"
+    assert client.delete(allocation_url, headers=headers).status_code == 409
     assert client.delete(f"/api/eggs/{env.egg_id}", headers=headers).status_code == 409
     assert client.delete(f"/api/nodes/{env.node_id}", headers=headers).status_code == 409
     assert client.delete(f"/api/servers/{server_id}", headers=headers).status_code == 204
