@@ -263,7 +263,7 @@ function isOnline(): boolean {
 // Axis labels follow the scaling of the line: top = peak, middle = half, bottom = 0.
 function axisLabel(key: string, fraction: number): string {
   const values = history.value[key as keyof typeof history.value] ?? [];
-  const max = isOnline() ? scalePeak(key, values) : key === "cpu" ? 1 : key === "ram" && (server.value?.memory_mb ?? 0) > 0 ? scalePeak(key, []) : 0;
+  const max = isOnline() && values.length > 0 ? scalePeak(key, values) : key === "cpu" ? 1 : key === "ram" && (server.value?.memory_mb ?? 0) > 0 ? scalePeak(key, []) : 0;
   const value = max * fraction;
   if (key === "cpu") return `${value.toFixed(2)}%`;
   if (value > 0) return formatBytes(value);
@@ -272,7 +272,11 @@ function axisLabel(key: string, fraction: number): string {
 
 function chartPoints(key: string): string {
   const values = history.value[key as keyof typeof history.value] ?? [];
-  if (!isOnline() || values.length < 2) return "0,72 300,72";
+  if (!isOnline() || values.length === 0) return "0,72 300,72";
+  if (values.length === 1) {
+    const y = 72 - (values[0] / scalePeak(key, values)) * 64;
+    return `0,${y} 300,${y}`;
+  }
   const max = scalePeak(key, values);
   return values.map((value, index) => `${300 - (values.length - 1 - index) * (300 / 59)},${72 - (value / max) * 64}`).join(" ");
 }
