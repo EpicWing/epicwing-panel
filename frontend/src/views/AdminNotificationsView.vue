@@ -127,15 +127,15 @@ onMounted(() => void load());
 
 <template>
   <AppLayout area="admin" :title="t('notify.title')" :subtitle="t('notify.subtitle')">
-    <p v-if="error" role="alert" class="mb-6 rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">
+    <p v-if="error" role="alert" class="mx-auto mb-6 max-w-6xl rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">
       {{ error }}
     </p>
-    <p v-if="notice" role="status" class="mb-6 rounded-md border border-ink-700 bg-ink-900 px-3 py-2 text-sm">
+    <p v-if="notice" role="status" class="mx-auto mb-6 max-w-6xl rounded-md border border-ink-700 bg-ink-900 px-3 py-2 text-sm">
       {{ notice }}
     </p>
     <p v-if="loading" class="text-sm text-ink-400">…</p>
 
-    <div v-else class="grid max-w-6xl items-start gap-6 xl:grid-cols-2">
+    <div v-else class="mx-auto grid max-w-6xl items-start gap-6 xl:grid-cols-2">
       <form class="space-y-6 rounded-xl border border-ink-700 bg-ink-900 p-6" @submit.prevent="save">
         <div>
           <h3 class="text-base font-semibold">{{ t("notify.alertsTitle") }}</h3>
