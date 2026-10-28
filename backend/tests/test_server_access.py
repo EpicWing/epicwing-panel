@@ -86,6 +86,7 @@ DENIED_FOR_VIEWERS = [
     ("POST", "/files/folder", {}),
     ("POST", "/files/rename", {}),
     ("POST", "/files/delete", {}),
+    ("POST", "/files/decompress", {}),
     ("GET", "/allocations", None),
     ("GET", "/allocations/free", None),
     ("POST", "/allocations", {}),

@@ -34,11 +34,23 @@ def test_ports_from_1024_are_allowed(client, user):
     assert [r["port"] for r in client.get(_url(node_id)).json()] == [1024, 7777, 27015, 65535]
 
 
-def test_ports_outside_the_node_range_are_rejected(client, user):
+def test_any_port_from_1024_to_65535_is_allowed(client, user):
     headers = _login(client, user)
     node_id = _create(client, headers)
     for port in (1024, 24999, 26000, 65535):
         body = {"ip": "45.142.104.41", "port_start": port}
+        assert client.post(_url(node_id), json=body, headers=headers).status_code == 201
+
+
+def test_ports_outside_1024_to_65535_are_rejected(client, user):
+    headers = _login(client, user)
+    node_id = _create(client, headers)
+    for body in (
+        {"ip": "45.142.104.41", "port_start": 0},
+        {"ip": "45.142.104.41", "port_start": 1023},
+        {"ip": "45.142.104.41", "port_start": 65536},
+        {"ip": "45.142.104.41", "port_start": 65530, "port_end": 65536},
+    ):
         assert client.post(_url(node_id), json=body, headers=headers).status_code == 422
     assert client.get(_url(node_id)).json() == []
 

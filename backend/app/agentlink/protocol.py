@@ -32,6 +32,7 @@ COMMAND_ACTIONS = (
     "file.write",
     "file.mkdir",
     "file.rename",
+    "file.decompress",
     "file.delete",
     "backup.create",
     "backup.restore",
