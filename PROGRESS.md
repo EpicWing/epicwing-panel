@@ -37,3 +37,4 @@ Repo: /home/epicdev/forge, Branch: feature/server-install
 - Fertig und getestet: Backup-Transfer zwischen Servern derselben Node (Agent backup.copy, Route /transfer, Dialog), Avatar (Migration 0012, Settings, Seitenleiste, Timeline), Copyright-Footer, Admin-Navigation, Admin-Overview mit echten Daten, Locations.
 - Live im Panel: Backend mit Migration 0012 und Frontend. Der Agent läuft noch ohne backup.copy (Rollout offen).
 - Als Nächstes: Panel Settings (2FA-Pflicht), Monitoring-Reiter, Webhook-Benachrichtigungen mit Feed, API Keys.
+- Panel settings (Name, Hilfe-Links) fertig und getestet, Migration 0013. Als Nächstes: 2FA-Pflicht, Monitoring-Reiter, Webhook-Benachrichtigungen, API Keys.
