@@ -146,7 +146,7 @@ function area(values: number[]): string {
         <svg viewBox="0 0 24 24" class="h-6 w-6 text-accent-400" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.4 8.4-8 9-4.6-.6-8-4-8-9V6l8-3z" /><path d="M9 12l2 2 4-4" /></svg>
         DDoS
       </h2>
-      <p class="mt-2 text-sm text-ink-400">Live traffic of this server and detection of unusual incoming traffic and console floods.</p>
+      <p class="mt-2 text-sm text-ink-400">Live traffic, plus alerts for unusual traffic and console floods.</p>
     </div>
 
     <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
