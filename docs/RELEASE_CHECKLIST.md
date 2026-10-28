@@ -8,17 +8,17 @@ Status dieses Audits: **nicht release-ready**. Die Checkboxen sind bewusst nicht
 - [ ] Verifiziert, dass Release aus `/root/forge/forge` und nicht aus `/home/epicdev/forge` gebaut wird.
 - [ ] Panel-, Frontend- und Agent-Version/Commit sind aufeinander abgestimmt.
 - [ ] Keine Secrets, `.env`-Inhalte, privaten Schlüssel, Passwörter oder Tokens in Artefakten, Logs und Docs.
-- [ ] Lizenzdateien, Third-Party-Notices und Changelog geprüft.
+- [ ] Lizenzdateien, Third-Party-Notices und Changelog geprüft (LICENSE, CHANGELOG, SECURITY vorhanden).
 
 ## Build und automatisierte Qualität
 
-- [ ] `backend/.venv/bin/pytest -q` grün.
-- [ ] `ruff check .` grün.
-- [ ] `ruff format --check .` grün.
-- [ ] `npm test` und `vue-tsc --noEmit` grün.
-- [ ] `npm run build` grün.
-- [ ] `npm audit --audit-level=high` ohne High/Critical.
-- [ ] `go test ./...`, `go vet ./...`, `go build ./...` grün.
+- [x] `backend/.venv/bin/pytest -q` grün.
+- [x] `ruff check .` grün.
+- [x] `ruff format --check .` grün.
+- [x] `npm test` und `vue-tsc --noEmit` grün.
+- [x] `npm run build` grün.
+- [x] `npm audit --audit-level=high` ohne High/Critical.
+- [x] `go test ./...`, `go vet ./...`, `go build ./...` grün.
 - [ ] Container-/Go-/Python-Artefakte reproduzierbar und mit SBOM/CVE-Bericht gebaut.
 
 ## Frische Installation und Upgrade
@@ -65,13 +65,14 @@ Status dieses Audits: **nicht release-ready**. Die Checkboxen sind bewusst nicht
 - [ ] Stop criteria and incident contact defined.
 - [ ] Post-release health, agent heartbeat, install, console, SFTP and backup observed.
 
-## Current blockers
+## Current blockers (Stand 2026-10-28)
 
-1. Ruff is red: 12 errors; formatting check reports 49 files.
-2. No fresh-host, real-Docker-node, external-SFTP or end-to-end backup proof.
-3. No complete production installer/update/rollback contract.
-4. Pterodactyl Egg compatibility has not been proven with a fixture corpus.
-5. Documentation and current source have drifted (`README.md`, `PROGRESS.md`, old review).
+1. Keine frische Installation auf einem leeren Host.
+2. Kein Nachweis mit externem SFTP-Client, Backup-Restore und Direct Transfer.
+3. Das Backend läuft als root, der Code liegt unter /root.
+4. Die EULA-Zustimmung blockiert die Installation nicht und wird nicht gespeichert.
+5. Kein Update-/Rollback-Ablauf, keine Release-Artefakte, kein Git-Remote.
+6. Egg-Kompatibilität ist nicht mit einem Fixture-Korpus belegt.
 
 
 ## Nachträge aus dem Betrieb
@@ -82,3 +83,4 @@ Status dieses Audits: **nicht release-ready**. Die Checkboxen sind bewusst nicht
 - [ ] Agent-Binary auf allen Nodes auf dem Stand des Panels (Port-Check beim Start).
 - [ ] Egg-Seed (`seed-eggs` und Autostart auf leerer DB) auf einer frischen Installation getestet.
 - [ ] EULA-Dialog: Verhalten mit der Zeile "EULA/rules dialog" oben abgeglichen (er erscheint nach dem Abbruch, er sperrt den Install nicht).
+- [ ] Backend unter einem eigenen Benutzer statt root betreiben.
