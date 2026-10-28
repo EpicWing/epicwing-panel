@@ -97,6 +97,13 @@ DENIED_FOR_VIEWERS = [
     ("PUT", "/access/00000000-0000-4000-8000-000000000002", {}),
     ("DELETE", "/access/00000000-0000-4000-8000-000000000002", None),
     ("GET", "/access/candidates", None),
+    ("GET", "/backups", None),
+    ("POST", "/backups", {}),
+    ("GET", "/backups/00000000-0000-4000-8000-000000000003", None),
+    ("PATCH", "/backups/00000000-0000-4000-8000-000000000003", {"is_locked": True}),
+    ("DELETE", "/backups/00000000-0000-4000-8000-000000000003", None),
+    ("POST", "/backups/00000000-0000-4000-8000-000000000003/restore", None),
+    ("GET", "/backups/00000000-0000-4000-8000-000000000003/restore", None),
 ]
 
 # Routen mit Server-ID, die absichtlich nicht in der Matrix stehen.
@@ -368,3 +375,19 @@ def test_access_candidates_exclude_owner_members_and_self(client, db_session, wo
     _grant(db_session, world, world.member)
     again = client.get(world.url + "/access/candidates", headers=headers).json()
     assert "member@example.test" not in {row["email"] for row in again}
+
+
+def test_backup_view_does_not_allow_changes(client, db_session, world):
+    _grant(db_session, world, world.member, P.BACKUPS_VIEW)
+    headers = _login(client, world.member)
+    backup = "00000000-0000-4000-8000-000000000003"
+    assert client.get(world.url + "/backups", headers=headers).status_code == 200
+    for method, path, body in [
+        ("POST", "/backups", {}),
+        ("PATCH", f"/backups/{backup}", {"is_locked": True}),
+        ("DELETE", f"/backups/{backup}", None),
+        ("POST", f"/backups/{backup}/restore", None),
+        ("GET", f"/backups/{backup}/restore", None),
+    ]:
+        response = client.request(method, world.url + path, json=body, headers=headers)
+        assert response.status_code == 403, (method, path, response.status_code)

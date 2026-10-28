@@ -152,6 +152,9 @@ func (d *commandDispatcher) execute(ctx context.Context, action string, params j
 		}
 		switch action {
 		case "container.start":
+			if bkJobs.isBusy(p.Name) {
+				return nil, errors.New("a backup operation is running for this server")
+			}
 			d.announce(p.Name, "Server marked as starting...")
 			return nil, d.containers.Start(ctx, p.Name)
 		case "container.stop":
