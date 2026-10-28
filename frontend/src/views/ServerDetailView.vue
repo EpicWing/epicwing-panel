@@ -461,7 +461,7 @@ onMounted(async () => {
         <div v-if="active === 'home'" class="flex flex-wrap items-center justify-start gap-3">
           <div>
             <span class="inline-flex items-center gap-2 rounded-full border border-ink-700 bg-ink-900 px-3 py-1.5 text-sm font-medium text-ink-200 shadow-sm">
-              <span class="h-2 w-2 rounded-full" :class="server.status === 'running' ? 'bg-ok' : server.status === 'starting' ? 'bg-warn' : 'bg-bad'" />
+              <span class="h-2 w-2 rounded-full" :class="server.status === 'running' ? 'bg-ok' : server.status === 'starting' || server.status === 'installing' ? 'bg-warn animate-pulse' : 'bg-bad'" />
               {{ server.status === 'running' ? 'Running' : server.status === 'starting' ? 'Starting' : server.status === 'error' ? 'Error' : server.status === 'new' ? 'Not installed' : server.status === 'installing' ? 'Installing' : 'Offline' }}
             </span>
           </div>
@@ -482,7 +482,7 @@ onMounted(async () => {
           <p v-if="shownError()" class="border-t border-bad/30 bg-bad/10 px-4 py-2 text-xs text-bad">{{ shownError() }}</p>
           <details v-if="errorTechnical" class="border-t border-bad/30 bg-bad/10 px-4 py-2 text-xs text-bad"><summary class="cursor-pointer select-none">Technical details (visible to admins only)</summary><pre class="mt-2 whitespace-pre-wrap break-all font-mono">{{ errorTechnical }}</pre></details>
           <form class="flex gap-2 border-t border-ink-700 p-3" @submit.prevent="sendCommand">
-            <input v-model="command" class="min-w-0 flex-1 rounded-md border border-ink-700 bg-ink-950 px-3 py-2 font-mono text-sm outline-none focus:border-accent-500" placeholder="Enter a command…" :disabled="connection !== 'connected' && connection !== 'running'" autocomplete="off" />
+            <input v-model="command" class="min-w-0 flex-1 rounded-md border border-ink-700 bg-ink-950 px-3 py-2 font-mono text-sm outline-none focus:border-accent-500" :placeholder="server.status === 'installing' ? 'Installing… input is possible once the server is running' : 'Enter a command…'" :disabled="connection !== 'connected' && connection !== 'running'" autocomplete="off" />
             <button class="rounded-md bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950 disabled:opacity-50" :disabled="!command.trim() || (connection !== 'connected' && connection !== 'running')">Send</button>
           </form>
         </section>
