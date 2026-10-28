@@ -8,13 +8,13 @@ export const LANGUAGES: { id: Lang; label: string }[] = [
   { id: "shell", label: "Shell" },
 ];
 
-const COMMENT = "text-ink-500";
-const PUNCT = "text-ink-500";
-const KEY = "text-ink-100";
-const VALUE = "text-ink-300";
-const STRING = "text-ink-200";
-const NUMBER = "text-accent-300";
-const SECTION = "text-accent-500";
+const COMMENT = "hl-comment";
+const PUNCT = "hl-punct";
+const KEY = "hl-key";
+const VALUE = "hl-value";
+const STRING = "hl-string";
+const NUMBER = "hl-number";
+const SECTION = "hl-section";
 
 function esc(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");

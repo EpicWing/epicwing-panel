@@ -624,8 +624,8 @@ watch(blocked, (value) => {
           <button class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950 disabled:opacity-50" :disabled="saving || !dirty" @click="save">{{ saving ? "Saving…" : "Save" }}</button>
         </div>
       </div>
-      <div class="flex overflow-hidden rounded-xl border border-ink-700 bg-ink-950 focus-within:border-accent-500" style="height: calc(100vh - 8.5rem); min-height: 24rem">
-        <div ref="gutter" aria-hidden="true" class="code shrink-0 select-none overflow-hidden border-r border-ink-800 bg-ink-900/60 py-3 pl-4 pr-3 text-right text-ink-500">
+      <div class="code-surface flex overflow-hidden rounded-xl border border-ink-700 focus-within:border-accent-500" style="height: calc(100vh - 8.5rem); min-height: 24rem">
+        <div ref="gutter" aria-hidden="true" class="code code-gutter shrink-0 select-none overflow-hidden border-r border-ink-800 py-3 pl-4 pr-3 text-right">
           <pre class="code m-0 pb-8">{{ lineNumbers }}</pre>
         </div>
         <div class="relative min-w-0 flex-1">
@@ -735,5 +735,34 @@ watch(blocked, (value) => {
 }
 .code-input--overlay::selection {
   background: rgba(245, 158, 11, 0.28);
+}
+.code-surface {
+  background: #1e1e20;
+}
+.code-gutter {
+  background: #1a1a1c;
+  color: #6e7681;
+}
+.code-layer {
+  color: #aab2bd;
+}
+.code-layer :deep(.hl-comment),
+.code-layer :deep(.hl-punct) {
+  color: #6e7681;
+}
+.code-layer :deep(.hl-key) {
+  color: #e6edf3;
+}
+.code-layer :deep(.hl-value) {
+  color: #aab2bd;
+}
+.code-layer :deep(.hl-string) {
+  color: #c9d1d9;
+}
+.code-layer :deep(.hl-number) {
+  color: #f0b35a;
+}
+.code-layer :deep(.hl-section) {
+  color: #f59e0b;
 }
 </style>
