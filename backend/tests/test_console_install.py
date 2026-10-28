@@ -66,8 +66,10 @@ def test_failing_watch_is_tolerated_only_during_install():
             await hub.publish_install("srv", "x\n")
         await hub.subscribe("srv", uuid.uuid4(), _Socket())
 
+    from app.agentlink.console import ConsoleError
+
     asyncio.run(run(True))
-    with pytest.raises(Exception):
+    with pytest.raises(ConsoleError):
         asyncio.run(run(False))
 
 

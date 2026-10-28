@@ -8,8 +8,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Server, SshKey, User
-from app.services import audit
 from app.security.server_access import ServerPermission, effective_permissions
+from app.services import audit
 
 _HEX = set("0123456789abcdef-")
 
