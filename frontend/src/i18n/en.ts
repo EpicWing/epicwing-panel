@@ -209,7 +209,7 @@ export default {
     allocation: "Port",
     noAllocation: "This node has no free allocation. Add one on the node page.",
     extraAllocations: "Additional ports (optional)",
-    extraHint: "Hold Ctrl or Cmd to select several.",
+    extraHint: "Tick every extra port the server should use. Leave all unticked for none.",
     memory: "Memory (MB)",
     cpus: "CPU limit (cores)",
     disk: "Disk (MB)",
