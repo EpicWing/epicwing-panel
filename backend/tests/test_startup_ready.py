@@ -32,7 +32,7 @@ def test_watcher_detects_done_text_across_chunks():
     w.watch("a", ("Loading level: 100%",), 0.0)
     assert not w.feed("a", "Loading level: 9")
     assert not w.feed("a", "4%\n")
-    assert w.feed("a", "Loading level: 1")is False
+    assert w.feed("a", "Loading level: 1") is False
     assert w.feed("a", "00%\n")
     assert not w.watching("a")
     assert not w.feed("a", "Loading level: 100%")
