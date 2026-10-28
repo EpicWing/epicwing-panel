@@ -99,6 +99,13 @@ func session(ctx context.Context, url, nodeID string, key ed25519.PrivateKey, s 
 	}
 	log.Print("connected and logged in")
 
+	sessionCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	dispatcher := newCommandDispatcher(loadContainerPolicy())
+
+	readErr := make(chan error, 1)
+	go func() { readErr <- readLoop(sessionCtx, conn, dispatcher) }()
+
 	ticker := time.NewTicker(heartbeatInterval)
 	defer ticker.Stop()
 	for {
@@ -106,27 +113,22 @@ func session(ctx context.Context, url, nodeID string, key ed25519.PrivateKey, s 
 		if err != nil {
 			return fmt.Errorf("measuring: %w", err)
 		}
-		if err := writeJSON(ctx, conn, ioTimeout, beat); err != nil {
-			return fmt.Errorf("sending heartbeat: %w", err)
-		}
-		reply = struct {
-			Type    string `json:"type"`
-			Message string `json:"message"`
-		}{}
-		if err := readJSON(ctx, conn, ioTimeout, &reply); err != nil {
+		if err := writeJSON(sessionCtx, conn, ioTimeout, beat); err != nil {
 			if ctx.Err() != nil {
 				return nil
 			}
-			return fmt.Errorf("waiting for heartbeat answer: %w", err)
-		}
-		if reply.Type == "error" {
-			log.Printf("the panel rejected a heartbeat: %s", reply.Message)
+			return fmt.Errorf("sending heartbeat: %w", err)
 		}
 
 		select {
 		case <-ctx.Done():
 			conn.Close(websocket.StatusNormalClosure, "agent stopping")
 			return nil
+		case err := <-readErr:
+			if ctx.Err() != nil {
+				return nil
+			}
+			return err
 		case <-ticker.C:
 		}
 	}
