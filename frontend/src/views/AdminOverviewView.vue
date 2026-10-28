@@ -41,6 +41,12 @@ interface HelpLink {
 
 const links = ref<HelpLink[]>([]);
 const linksLoaded = ref(false);
+const linkClass: Record<string, string> = {
+  discord: "bg-amber-500 hover:bg-amber-400",
+  docs: "bg-blue-600 hover:bg-blue-500",
+  github: "bg-blue-600 hover:bg-blue-500",
+  support: "bg-green-600 hover:bg-green-500",
+};
 
 async function load() {
   try {
@@ -141,14 +147,14 @@ onUnmounted(() => window.clearInterval(timer));
     </p>
 
     <section v-if="linksLoaded" class="mb-6">
-      <div v-if="links.length" class="flex flex-wrap gap-3">
+      <div v-if="links.length" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <a
           v-for="link in links"
           :key="link.key"
           :href="link.url"
           target="_blank"
           rel="noopener noreferrer"
-          class="rounded-lg border border-ink-700 bg-ink-900 px-4 py-2 text-sm font-medium text-ink-100 transition hover:border-accent-500 hover:text-accent-400"
+          class="rounded-lg px-4 py-2.5 text-center text-sm font-semibold text-white transition" :class="linkClass[link.key]"
         >
           {{ link.label }}
         </a>
