@@ -269,6 +269,7 @@ func runEvents(ctx context.Context, send func(map[string]any)) {
 		log.Printf("docker events: %v", err)
 		return
 	}
+	go syncStates(ctx, send)
 	scanner := bufio.NewScanner(out)
 	scanner.Buffer(make([]byte, 64*1024), 1024*1024)
 	for scanner.Scan() {
@@ -330,4 +331,54 @@ func attachWrite(ctx context.Context, socket, name, line string) error {
 	// Give the daemon a moment to pass the line on before the connection closes.
 	sleepCtx(ctx, 150*time.Millisecond)
 	return nil
+}
+
+// stateFromInspect turns one "name|state|exitcode" line from docker inspect into a state frame.
+func stateFromInspect(line string) (map[string]any, bool) {
+	parts := strings.Split(strings.TrimSpace(line), "|")
+	if len(parts) != 3 {
+		return nil, false
+	}
+	name := strings.TrimPrefix(parts[0], "/")
+	if !containerNameRe.MatchString(name) {
+		return nil, false
+	}
+	frame := map[string]any{"type": "state", "name": name}
+	switch parts[1] {
+	case "running":
+		frame["state"] = "running"
+	case "exited", "dead":
+		frame["state"] = "exited"
+		code, _ := strconv.Atoi(parts[2])
+		frame["exit_code"] = code
+	case "created":
+		frame["state"] = "created"
+	default:
+		return nil, false
+	}
+	return frame, true
+}
+
+// syncStates reports the current state of every managed container once, so the panel
+// catches up after a restart of the agent or a gap in the event stream.
+func syncStates(ctx context.Context, send func(map[string]any)) {
+	ids, err := runDocker(ctx, "ps", "-aq", "--filter", "label="+managedLabel+"=true")
+	if err != nil {
+		log.Printf("state sync: %v", err)
+		return
+	}
+	if ids == "" {
+		return
+	}
+	args := append([]string{"inspect", "--format", "{{.Name}}|{{.State.Status}}|{{.State.ExitCode}}"}, strings.Fields(ids)...)
+	out, err := runDocker(ctx, args...)
+	if err != nil {
+		log.Printf("state sync: %v", err)
+		return
+	}
+	for _, line := range strings.Split(out, "\n") {
+		if frame, ok := stateFromInspect(line); ok {
+			send(frame)
+		}
+	}
 }

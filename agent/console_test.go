@@ -181,3 +181,24 @@ func TestAttachWriteRejectsBadNamesAndMissingSocket(t *testing.T) {
 		t.Fatal("expected an error without a socket")
 	}
 }
+
+func TestStateFromInspect(t *testing.T) {
+	const name = "ae0cf8b7-ee46-4aa8-b558-29211ff75bdd"
+	f, ok := stateFromInspect("/" + name + "|running|0")
+	if !ok || f["state"] != "running" || f["name"] != name || f["type"] != "state" {
+		t.Fatalf("running: %v %v", f, ok)
+	}
+	f, ok = stateFromInspect("/" + name + "|exited|137")
+	if !ok || f["state"] != "exited" || f["exit_code"] != 137 {
+		t.Fatalf("exited: %v %v", f, ok)
+	}
+	f, ok = stateFromInspect("/" + name + "|created|0")
+	if !ok || f["state"] != "created" {
+		t.Fatalf("created: %v %v", f, ok)
+	}
+	for _, bad := range []string{"", "x|running", "/My Name|running|0", "/" + name + "|paused|0", "/" + name + "|running|0|x"} {
+		if _, ok := stateFromInspect(bad); ok {
+			t.Errorf("%q must be ignored", bad)
+		}
+	}
+}
