@@ -67,7 +67,10 @@ async function remove() {
 
 <template>
   <section class="space-y-4 rounded-xl border border-ink-700 bg-ink-900 p-5">
-    <h2 class="text-lg font-semibold">Profile picture</h2>
+    <div>
+      <h2 class="text-lg font-semibold">Profile picture</h2>
+      <p class="mt-1 text-sm text-ink-400">{{ auth.state.user?.email }}</p>
+    </div>
     <div class="flex items-center gap-4">
       <UserAvatar :user-id="auth.state.user?.id" :label="auth.state.user?.email ?? ''" :size="64" />
       <div class="flex flex-wrap gap-2">
