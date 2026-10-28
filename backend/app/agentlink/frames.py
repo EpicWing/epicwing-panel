@@ -150,7 +150,12 @@ async def handle_frame(db: Session, node_id: uuid.UUID, raw: str) -> bool:
             and value >= 0
         }
         verdict = detector.observe(
-            stats.name, time.monotonic(), stats.network_rx_bytes, net, console or None
+            stats.name,
+            time.monotonic(),
+            stats.network_rx_bytes,
+            net,
+            console or None,
+            tx_bytes=stats.network_tx_bytes,
         )
         if verdict.alert:
             ddos_alerts.schedule(stats.name, verdict.reasons)

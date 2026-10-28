@@ -16,6 +16,8 @@ RECENT_POINTS = 3
 MIN_SAMPLES = 15
 MIN_INTERVAL = 0.5  # kürzere Abstände liefern keine brauchbare Rate
 STALE_SECONDS = 15.0
+HISTORY_SECONDS = 3600
+BUCKET_SECONDS = 10
 
 WATCH_FACTOR = 3
 ATTACK_FACTOR = 10
@@ -90,6 +92,10 @@ class _State:
     level: str = "learning"
     reasons: tuple[str, ...] = ()
     rates: dict[str, float | None] = field(default_factory=dict)
+    tx_bytes: int = 0
+    points: deque[tuple[float, float, float]] = field(
+        default_factory=lambda: deque(maxlen=7200)
+    )  # (Zeit, rx/s, tx/s)
 
 
 def _absolute(value: float, watch: float, attack: float) -> int:
@@ -125,6 +131,21 @@ class Detector:
             "age": now - state.at,
         }
 
+    def history(self, name: str, now: float) -> tuple[list[int], list[int]]:
+        """rx/tx der letzten Stunde in Buckets, ältester zuerst. Lücken sind 0."""
+        count = HISTORY_SECONDS // BUCKET_SECONDS
+        rx, tx = [0] * count, [0] * count
+        state = self._states.get(name)
+        if state is None:
+            return rx, tx
+        for at, rx_rate, tx_rate in state.points:
+            age = now - at
+            if 0 <= age < HISTORY_SECONDS:
+                i = count - 1 - int(age // BUCKET_SECONDS)
+                rx[i] = max(rx[i], round(rx_rate))
+                tx[i] = max(tx[i], round(tx_rate))
+        return rx, tx
+
     def observe(
         self,
         name: str,
@@ -132,21 +153,28 @@ class Detector:
         rx_bytes: int,
         net: dict[str, int] | None = None,
         console: dict[str, int] | None = None,
+        tx_bytes: int | None = None,
     ) -> Verdict:
         net = net or {}
         state = self._states.get(name)
         if state is None:
-            self._states[name] = _State(at=now, rx_bytes=rx_bytes, counters=dict(net))
+            self._states[name] = _State(
+                at=now, rx_bytes=rx_bytes, counters=dict(net), tx_bytes=tx_bytes or 0
+            )
             return Verdict("learning", (), False)
         dt = now - state.at
         if dt < MIN_INTERVAL:
             return Verdict(state.level, state.reasons, False)
 
-        before, previous_rx = state.counters, state.rx_bytes
+        before, previous_rx, previous_tx = state.counters, state.rx_bytes, state.tx_bytes
         state.at, state.rx_bytes, state.counters = now, rx_bytes, dict(net)
+        if tx_bytes is not None:
+            state.tx_bytes = tx_bytes
         # Ein Zähler, der kleiner wird, heißt: der Container wurde neu gestartet.
-        if rx_bytes < previous_rx or any(
-            value < before[key] for key, value in net.items() if key in before
+        if (
+            rx_bytes < previous_rx
+            or (tx_bytes is not None and tx_bytes < previous_tx)
+            or any(value < before[key] for key, value in net.items() if key in before)
         ):
             return Verdict(state.level, state.reasons, False)
 
@@ -154,6 +182,10 @@ class Detector:
         found: list[tuple[int, str]] = []
 
         rx_rate = (rx_bytes - previous_rx) / dt
+        tx_rate = (tx_bytes - previous_tx) / dt if tx_bytes is not None else 0.0
+        state.points.append((now, rx_rate, tx_rate))
+        while state.points and now - state.points[0][0] > HISTORY_SECONDS:
+            state.points.popleft()
         bytes_index, usual, factor = state.bytes.add(rx_rate, BYTES_WATCH, BYTES_ATTACK)
         if bytes_index >= 2:
             found.append((bytes_index, f"Incoming traffic is {factor:.0f}x the usual rate"))
@@ -207,6 +239,7 @@ class Detector:
             "console_lines_per_s": lines_rate,
             "console_sources_per_s": sources_rate,
             "usual_rx_bytes_per_s": usual,
+            "tx_bytes_per_s": tx_rate,
         }
         return Verdict(level, state.reasons, alert)
 
