@@ -2,7 +2,7 @@
 
 import base64
 import uuid
-from typing import Literal
+from typing import Any, Literal
 
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
@@ -13,6 +13,8 @@ NONCE_BYTES = 32
 MAX_MESSAGE_CHARS = 16 * 1024
 AUTH_TIMEOUT_SECONDS = 10
 IDLE_TIMEOUT_SECONDS = 30
+COMMAND_TIMEOUT_SECONDS = 90
+COMMAND_ACTIONS = ("container.create", "container.start", "container.stop", "container.remove")
 
 WS_GOING_AWAY = 1001
 WS_UNSUPPORTED = 1003
@@ -56,3 +58,11 @@ def verify_signature(
     except (InvalidSignature, ValueError):
         return False
     return True
+
+
+class CommandResult(BaseModel):
+    type: Literal["result"]
+    id: str = Field(min_length=1, max_length=64)
+    ok: bool
+    data: dict[str, Any] | None = None
+    error: str | None = Field(default=None, max_length=1024)

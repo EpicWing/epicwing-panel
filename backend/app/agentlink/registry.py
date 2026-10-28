@@ -41,5 +41,8 @@ class AgentRegistry:
     def is_connected(self, node_id: uuid.UUID) -> bool:
         return node_id in self._connections
 
+    def connection(self, node_id: uuid.UUID) -> WebSocket | None:
+        return self._connections.get(node_id)
+
 
 registry = AgentRegistry()

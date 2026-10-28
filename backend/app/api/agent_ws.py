@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
 from app.agentlink import protocol
+from app.agentlink.commands import fail_pending, handle_result
 from app.agentlink.registry import registry
 from app.db import get_db
 from app.models import Node, NodeCredential
@@ -118,6 +119,10 @@ async def _heartbeat_loop(websocket: WebSocket, db: Session, node_id: uuid.UUID)
         if len(raw) > protocol.MAX_MESSAGE_CHARS:
             await websocket.close(code=protocol.WS_TOO_BIG)
             return
+
+        if handle_result(node_id, raw):
+            continue
+
         try:
             beat = protocol.Heartbeat.model_validate_json(raw)
         except ValidationError:
@@ -147,6 +152,7 @@ async def agent_socket(websocket: WebSocket, db: Annotated[Session, Depends(get_
         return
 
     await registry.register(node_id, websocket)
+    fail_pending(node_id)
     try:
         # Erst online setzen, dann auth_ok senden: Wer auth_ok bekommt, ist auch online.
         await run_in_threadpool(_mark_online, db, node_id, None)
@@ -158,5 +164,6 @@ async def agent_socket(websocket: WebSocket, db: Annotated[Session, Depends(get_
     finally:
         # Nur die aktuelle Verbindung setzt die Node auf offline, nicht eine ersetzte.
         if registry.unregister(node_id, websocket):
+            fail_pending(node_id)
             await run_in_threadpool(_mark_offline, db, node_id)
         log.info("Agent %s getrennt", node_id)

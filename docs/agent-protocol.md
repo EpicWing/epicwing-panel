@@ -31,3 +31,16 @@ leaves the node. The token is single use and valid for one hour.
 - One connection per node, a newer connection replaces the older one (close code 1012).
 - A node counts as online while its last heartbeat is at most 30 seconds old.
 - After 10 failed authentications from one IP within 15 minutes the panel refuses that IP.
+
+## Commands (panel to agent)
+
+1. Panel to agent: `{"type": "command", "id": "<hex>", "action": "<action>", "params": {...}}`
+   with `action` one of `container.create`, `container.start`, `container.stop`,
+   `container.remove`. The agent validates `params` itself and never runs anything else.
+2. Agent to panel: `{"type": "result", "id": "<same id>", "ok": true, "data": {...}}`
+   or `{"type": "result", "id": "...", "ok": false, "error": "<reason>"}`. The panel does
+   not acknowledge results.
+
+- The panel accepts a result only from the node the command was sent to and waits at most
+  90 seconds. A closed or replaced connection fails all open commands of that node.
+- Commands and heartbeats share the connection, so the agent must read while it waits.
