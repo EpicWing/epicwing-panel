@@ -138,8 +138,13 @@ if [ ! -f "$POLICY" ] || [ "$FORCE" -eq 1 ]; then
     "nginx:1.27-alpine",
     "ghcr.io/ptero-eggs/yolks:mono_latest",
     "ghcr.io/ptero-eggs/yolks:java_22",
+    "ghcr.io/ptero-eggs/yolks:java_25",
+    "ghcr.io/ptero-eggs/yolks:python_3.12",
+    "ghcr.io/pyrodactyl-oss/images:java_25",
     "ghcr.io/ptero-eggs/steamcmd:debian",
     "ghcr.io/pterodactyl/installers:alpine",
+    "ghcr.io/ptero-eggs/installers:alpine",
+    "ghcr.io/parkervcp/installers:alpine",
     "ghcr.io/ptero-eggs/installers:debian"
   ],
   "port_min": 1024,
