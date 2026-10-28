@@ -24,6 +24,8 @@ interface Schedule {
   enabled: boolean;
   last_run_at: string | null;
   next_run_at: string | null;
+  last_result: string | null;
+  last_detail: string | null;
   is_running: boolean;
   tasks: Task[];
 }
@@ -36,6 +38,7 @@ const error = ref("");
 const notice = ref("");
 const busy = ref(false);
 const showForm = ref(false);
+const editing = ref<string | null>(null);
 const expanded = ref<string | null>(null);
 const addingTo = ref<string | null>(null);
 const form = ref(emptyForm());
@@ -100,6 +103,17 @@ function taskLabel(t: Task): string {
   return t.payload ? `Backup (ignoring ${t.payload.replace(/\n/g, ", ")})` : "Create backup";
 }
 
+function resultText(s: Schedule): string {
+  if (s.last_result === "ok") return "ok";
+  return `${s.last_result ?? ""}${s.last_detail ? " - " + s.last_detail : ""}`;
+}
+
+function resultClass(s: Schedule): string {
+  if (s.last_result === "ok") return "text-accent-400";
+  if (s.last_result === "failed") return "text-bad";
+  return "text-ink-400";
+}
+
 function plan() {
   window.clearTimeout(timer);
   if (alive && rows.value.some((r) => r.is_running)) {
@@ -133,22 +147,57 @@ function toggleOpen(s: Schedule) {
   addingTo.value = null;
 }
 
-async function create() {
+function openNew() {
+  if (showForm.value && editing.value === null) {
+    showForm.value = false;
+    return;
+  }
+  editing.value = null;
+  form.value = emptyForm();
+  showForm.value = true;
+}
+
+function openEdit(s: Schedule) {
+  editing.value = s.id;
+  form.value = {
+    name: s.name,
+    minute: s.minute,
+    hour: s.hour,
+    day_of_month: s.day_of_month,
+    month: s.month,
+    day_of_week: s.day_of_week,
+    only_when_online: s.only_when_online,
+    enabled: s.enabled,
+  };
+  showForm.value = true;
+}
+
+function closeForm() {
+  showForm.value = false;
+  editing.value = null;
+  form.value = emptyForm();
+}
+
+async function save() {
   error.value = "";
   notice.value = "";
   busy.value = true;
   try {
-    const created = await api<Schedule>(base(), {
-      method: "POST",
-      body: { ...form.value, name: form.value.name.trim() },
-    });
-    showForm.value = false;
-    form.value = emptyForm();
-    expanded.value = created?.id ?? null;
-    addingTo.value = created?.id ?? null;
-    taskForm.value = emptyTask();
-    notice.value = "Schedule created. Add at least one task so it can run.";
-    await load();
+    const body = { ...form.value, name: form.value.name.trim() };
+    if (editing.value) {
+      await api<Schedule>(`${base()}/${editing.value}`, { method: "PATCH", body });
+      closeForm();
+      notice.value = "Saved.";
+      await load();
+    } else {
+      const created = await api<Schedule>(base(), { method: "POST", body });
+      closeForm();
+      expanded.value = created?.id ?? null;
+      addingTo.value = created?.id ?? null;
+      taskForm.value = emptyTask();
+      notice.value = "Schedule created. Add at least one task so it can run.";
+      await load();
+    }
   } catch (e) {
     error.value = message(e);
   } finally {
@@ -178,17 +227,36 @@ async function remove(s: Schedule) {
   }
 }
 
+function report(s: Schedule) {
+  notice.value = "";
+  if (s.last_result === "ok") {
+    notice.value = `"${s.name}" finished successfully.`;
+  } else {
+    error.value = `"${s.name}" ${s.last_result ?? "failed"}: ${s.last_detail ?? "unknown error"}`;
+  }
+}
+
 async function runNow(s: Schedule) {
   error.value = "";
   notice.value = "";
+  const before = s.last_run_at;
   try {
     await api(`${base()}/${s.id}/execute`, { method: "POST" });
-    notice.value = `"${s.name}" started.`;
-    await load();
-    window.setTimeout(load, 1500);
   } catch (e) {
     error.value = message(e);
+    return;
   }
+  notice.value = `"${s.name}" started.`;
+  for (let i = 0; i < 40 && alive; i += 1) {
+    await new Promise((resolve) => window.setTimeout(resolve, 1000));
+    await load();
+    const current = rows.value.find((r) => r.id === s.id);
+    if (current && current.last_run_at !== before && !current.is_running) {
+      report(current);
+      return;
+    }
+  }
+  if (alive) notice.value = `"${s.name}" is still running.`;
 }
 
 function openTaskForm(s: Schedule) {
@@ -243,12 +311,12 @@ onBeforeUnmount(() => {
   <section class="space-y-6">
     <div class="flex items-start justify-between gap-4">
       <div>
-        <h2 class="text-2xl font-semibold">Schedules</h2>
+        <h2 class="text-2xl font-semibold">Automations</h2>
         <p class="mt-2 text-sm text-ink-400">
           Automate server tasks with scheduled commands, power actions and backups. Times are in UTC.
         </p>
       </div>
-      <button v-if="manage" :class="primaryClass" @click="showForm = !showForm">New Schedule</button>
+      <button v-if="manage" :class="primaryClass" @click="openNew">New Schedule</button>
     </div>
 
     <p v-if="error" role="alert" class="rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">
@@ -258,7 +326,8 @@ onBeforeUnmount(() => {
       {{ notice }}
     </p>
 
-    <form v-if="showForm" class="grid gap-4 rounded-xl border border-ink-700 bg-ink-900 p-5" @submit.prevent="create">
+    <form v-if="showForm" class="grid gap-4 rounded-xl border border-ink-700 bg-ink-900 p-5" @submit.prevent="save">
+      <h3 class="text-lg font-semibold">{{ editing ? "Edit schedule" : "New schedule" }}</h3>
       <div>
         <label for="s-name" class="mb-1.5 block text-sm text-ink-300">Name</label>
         <input id="s-name" v-model="form.name" required maxlength="64" :class="inputClass" />
@@ -295,8 +364,10 @@ onBeforeUnmount(() => {
         <input v-model="form.enabled" type="checkbox" /> Schedule enabled
       </label>
       <div class="flex gap-2">
-        <button type="submit" :class="primaryClass" :disabled="busy || !form.name.trim()">Create</button>
-        <button type="button" :class="ghostClass" @click="showForm = false">Cancel</button>
+        <button type="submit" :class="primaryClass" :disabled="busy || !form.name.trim()">
+          {{ editing ? "Save" : "Create" }}
+        </button>
+        <button type="button" :class="ghostClass" @click="closeForm">Cancel</button>
       </div>
     </form>
 
@@ -320,6 +391,9 @@ onBeforeUnmount(() => {
           <div class="min-w-0 flex-1">
             <p class="truncate text-lg font-medium">{{ s.name }}</p>
             <p class="text-xs text-ink-400">Last run at: {{ s.last_run_at ? when(s.last_run_at) : "never" }}</p>
+            <p v-if="s.last_result" class="truncate text-xs" :class="resultClass(s)">
+              Last result: {{ resultText(s) }}
+            </p>
           </div>
           <div class="hidden gap-5 md:flex">
             <div v-for="[label, value] in columns(s)" :key="label" class="text-center">
@@ -346,6 +420,7 @@ onBeforeUnmount(() => {
                 Run now
               </button>
               <button :class="ghostClass" @click="openTaskForm(s)">Add task</button>
+              <button :class="ghostClass" :disabled="s.is_running" @click="openEdit(s)">Edit</button>
               <button :class="ghostClass" @click="toggle(s)">{{ s.enabled ? "Disable" : "Enable" }}</button>
               <button :class="dangerClass" :disabled="s.is_running" @click="remove(s)">Delete</button>
             </div>

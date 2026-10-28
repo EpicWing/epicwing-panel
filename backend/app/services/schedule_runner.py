@@ -96,7 +96,11 @@ async def _run(
         return RunResult("missing", "Server not found.")
     db.refresh(server)
     if trigger == "schedule" and schedule.only_when_online and server.status not in ONLINE:
-        return RunResult("skipped", f"The server is {server.status}.")
+        detail = f"The server is {server.status}."
+        schedule.last_result = "skipped"
+        schedule.last_detail = detail
+        db.commit()
+        return RunResult("skipped", detail)
 
     tasks = list(
         db.scalars(
@@ -122,6 +126,9 @@ async def _run(
                 break
     if failures:
         result = RunResult("failed", "; ".join(failures))
+    schedule.last_result = result.state
+    schedule.last_detail = result.detail[:300]
+    db.commit()
 
     audit.record(
         db,
