@@ -51,12 +51,19 @@ const links: HelpLink[] = [
   { key: "docs", label: t("admin.linkDocs"), url: HELP_URLS.docs },
   { key: "github", label: t("admin.linkGithub"), url: HELP_URLS.github },
   { key: "support", label: t("admin.linkSupport"), url: HELP_URLS.support },
-].filter((link) => link.url);
+];
 const linkClass: Record<string, string> = {
   discord: "bg-amber-500 hover:bg-amber-400",
   docs: "bg-blue-600 hover:bg-blue-500",
   github: "bg-blue-600 hover:bg-blue-500",
   support: "bg-green-600 hover:bg-green-500",
+};
+
+const linkIcons: Record<string, string> = {
+  discord: "M8 10h8M8 14h5M21 12a9 9 0 01-13.5 7.8L3 21l1.2-4.5A9 9 0 1121 12z",
+  docs: "M12 6v13M12 6C10.5 4.8 8 4 5 4v13c3 0 5.5.8 7 2 1.5-1.2 4-2 7-2V4c-3 0-5.5.8-7 2z",
+  github: "M8 8l-4 4 4 4M16 8l4 4-4 4M14 5l-4 14",
+  support: "M12 20s-7-4.5-7-10a4 4 0 017-2.6A4 4 0 0119 10c0 5.5-7 10-7 10z",
 };
 
 async function load() {
@@ -142,46 +149,47 @@ onUnmounted(() => window.clearInterval(timer));
     </p>
 
     <section class="mb-6">
-      <div v-if="links.length" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <a
+      <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <component
+          :is="link.url ? 'a' : 'span'"
           v-for="link in links"
           :key="link.key"
-          :href="link.url"
-          target="_blank"
+          :href="link.url || undefined"
+          :target="link.url ? '_blank' : undefined"
           rel="noopener noreferrer"
-          class="rounded-lg px-4 py-2.5 text-center text-sm font-semibold text-white transition" :class="linkClass[link.key]"
+          class="flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition"
+          :class="link.url ? linkClass[link.key] : 'cursor-not-allowed bg-ink-800 opacity-50'"
         >
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path :d="linkIcons[link.key]" />
+          </svg>
           {{ link.label }}
-        </a>
+        </component>
       </div>
-      <p v-else class="text-sm text-ink-400">
-        {{ t("admin.linksEmpty") }}
-        <RouterLink to="/admin/settings" class="text-accent-400 hover:underline">{{ t("admin.linksAdd") }}</RouterLink>
-      </p>
     </section>
 
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <div class="rounded-xl border border-ink-700 bg-ink-900 p-5">
-        <p class="text-sm text-ink-400">{{ t("admin.nodes") }}</p>
+        <p class="flex items-center gap-2 text-sm text-ink-400"><svg class="h-4 w-4 text-accent-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16v5H4zM4 13h16v5H4zM8 8.5h.01M8 15.5h.01" /></svg>{{ t("admin.nodes") }}</p>
         <p class="mt-1 font-mono text-2xl font-semibold">{{ data?.nodes.total ?? "–" }}</p>
         <p v-if="data" class="mt-1 text-xs text-ink-400">
           {{ t("admin.nodesOnline", { online: data.nodes.online, total: data.nodes.total }) }}
         </p>
       </div>
       <div class="rounded-xl border border-ink-700 bg-ink-900 p-5">
-        <p class="text-sm text-ink-400">{{ t("admin.servers") }}</p>
+        <p class="flex items-center gap-2 text-sm text-ink-400"><svg class="h-4 w-4 text-accent-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v14H4zM8 10l3 2-3 2M13 14h3" /></svg>{{ t("admin.servers") }}</p>
         <p class="mt-1 font-mono text-2xl font-semibold">{{ data?.servers.total ?? "–" }}</p>
         <p v-if="data" class="mt-1 text-xs text-ink-400">{{ t("admin.serversRunning", { running }) }}</p>
       </div>
       <div class="rounded-xl border border-ink-700 bg-ink-900 p-5">
-        <p class="text-sm text-ink-400">{{ t("admin.users") }}</p>
+        <p class="flex items-center gap-2 text-sm text-ink-400"><svg class="h-4 w-4 text-accent-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 19v-1a4 4 0 00-4-4H8a4 4 0 00-4 4v1M10 11a3 3 0 100-6 3 3 0 000 6zM20 19v-1a3 3 0 00-2-2.8" /></svg>{{ t("admin.users") }}</p>
         <p class="mt-1 font-mono text-2xl font-semibold">{{ data?.users.total ?? "–" }}</p>
         <p v-if="data" class="mt-1 text-xs text-ink-400">
           {{ t("admin.usersDetail", { admins: data.users.admins, disabled: data.users.disabled }) }}
         </p>
       </div>
       <div class="rounded-xl border border-ink-700 bg-ink-900 p-5">
-        <p class="text-sm text-ink-400">{{ t("admin.backups") }}</p>
+        <p class="flex items-center gap-2 text-sm text-ink-400"><svg class="h-4 w-4 text-accent-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v4H4zM5 9v10h14V9M10 13h4" /></svg>{{ t("admin.backups") }}</p>
         <p class="mt-1 font-mono text-2xl font-semibold">{{ data?.backups.total ?? "–" }}</p>
         <p v-if="data" class="mt-1 text-xs" :class="data.backups.failed ? 'text-bad' : 'text-ink-400'">
           {{
@@ -195,6 +203,7 @@ onUnmounted(() => window.clearInterval(timer));
       </div>
     </div>
 
+    <h2 class="mt-10 text-xl font-semibold">{{ t("admin.systemTitle") }}</h2>
     <section v-if="statusEntries.length" class="mt-8">
       <h2 class="mb-3 text-lg font-semibold">{{ t("admin.statusTitle") }}</h2>
       <ul class="flex flex-wrap gap-2">
