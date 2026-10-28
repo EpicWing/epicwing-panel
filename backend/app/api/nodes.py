@@ -19,6 +19,13 @@ router = APIRouter(prefix="/nodes", tags=["nodes"])
 ManageNodes = Annotated[AuthContext, Depends(require(Permission.NODES_MANAGE))]
 
 
+def _node_out(node: Node) -> NodeOut:
+    out = NodeOut.model_validate(node)
+    # Online gilt nur bei frischem Heartbeat, nicht nach dem gespeicherten Wert.
+    out.status = node_service.display_status(node)
+    return out
+
+
 def _name_taken() -> HTTPException:
     return HTTPException(status.HTTP_409_CONFLICT, "A node with this name already exists.")
 
@@ -28,7 +35,7 @@ def list_nodes(
     _auth: ManageNodes, db: Annotated[Session, Depends(get_db)]
 ) -> list[NodeOut]:
     nodes = db.scalars(select(Node).order_by(Node.created_at))
-    return [NodeOut.model_validate(n) for n in nodes]
+    return [_node_out(n) for n in nodes]
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)

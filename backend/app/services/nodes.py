@@ -84,3 +84,18 @@ def enroll_agent(
     node.agent_version = agent_version
     db.add(NodeCredential(node_id=node.id, public_key=key_b64, fingerprint=fingerprint))
     return node, fingerprint
+
+
+HEARTBEAT_TIMEOUT = timedelta(seconds=30)
+
+
+def display_status(node: Node) -> str:
+    """Wartet, online oder offline. Online gilt nur bei frischem Heartbeat."""
+    if node.status == "pending":
+        return "pending"
+    beat = node.last_heartbeat_at
+    if beat is None:
+        return "offline"
+    if beat.tzinfo is None:
+        beat = beat.replace(tzinfo=UTC)
+    return "online" if datetime.now(UTC) - beat <= HEARTBEAT_TIMEOUT else "offline"
