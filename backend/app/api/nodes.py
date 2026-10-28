@@ -10,7 +10,7 @@ from starlette.concurrency import run_in_threadpool
 from app.agentlink.commands import AgentOffline, broker
 from app.agentlink.registry import registry
 from app.db import get_db
-from app.models import Node, NodeCredential
+from app.models import Node, NodeCredential, Server
 from app.schemas.node import (
     CommandOut,
     CommandRequest,
@@ -230,6 +230,10 @@ async def revoke_node(
 
 def _delete(db: Session, node_id: uuid.UUID, actor_id: uuid.UUID, ip: str) -> None:
     node = _get_node(db, node_id)
+    if db.scalar(select(Server.id).where(Server.node_id == node.id).limit(1)) is not None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "This node still has servers. Delete them first."
+        )
     name = node.name
     # Zugangsdaten und Token verschwinden über ON DELETE CASCADE.
     db.delete(node)
