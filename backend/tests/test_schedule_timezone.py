@@ -4,7 +4,8 @@ from datetime import UTC, datetime
 import pytest
 
 from app.services.schedules import next_run, zone_name
-from tests import test_server_files, test_server_power as base
+from tests import test_server_files
+from tests import test_server_power as base
 
 server = base.server
 
