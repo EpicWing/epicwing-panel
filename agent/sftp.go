@@ -102,6 +102,17 @@ func (b *sftpAuthBroker) authorize(ctx context.Context, fingerprint, user string
 	}
 }
 
+// notifyLogin tells the panel that a login finished, so it can audit it.
+func (b *sftpAuthBroker) notifyLogin(fingerprint, server string) {
+	b.mu.Lock()
+	send := b.send
+	b.mu.Unlock()
+	if send == nil || fingerprint == "" {
+		return
+	}
+	send(map[string]any{"type": "sftp_login", "fingerprint": fingerprint, "server": server})
+}
+
 func (b *sftpAuthBroker) resolve(id string, res sftpAuthResult) {
 	b.mu.Lock()
 	ch := b.pending[id]
@@ -152,7 +163,7 @@ func (s *sftpServer) publicKey(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.P
 	if err != nil || !containerNameRe.MatchString(grant.Server) {
 		return nil, errSFTPRejected
 	}
-	perms := &ssh.Permissions{Extensions: map[string]string{"server": grant.Server}}
+	perms := &ssh.Permissions{Extensions: map[string]string{"server": grant.Server, "fp": ssh.FingerprintSHA256(key)}}
 	if grant.Write {
 		perms.Extensions["write"] = "1"
 	}
@@ -202,6 +213,7 @@ func (s *sftpServer) handleConn(c net.Conn) {
 	go ssh.DiscardRequests(reqs)
 
 	perms := sconn.Permissions
+	sftpAuth.notifyLogin(perms.Extensions["fp"], perms.Extensions["server"])
 	var wg sync.WaitGroup
 	for nc := range chans {
 		if nc.ChannelType() != "session" {

@@ -270,3 +270,14 @@ func TestSFTPAuthBrokerRoundtrip(t *testing.T) {
 		t.Fatal("a rejection must be an error")
 	}
 }
+
+func TestSFTPNotifyLogin(t *testing.T) {
+	b := &sftpAuthBroker{pending: map[string]chan sftpAuthResult{}}
+	b.notifyLogin("SHA256:x", testSFTPServerID) // no panel connected: must not panic
+	var got map[string]any
+	b.setSend(func(f map[string]any) { got = f })
+	b.notifyLogin("SHA256:x", testSFTPServerID)
+	if got["type"] != "sftp_login" || got["fingerprint"] != "SHA256:x" || got["server"] != testSFTPServerID {
+		t.Fatalf("frame = %v", got)
+	}
+}

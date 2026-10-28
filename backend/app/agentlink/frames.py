@@ -52,6 +52,22 @@ async def _sftp_auth(db: Session, node_id: uuid.UUID, data: dict) -> None:
             await websocket.send_json(reply)
 
 
+class SftpLoginFrame(BaseModel):
+    type: str
+    fingerprint: str = Field(min_length=1, max_length=64)
+    server: str = Field(min_length=1, max_length=36)
+
+
+async def _sftp_login(db: Session, node_id: uuid.UUID, data: dict) -> None:
+    try:
+        frame = SftpLoginFrame.model_validate(data)
+    except ValidationError:
+        return
+    await run_in_threadpool(
+        sftp_service.record_login, db, node_id, frame.fingerprint, frame.server
+    )
+
+
 async def handle_frame(db: Session, node_id: uuid.UUID, raw: str) -> bool:
     """True, wenn raw eine Konsolen- oder Zustandsmeldung war (auch eine ungültige)."""
     try:
@@ -76,6 +92,9 @@ async def handle_frame(db: Session, node_id: uuid.UUID, raw: str) -> bool:
         status = await run_in_threadpool(apply_state, db, node_id, state)
         if status is not None:
             await hub.publish(node_id, state.name, {"type": "status", "status": status})
+        return True
+    if kind == "sftp_login":
+        await _sftp_login(db, node_id, data)
         return True
     if kind == "sftp_auth":
         await _sftp_auth(db, node_id, data)
