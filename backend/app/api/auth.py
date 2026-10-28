@@ -43,7 +43,7 @@ def login(
     if wait:
         raise HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS,
-            "Zu viele Anmeldeversuche. Bitte später erneut versuchen.",
+            "Too many sign-in attempts. Please try again later.",
             headers={"Retry-After": str(wait)},
         )
 
@@ -64,7 +64,7 @@ def login(
             ip=ip,
             details={"reason": reason},
         )
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "E-Mail oder Passwort falsch.")
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Incorrect email or password.")
 
     login_email_limiter.reset(email)
     if needs_rehash(user.password_hash):

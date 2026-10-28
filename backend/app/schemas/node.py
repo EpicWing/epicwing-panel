@@ -23,8 +23,8 @@ class NodeCreate(BaseModel):
         value = value.strip()
         if not NAME_RE.fullmatch(value):
             raise ValueError(
-                "Der Name muss 1 bis 64 Zeichen lang sein und darf nur Buchstaben, "
-                "Ziffern, Leerzeichen, Punkt, Unterstrich und Bindestrich enthalten."
+                "The name must be 1 to 64 characters and may only contain letters, "
+                "digits, spaces, dots, underscores and hyphens."
             )
         return value
 
@@ -33,7 +33,7 @@ class NodeCreate(BaseModel):
     def _check_location(cls, value: str) -> str:
         value = value.strip()
         if len(value) > 64 or any(ord(c) < 32 for c in value):
-            raise ValueError("Der Standort darf höchstens 64 Zeichen ohne Steuerzeichen haben.")
+            raise ValueError("Invalid location: max. 64 characters, no control characters.")
         return value
 
     @field_validator("fqdn")
@@ -45,13 +45,13 @@ class NodeCreate(BaseModel):
         if not value:
             return None
         if not HOSTNAME_RE.fullmatch(value):
-            raise ValueError("Der Hostname ist ungültig.")
+            raise ValueError("The hostname is invalid.")
         return value
 
     @model_validator(mode="after")
     def _check_ports(self) -> Self:
         if self.port_range_start > self.port_range_end:
-            raise ValueError("Der Port-Bereich ist ungültig: Start muss vor dem Ende liegen.")
+            raise ValueError("The port range is invalid: the start must not be after the end.")
         return self
 
 

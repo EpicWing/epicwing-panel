@@ -71,7 +71,7 @@ def revoke_token(db: Session, token: str) -> None:
 
 
 def _unauthorized() -> HTTPException:
-    return HTTPException(status.HTTP_401_UNAUTHORIZED, "Nicht angemeldet.")
+    return HTTPException(status.HTTP_401_UNAUTHORIZED, "Not signed in.")
 
 
 def get_auth(request: Request, db: Annotated[Session, Depends(get_db)]) -> AuthContext:
@@ -94,7 +94,7 @@ def get_auth(request: Request, db: Annotated[Session, Depends(get_db)]) -> AuthC
     if request.method not in _SAFE_METHODS:
         sent = request.headers.get("X-CSRF-Token", "")
         if not hmac.compare_digest(sent.encode(), session.csrf_token.encode()):
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "CSRF-Token fehlt oder ist ungültig.")
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "CSRF token is missing or invalid.")
 
     if now - _aware(session.last_seen_at) > _LAST_SEEN_INTERVAL:
         session.last_seen_at = now

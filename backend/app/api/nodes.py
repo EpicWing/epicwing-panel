@@ -20,7 +20,7 @@ ManageNodes = Annotated[AuthContext, Depends(require(Permission.NODES_MANAGE))]
 
 
 def _name_taken() -> HTTPException:
-    return HTTPException(status.HTTP_409_CONFLICT, "Ein Node mit diesem Namen existiert bereits.")
+    return HTTPException(status.HTTP_409_CONFLICT, "A node with this name already exists.")
 
 
 @router.get("")
@@ -82,9 +82,9 @@ def new_enrollment(
 ) -> EnrollmentOut:
     node = db.get(Node, node_id)
     if node is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Node nicht gefunden.")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Node not found.")
     if node.status != "pending":
-        raise HTTPException(status.HTTP_409_CONFLICT, "Der Node ist bereits registriert.")
+        raise HTTPException(status.HTTP_409_CONFLICT, "This node is already registered.")
 
     token, enrollment = node_service.create_enrollment(db, node, auth.user.id)
     db.commit()

@@ -40,7 +40,7 @@ def require(permission: Permission) -> Callable[..., AuthContext]:
 
     def dependency(auth: CurrentAuth, db: Annotated[Session, Depends(get_db)]) -> AuthContext:
         if not has_permission(db, auth.user, permission):
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "Keine Berechtigung.")
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Permission denied.")
         return auth
 
     return dependency
