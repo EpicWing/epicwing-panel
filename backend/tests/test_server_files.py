@@ -1,3 +1,4 @@
+import base64
 import importlib
 import uuid
 
@@ -229,3 +230,92 @@ def test_failed_operations_are_not_audited(client, db_session, ready, broker):
     response = client.post(ready.url + "/files/delete", json={"path": "x"}, headers=ready.headers)
     assert response.status_code == 404
     assert _audit(db_session, "server.file.delete") == []
+
+
+class BlobBroker(FileBroker):
+    """Liefert eine Datei stückweise aus dem Speicher, so wie der Agent es tut."""
+
+    def __init__(self, content):
+        super().__init__()
+        self.content = content
+
+    async def send(self, node_id, action, params, timeout=90):
+        self.calls.append((action, params))
+        if self.offline:
+            raise AgentOffline
+        start = params["offset"]
+        part = self.content[start : start + params["length"]]
+        data = {
+            "data": base64.b64encode(part).decode(),
+            "size": len(self.content),
+            "eof": start + len(part) >= len(self.content),
+        }
+        return CommandResult(type="result", id="x", ok=True, error=None, data=data)
+
+
+def _serve(monkeypatch, content):
+    fake = BlobBroker(content)
+    monkeypatch.setattr(importlib.import_module("app.api.servers"), "broker", fake)
+    return fake
+
+
+def test_download_streams_the_whole_file(client, ready, monkeypatch):
+    content = bytes(range(256)) * 200 + b"tail"
+    fake = _serve(monkeypatch, content)
+    response = client.get(
+        ready.url + "/files/download", params={"path": "world/my map.dat"}, headers=ready.headers
+    )
+    assert response.status_code == 200
+    assert response.content == content
+    assert response.headers["content-length"] == str(len(content))
+    assert response.headers["content-type"] == "application/octet-stream"
+    assert "filename*=UTF-8''my%20map.dat" in response.headers["content-disposition"]
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert sorted(params["offset"] for _, params in fake.calls) == list(
+        range(0, len(content), 8 * 1024)
+    )
+    assert {action for action, _ in fake.calls} == {"file.read"}
+
+
+def test_download_of_an_empty_file(client, ready, monkeypatch):
+    _serve(monkeypatch, b"")
+    response = client.get(
+        ready.url + "/files/download", params={"path": "empty.txt"}, headers=ready.headers
+    )
+    assert response.status_code == 200
+    assert response.content == b""
+    assert response.headers["content-length"] == "0"
+
+
+def test_download_is_audited_once(client, db_session, ready, monkeypatch):
+    _serve(monkeypatch, bytes(20000))
+    response = client.get(
+        ready.url + "/files/download", params={"path": "a.bin"}, headers=ready.headers
+    )
+    assert response.status_code == 200
+    entries = _audit(db_session, "server.file.download")
+    assert len(entries) == 1
+    assert entries[0].details["path"] == "a.bin"
+
+
+def test_download_of_a_directory_is_refused(client, db_session, ready, broker):
+    broker.errors["file.read"] = "not a regular file"
+    response = client.get(
+        ready.url + "/files/download", params={"path": "logs"}, headers=ready.headers
+    )
+    assert response.status_code == 409
+    assert _audit(db_session, "server.file.download") == []
+
+
+def test_download_with_offline_node_gives_409(client, ready, broker):
+    broker.offline = True
+    response = client.get(
+        ready.url + "/files/download", params={"path": "a.bin"}, headers=ready.headers
+    )
+    assert response.status_code == 409
+
+
+def test_download_needs_a_path(client, ready, broker):
+    response = client.get(ready.url + "/files/download", headers=ready.headers)
+    assert response.status_code == 422
+    assert broker.calls == []

@@ -564,12 +564,12 @@ async function download(targets: Entry[]): Promise<void> {
   try {
     const [only] = targets;
     if (targets.length === 1 && only && !only.dir) {
-      if (only.size > MAX_TRANSFER) {
-        throw new LocalError(`The file is larger than ${formatBytes(MAX_TRANSFER)}.`);
-      }
-      progress.value = `Downloading ${only.name}…`;
-      const bytes = await readFile(join(path.value, only.name), MAX_TRANSFER);
-      saveBlob(new Blob([bytes]), only.name);
+      const link = document.createElement("a");
+      link.href = `/api${base()}/download?path=${encodeURIComponent(join(path.value, only.name))}`;
+      link.download = only.name;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
       return;
     }
 
