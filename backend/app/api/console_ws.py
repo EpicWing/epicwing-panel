@@ -25,7 +25,7 @@ from app.security.server_access import (
     effective_permissions,
     server_access,
 )
-from app.services import audit, lifecycle
+from app.services import audit, lifecycle, stats_history
 
 router = APIRouter(prefix="/servers", tags=["console"])
 
@@ -185,6 +185,9 @@ async def console_socket(websocket: WebSocket, server_id: uuid.UUID, db: DbSessi
         )
         current = await run_in_threadpool(_load, db, server_id)
         await websocket.send_json({"type": "status", "status": current[1] if current else ""})
+        samples = stats_history.snapshot(name)
+        if samples:
+            await websocket.send_json({"type": "history", "samples": samples})
         lock = asyncio.Lock()
 
         async def has(permission: ServerPermission) -> bool:

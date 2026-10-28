@@ -302,6 +302,15 @@ function networkPoints(key: "rx" | "tx"): string {
 const chartTick = ref(0);
 watch(history, () => { chartTick.value++; }, { deep: true });
 
+interface HistorySample {
+  t: number;
+  cpu_percent: number;
+  memory_used_bytes: number;
+  disk_used_bytes: number;
+  network_rx_bytes: number;
+  network_tx_bytes: number;
+}
+
 function handleFrame(frame: ConsoleFrame): void {
   if (frame.type === "stats") {
     const stats = frame as ConsoleFrame & {
@@ -328,6 +337,26 @@ function handleFrame(frame: ConsoleFrame): void {
     pushHistory("rx", rxRate);
     pushHistory("tx", txRate);
     if (stats.started_at) startedAt.value = stats.started_at;
+  }
+  if (frame.type === "history") {
+    const samples = (frame as ConsoleFrame & { samples?: HistorySample[] }).samples ?? [];
+    if (samples.length > 1) {
+      const next: typeof history.value = { cpu: [], ram: [], disk: [], rx: [], tx: [] };
+      for (let i = 1; i < samples.length; i += 1) {
+        const prev = samples[i - 1];
+        const cur = samples[i];
+        const seconds = Math.max(0.1, (cur.t - prev.t) / 1000);
+        next.cpu.push(cur.cpu_percent);
+        next.ram.push(cur.memory_used_bytes);
+        next.disk.push(cur.disk_used_bytes);
+        next.rx.push(Math.max(0, (cur.network_rx_bytes - prev.network_rx_bytes) / seconds));
+        next.tx.push(Math.max(0, (cur.network_tx_bytes - prev.network_tx_bytes) / seconds));
+      }
+      for (const key of Object.keys(next) as (keyof typeof next)[]) next[key] = next[key].slice(-60);
+      history.value = next;
+      const last = samples[samples.length - 1];
+      previousNetwork = { rx: last.network_rx_bytes, tx: last.network_tx_bytes, at: Date.now() };
+    }
   }
   if (frame.type === "status" && frame.status && server.value) setStatus(frame.status);
 }
