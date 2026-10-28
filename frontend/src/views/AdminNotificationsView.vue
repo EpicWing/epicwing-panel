@@ -33,6 +33,17 @@ const results = reactive<Record<Channel, TestResult | null>>({ discord: null, em
 
 const saved = reactive({ discordEnabled: false, emailEnabled: false, emailTo: "" });
 
+type Tab = "discord" | "email" | "delivery";
+
+const tab = ref<Tab>("discord");
+
+function tabCls(name: Tab): string {
+  const base = "-mb-px border-b-2 px-1 pb-3 text-sm font-medium transition";
+  return tab.value === name
+    ? `${base} border-accent-500 text-accent-400`
+    : `${base} border-transparent text-ink-300 hover:text-ink-100`;
+}
+
 const form = reactive({
   discord_enabled: false,
   discord_webhook: "",
@@ -149,6 +160,12 @@ onMounted(() => void load());
 
 <template>
   <AppLayout area="admin" :title="t('notify.title')" :subtitle="t('notify.subtitle')">
+    <template #actions>
+      <button v-if="!loading && tab !== 'delivery'" type="submit" form="notify-form" :class="buttonCls" :disabled="saving">
+        {{ saving ? t("notify.saving") : t("notify.save") }}
+      </button>
+    </template>
+
     <p v-if="error" role="alert" class="mx-auto mb-6 max-w-6xl rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">
       {{ error }}
     </p>
@@ -157,9 +174,9 @@ onMounted(() => void load());
     </p>
     <p v-if="loading" class="text-sm text-ink-400">…</p>
 
-    <div v-else class="mx-auto max-w-6xl space-y-6">
-      <section class="grid gap-4 md:grid-cols-3">
-        <div class="rounded-xl border border-ink-700 bg-ink-900 p-4">
+    <div v-else class="mx-auto max-w-6xl space-y-8">
+      <section class="grid gap-6 md:grid-cols-3">
+        <div class="rounded-xl border border-ink-700 bg-ink-900 p-5">
           <p class="text-xs font-medium uppercase tracking-wide text-ink-400">{{ t("notify.tileDiscord") }}</p>
           <p class="mt-2 flex items-center gap-2 text-sm font-semibold">
             <span class="h-2 w-2 rounded-full" :class="dotCls(statusOf('discord'))"></span>
@@ -169,7 +186,7 @@ onMounted(() => void load());
             {{ webhookSet ? t("notify.discordInfoSaved") : t("notify.discordInfoAdd") }}
           </p>
         </div>
-        <div class="rounded-xl border border-ink-700 bg-ink-900 p-4">
+        <div class="rounded-xl border border-ink-700 bg-ink-900 p-5">
           <p class="text-xs font-medium uppercase tracking-wide text-ink-400">{{ t("notify.tileEmail") }}</p>
           <p class="mt-2 flex items-center gap-2 text-sm font-semibold">
             <span class="h-2 w-2 rounded-full" :class="dotCls(statusOf('email'))"></span>
@@ -179,22 +196,30 @@ onMounted(() => void load());
             {{ !emailConfigured ? t("notify.emailInfoNoDelivery") : saved.emailTo ? t("notify.emailInfoTo", { to: saved.emailTo }) : t("notify.emailInfoAdd") }}
           </p>
         </div>
-        <div class="rounded-xl border border-ink-700 bg-ink-900 p-4">
+        <div class="rounded-xl border border-ink-700 bg-ink-900 p-5">
           <p class="text-xs font-medium uppercase tracking-wide text-ink-400">{{ t("notify.tileEvents") }}</p>
           <p class="mt-2 text-sm">{{ t("notify.eventOffline") }}</p>
           <p class="mt-1 text-sm">{{ t("notify.eventOnline") }}</p>
         </div>
       </section>
 
-      <div class="grid items-start gap-6 xl:grid-cols-2">
-        <form class="space-y-6 rounded-xl border border-ink-700 bg-ink-900 p-6" @submit.prevent="save">
-          <div>
-            <h3 class="text-base font-semibold">{{ t("notify.alertsTitle") }}</h3>
-            <p class="mt-1 text-sm text-ink-400">{{ t("notify.intro") }}</p>
-          </div>
+      <div>
+        <nav class="flex gap-8 border-b border-ink-700" role="tablist">
+          <button type="button" role="tab" :aria-selected="tab === 'discord'" :class="tabCls('discord')" @click="tab = 'discord'">
+            {{ t("notify.tileDiscord") }}
+          </button>
+          <button type="button" role="tab" :aria-selected="tab === 'email'" :class="tabCls('email')" @click="tab = 'email'">
+            {{ t("notify.emailTitle") }}
+          </button>
+          <button type="button" role="tab" :aria-selected="tab === 'delivery'" :class="tabCls('delivery')" @click="tab = 'delivery'">
+            {{ t("notify.deliveryTitle") }}
+          </button>
+        </nav>
 
-          <div class="space-y-4 border-t border-ink-700 pt-5">
-            <h4 class="text-sm font-semibold">{{ t("notify.discordTitle") }}</h4>
+        <form id="notify-form" class="pt-8" @submit.prevent="save">
+          <p v-show="tab !== 'delivery'" class="mb-5 text-sm text-ink-400">{{ t("notify.intro") }}</p>
+
+          <section v-show="tab === 'discord'" class="max-w-3xl space-y-6 rounded-xl border border-ink-700 bg-ink-900 p-6">
             <label class="flex items-center gap-2 text-sm">
               <input v-model="form.discord_enabled" type="checkbox" />
               {{ t("notify.discordEnable") }}
@@ -230,10 +255,10 @@ onMounted(() => void load());
             >
               {{ results.discord.ok ? t("notify.testOk") : t("notify.testFailed", { detail: results.discord.detail }) }}
             </p>
-          </div>
+            <p :class="hintCls">{{ t("notify.testHint") }}</p>
+          </section>
 
-          <div class="space-y-4 border-t border-ink-700 pt-5">
-            <h4 class="text-sm font-semibold">{{ t("notify.emailTitle") }}</h4>
+          <section v-show="tab === 'email'" class="max-w-3xl space-y-6 rounded-xl border border-ink-700 bg-ink-900 p-6">
             <label class="flex items-center gap-2 text-sm">
               <input v-model="form.email_enabled" type="checkbox" />
               {{ t("notify.emailEnable") }}
@@ -257,25 +282,13 @@ onMounted(() => void load());
             >
               {{ results.email.ok ? t("notify.testOk") : t("notify.testFailed", { detail: results.email.detail }) }}
             </p>
-          </div>
-
-          <div class="border-t border-ink-700 pt-5">
-            <button type="submit" :class="buttonCls" :disabled="saving">
-              {{ saving ? t("notify.saving") : t("notify.save") }}
-            </button>
             <p :class="hintCls">{{ t("notify.testHint") }}</p>
-          </div>
+          </section>
         </form>
 
-        <details class="rounded-xl border border-ink-700 bg-ink-900" :open="!emailConfigured">
-          <summary class="cursor-pointer select-none px-6 py-4">
-            <span class="text-base font-semibold">{{ t("notify.deliverySummary") }}</span>
-            <span class="ml-2 text-xs text-ink-400">{{ t("notify.deliveryHint") }}</span>
-          </summary>
-          <div class="space-y-6 border-t border-ink-700 p-6">
-            <MailSettingsPanel />
-          </div>
-        </details>
+        <section v-if="tab === 'delivery'" class="pt-8">
+          <MailSettingsPanel />
+        </section>
       </div>
     </div>
   </AppLayout>
