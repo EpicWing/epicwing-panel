@@ -7,7 +7,7 @@ export class ApiError extends Error {
   }
 }
 
-// Das CSRF-Token liegt nur im Speicher und wird bei Login und /auth/me gesetzt.
+// The CSRF token only lives in memory and is set on login and /auth/me.
 let csrfToken = "";
 
 export function setCsrfToken(token: string): void {
@@ -37,17 +37,17 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
   });
 
   if (!response.ok) {
-    let detail = `Fehler ${response.status}`;
+    let detail = `Error ${response.status}`;
     try {
       const data = await response.json();
       if (typeof data.detail === "string") {
         detail = data.detail;
       } else if (Array.isArray(data.detail) && typeof data.detail[0]?.msg === "string") {
-        // Validierungsfehler von FastAPI: erste Meldung ohne technisches Präfix.
+        // FastAPI validation error: first message without the technical prefix.
         detail = data.detail[0].msg.replace(/^Value error, /, "");
       }
     } catch {
-      // Antwort ohne JSON-Body, die allgemeine Meldung bleibt.
+      // Response without a JSON body, the generic message stays.
     }
     throw new ApiError(response.status, detail);
   }

@@ -1,0 +1,41 @@
+export default {
+  common: {
+    signOut: "Sign out",
+    soon: "soon",
+    demo: "Demo",
+    unreachable: "Could not reach the server.",
+  },
+  nav: {
+    account: "Account",
+    administration: "Administration",
+    servers: "Servers",
+    apiKeys: "API Keys",
+    sshKeys: "SSH Keys",
+    settings: "Settings",
+    nodes: "Nodes",
+    allServers: "All Servers",
+    users: "Users",
+  },
+  login: {
+    subtitle: "Sign in to your panel",
+    email: "Email",
+    password: "Password",
+    submit: "Sign in",
+    submitting: "Signing in…",
+    notice: "Early development. Not for production use.",
+  },
+  servers: {
+    title: "Your Servers",
+    subtitle: "Servers you own or have access to.",
+    emptyTitle: "No servers yet",
+    emptyBody:
+      "Servers will show up here once a node agent is connected. The agent is not implemented yet.",
+    nodesRegistered: "Nodes registered: {count}",
+    showDemo: "Show demo data",
+    hideDemo: "Hide demo data",
+    demoNotice: "These cards are made-up demo data and not real servers.",
+    cpu: "CPU",
+    ram: "RAM",
+    storage: "Storage",
+  },
+};
