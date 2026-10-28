@@ -36,7 +36,6 @@ const sections = computed<NavSection[]>(() => {
         heading: t("nav.administration"),
         items: [
           { label: t("nav.overview"), to: "/admin" },
-          { label: t("nav.panelSettings"), to: "/admin/settings" },
         ],
       },
       {
