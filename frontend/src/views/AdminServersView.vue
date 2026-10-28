@@ -399,12 +399,14 @@ onUnmounted(() => window.clearInterval(timer));
         </p>
       </div>
       <div>
-        <label for="s-extra" class="mb-1.5 block text-sm text-ink-300">
+        <label class="mb-1.5 block text-sm text-ink-300">
           {{ t("adminServers.extraAllocations") }}
         </label>
-        <select id="s-extra" v-model="form.extraIds" multiple size="3" :class="inputClass">
-          <option v-for="a in extraOptions" :key="a.id" :value="a.id">{{ a.ip }}:{{ a.port }}</option>
-        </select>
+        <div v-if="extraOptions.length > 0" class="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-ink-700 p-3">
+          <label v-for="a in extraOptions" :key="a.id" class="flex items-center gap-2 text-sm text-ink-200">
+            <input v-model="form.extraIds" type="checkbox" :value="a.id" class="accent-accent-500" />{{ a.ip }}:{{ a.port }}
+          </label>
+        </div>
         <p class="mt-1.5 text-xs text-ink-400">{{ t("adminServers.extraHint") }}</p>
       </div>
 
