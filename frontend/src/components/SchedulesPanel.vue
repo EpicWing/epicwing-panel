@@ -36,6 +36,7 @@ const error = ref("");
 const notice = ref("");
 const busy = ref(false);
 const showForm = ref(false);
+const expanded = ref<string | null>(null);
 const addingTo = ref<string | null>(null);
 const form = ref(emptyForm());
 const taskForm = ref(emptyTask());
@@ -55,13 +56,6 @@ const ghostClass =
 const dangerClass =
   "rounded-md border border-bad/50 px-3 py-1.5 text-xs text-bad transition hover:bg-bad/10 disabled:opacity-40";
 
-const PRESETS: { label: string; f: [string, string, string, string, string] }[] = [
-  { label: "Every day at 04:00", f: ["0", "4", "*", "*", "*"] },
-  { label: "Every hour", f: ["0", "*", "*", "*", "*"] },
-  { label: "Every 30 minutes", f: ["*/30", "*", "*", "*", "*"] },
-  { label: "Every Monday at 03:00", f: ["0", "3", "*", "*", "1"] },
-];
-
 function emptyForm() {
   return {
     name: "",
@@ -71,6 +65,7 @@ function emptyForm() {
     month: "*",
     day_of_week: "*",
     only_when_online: true,
+    enabled: true,
   };
 }
 
@@ -88,53 +83,15 @@ function when(iso: string | null): string {
   return new Date(fixed).toLocaleString();
 }
 
-const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-
-function isNum(s: string): boolean {
-  return /^\d+$/.test(s);
-}
-
-function two(s: string): string {
-  return s.padStart(2, "0");
-}
-
-function describe(f: {
-  minute: string;
-  hour: string;
-  day_of_month: string;
-  month: string;
-  day_of_week: string;
-}): string {
-  const m = f.minute.trim();
-  const h = f.hour.trim();
-  const dom = f.day_of_month.trim();
-  const mon = f.month.trim();
-  const dow = f.day_of_week.trim();
-  let text: string;
-  if (m === "*" && h === "*") {
-    text = "Every minute";
-  } else if (m.startsWith("*/") && h === "*") {
-    text = `Every ${m.slice(2)} minutes`;
-  } else if (isNum(m) && h === "*") {
-    text = `At minute ${m} of every hour`;
-  } else if (isNum(m) && h.startsWith("*/")) {
-    text = `At minute ${m}, every ${h.slice(2)} hours`;
-  } else if (isNum(m) && isNum(h)) {
-    const now = new Date();
-    const local = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), Number(h), Number(m)),
-    ).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    text = `At ${two(h)}:${two(m)} UTC (${local} your time)`;
-  } else {
-    text = `Minute ${m}, hour ${h} (UTC)`;
-  }
-  const parts = [text];
-  if (dow !== "*") {
-    parts.push(isNum(dow) && Number(dow) <= 7 ? `on ${DAYS[Number(dow) % 7]}` : `on weekdays ${dow}`);
-  }
-  if (dom !== "*") parts.push(`on day ${dom} of the month`);
-  if (mon !== "*") parts.push(`in month ${mon}`);
-  return parts.join(", ");
+function localHint(): string {
+  const h = form.value.hour.trim();
+  const m = form.value.minute.trim();
+  if (!/^\d+$/.test(h) || !/^\d+$/.test(m) || Number(h) > 23 || Number(m) > 59) return "";
+  const now = new Date();
+  const t = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), Number(h), Number(m)),
+  );
+  return t.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
 function taskLabel(t: Task): string {
@@ -161,12 +118,19 @@ async function load() {
   }
 }
 
-function usePreset(f: [string, string, string, string, string]) {
-  form.value.minute = f[0];
-  form.value.hour = f[1];
-  form.value.day_of_month = f[2];
-  form.value.month = f[3];
-  form.value.day_of_week = f[4];
+function columns(s: Schedule): [string, string][] {
+  return [
+    ["Minute", s.minute],
+    ["Hour", s.hour],
+    ["Day (month)", s.day_of_month],
+    ["Month", s.month],
+    ["Day (week)", s.day_of_week],
+  ];
+}
+
+function toggleOpen(s: Schedule) {
+  expanded.value = expanded.value === s.id ? null : s.id;
+  addingTo.value = null;
 }
 
 async function create() {
@@ -176,10 +140,11 @@ async function create() {
   try {
     const created = await api<Schedule>(base(), {
       method: "POST",
-      body: { ...form.value, name: form.value.name.trim(), enabled: true },
+      body: { ...form.value, name: form.value.name.trim() },
     });
     showForm.value = false;
     form.value = emptyForm();
+    expanded.value = created?.id ?? null;
     addingTo.value = created?.id ?? null;
     taskForm.value = emptyTask();
     notice.value = "Schedule created. Add at least one task so it can run.";
@@ -206,6 +171,7 @@ async function remove(s: Schedule) {
   error.value = "";
   try {
     await api(`${base()}/${s.id}`, { method: "DELETE" });
+    expanded.value = null;
     await load();
   } catch (e) {
     error.value = message(e);
@@ -277,7 +243,7 @@ onBeforeUnmount(() => {
   <section class="space-y-6">
     <div class="flex items-start justify-between gap-4">
       <div>
-        <h2 class="text-2xl font-semibold">Automations</h2>
+        <h2 class="text-2xl font-semibold">Schedules</h2>
         <p class="mt-2 text-sm text-ink-400">
           Automate server tasks with scheduled commands, power actions and backups. Times are in UTC.
         </p>
@@ -292,15 +258,10 @@ onBeforeUnmount(() => {
       {{ notice }}
     </p>
 
-    <form v-if="showForm" class="grid gap-4 rounded-lg border border-ink-700 bg-ink-900 p-5" @submit.prevent="create">
+    <form v-if="showForm" class="grid gap-4 rounded-xl border border-ink-700 bg-ink-900 p-5" @submit.prevent="create">
       <div>
         <label for="s-name" class="mb-1.5 block text-sm text-ink-300">Name</label>
         <input id="s-name" v-model="form.name" required maxlength="64" :class="inputClass" />
-      </div>
-      <div class="flex flex-wrap gap-2">
-        <button v-for="p in PRESETS" :key="p.label" type="button" :class="ghostClass" @click="usePreset(p.f)">
-          {{ p.label }}
-        </button>
       </div>
       <div class="grid grid-cols-2 gap-3 sm:grid-cols-5">
         <div>
@@ -324,12 +285,14 @@ onBeforeUnmount(() => {
           <input id="s-dow" v-model="form.day_of_week" maxlength="32" :class="inputClass" />
         </div>
       </div>
-      <p class="text-sm text-ink-300">{{ describe(form) }}</p>
       <p class="text-xs text-ink-400">
-        Only digits and the characters * / , - are allowed. Day of week: 0 or 7 is Sunday, 1 is Monday.
+        Time in UTC<span v-if="localHint()"> (today {{ localHint() }} your time)</span>. Use * for "every". Day of week: 0 is Sunday, 1 is Monday.
       </p>
       <label class="flex items-center gap-2 text-sm text-ink-300">
-        <input v-model="form.only_when_online" type="checkbox" /> Only run when the server is online
+        <input v-model="form.only_when_online" type="checkbox" /> Only when the server is online
+      </label>
+      <label class="flex items-center gap-2 text-sm text-ink-300">
+        <input v-model="form.enabled" type="checkbox" /> Schedule enabled
       </label>
       <div class="flex gap-2">
         <button type="submit" :class="primaryClass" :disabled="busy || !form.name.trim()">Create</button>
@@ -349,90 +312,100 @@ onBeforeUnmount(() => {
     </div>
 
     <ul v-else class="space-y-3">
-      <li v-for="s in rows" :key="s.id" class="rounded-xl border border-ink-700 bg-ink-900 p-4">
-        <div class="flex flex-wrap items-start justify-between gap-3">
-          <div class="min-w-0">
-            <p class="truncate font-medium">
-              {{ s.name }}
-              <span v-if="s.is_running" class="ml-2 text-xs text-accent-400">running</span>
-              <span v-else-if="!s.enabled" class="ml-2 text-xs text-ink-400">paused</span>
-            </p>
-            <p class="mt-1 text-xs text-ink-300">{{ describe(s) }}</p>
-            <p class="mt-1 text-xs text-ink-400">
-              Next: {{ s.enabled ? when(s.next_run_at) : "-" }} · Last: {{ when(s.last_run_at) }}
+      <li v-for="s in rows" :key="s.id" class="rounded-xl border border-ink-700 bg-ink-900">
+        <button type="button" class="flex w-full items-center gap-4 px-5 py-4 text-left" @click="toggleOpen(s)">
+          <svg class="h-5 w-5 shrink-0 text-ink-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 5h18v16H3z M3 10h18 M8 3v4 M16 3v4" />
+          </svg>
+          <div class="min-w-0 flex-1">
+            <p class="truncate text-lg font-medium">{{ s.name }}</p>
+            <p class="text-xs text-ink-400">Last run at: {{ s.last_run_at ? when(s.last_run_at) : "never" }}</p>
+          </div>
+          <div class="hidden gap-5 md:flex">
+            <div v-for="[label, value] in columns(s)" :key="label" class="text-center">
+              <p class="text-base font-medium">{{ value }}</p>
+              <p class="text-[10px] uppercase tracking-wide text-ink-400">{{ label }}</p>
+            </div>
+          </div>
+          <span
+            class="shrink-0 rounded-full bg-ink-700 px-3 py-1 text-xs font-medium uppercase"
+            :class="s.is_running || s.enabled ? 'text-accent-400' : 'text-ink-400'"
+          >
+            {{ s.is_running ? "Running" : s.enabled ? "Active" : "Inactive" }}
+          </span>
+        </button>
+
+        <div v-if="expanded === s.id" class="space-y-4 border-t border-ink-700 px-5 py-4">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <p class="text-xs text-ink-400">
+              Next run: {{ s.enabled ? when(s.next_run_at) : "-" }}
               <span v-if="s.only_when_online"> · only when online</span>
             </p>
+            <div v-if="manage" class="flex flex-wrap gap-2">
+              <button :class="ghostClass" :disabled="s.is_running || s.tasks.length === 0" @click="runNow(s)">
+                Run now
+              </button>
+              <button :class="ghostClass" @click="openTaskForm(s)">Add task</button>
+              <button :class="ghostClass" @click="toggle(s)">{{ s.enabled ? "Disable" : "Enable" }}</button>
+              <button :class="dangerClass" :disabled="s.is_running" @click="remove(s)">Delete</button>
+            </div>
           </div>
-          <div v-if="manage" class="flex flex-wrap gap-2">
-            <button :class="ghostClass" :disabled="s.is_running || s.tasks.length === 0" @click="runNow(s)">
-              Run now
-            </button>
-            <button :class="ghostClass" @click="openTaskForm(s)">Add task</button>
-            <button :class="ghostClass" @click="toggle(s)">{{ s.enabled ? "Pause" : "Enable" }}</button>
-            <button :class="dangerClass" :disabled="s.is_running" @click="remove(s)">Delete</button>
-          </div>
+
+          <ol v-if="s.tasks.length" class="space-y-2">
+            <li v-for="(t, i) in s.tasks" :key="t.id" class="flex items-start justify-between gap-3 text-sm">
+              <span class="min-w-0 break-words text-ink-300">
+                {{ i + 1 }}. {{ taskLabel(t) }}
+                <span v-if="t.time_offset > 0" class="text-xs text-ink-400"> · after {{ t.time_offset }}s</span>
+                <span v-if="t.continue_on_failure" class="text-xs text-ink-400"> · continues on failure</span>
+              </span>
+              <button v-if="manage" :class="dangerClass" @click="removeTask(s, t)">Remove</button>
+            </li>
+          </ol>
+          <p v-else class="text-xs text-ink-400">No tasks yet. A schedule without tasks does nothing.</p>
+
+          <form v-if="addingTo === s.id && manage" class="grid gap-3 border-t border-ink-700 pt-4" @submit.prevent="addTask(s)">
+            <div>
+              <label :for="`t-action-${s.id}`" class="mb-1.5 block text-sm text-ink-300">Action</label>
+              <select :id="`t-action-${s.id}`" v-model="taskForm.action" :class="inputClass" @change="onActionChange">
+                <option value="power">Power action</option>
+                <option value="command">Send command</option>
+                <option value="backup">Create backup</option>
+              </select>
+            </div>
+            <div v-if="taskForm.action === 'power'">
+              <label :for="`t-power-${s.id}`" class="mb-1.5 block text-sm text-ink-300">Power action</label>
+              <select :id="`t-power-${s.id}`" v-model="taskForm.payload" :class="inputClass">
+                <option value="start">Start</option>
+                <option value="stop">Stop</option>
+                <option value="restart">Restart</option>
+                <option value="kill">Kill</option>
+              </select>
+            </div>
+            <div v-else-if="taskForm.action === 'command'">
+              <label :for="`t-cmd-${s.id}`" class="mb-1.5 block text-sm text-ink-300">Command</label>
+              <input :id="`t-cmd-${s.id}`" v-model="taskForm.payload" maxlength="1024" :class="inputClass" />
+            </div>
+            <div v-else>
+              <label :for="`t-ign-${s.id}`" class="mb-1.5 block text-sm text-ink-300">
+                Ignored files (optional, one pattern per line)
+              </label>
+              <textarea :id="`t-ign-${s.id}`" v-model="taskForm.payload" rows="3" maxlength="1024" :class="inputClass" />
+            </div>
+            <div>
+              <label :for="`t-off-${s.id}`" class="mb-1.5 block text-sm text-ink-300">
+                Wait before this task (seconds)
+              </label>
+              <input :id="`t-off-${s.id}`" v-model.number="taskForm.time_offset" type="number" min="0" :class="inputClass" />
+            </div>
+            <label class="flex items-center gap-2 text-sm text-ink-300">
+              <input v-model="taskForm.continue_on_failure" type="checkbox" /> Continue if this task fails
+            </label>
+            <div class="flex gap-2">
+              <button type="submit" :class="primaryClass" :disabled="busy">Add task</button>
+              <button type="button" :class="ghostClass" @click="addingTo = null">Close</button>
+            </div>
+          </form>
         </div>
-
-        <ol v-if="s.tasks.length" class="mt-4 space-y-2 border-t border-ink-700 pt-4">
-          <li v-for="(t, i) in s.tasks" :key="t.id" class="flex items-start justify-between gap-3 text-sm">
-            <span class="min-w-0 break-words text-ink-300">
-              {{ i + 1 }}. {{ taskLabel(t) }}
-              <span v-if="t.time_offset > 0" class="text-xs text-ink-400"> · after {{ t.time_offset }}s</span>
-              <span v-if="t.continue_on_failure" class="text-xs text-ink-400"> · continues on failure</span>
-            </span>
-            <button v-if="manage" :class="dangerClass" @click="removeTask(s, t)">Remove</button>
-          </li>
-        </ol>
-        <p v-else class="mt-4 border-t border-ink-700 pt-4 text-xs text-ink-400">
-          No tasks yet. A schedule without tasks does nothing.
-        </p>
-
-        <form
-          v-if="addingTo === s.id && manage"
-          class="mt-4 grid gap-3 border-t border-ink-700 pt-4"
-          @submit.prevent="addTask(s)"
-        >
-          <div>
-            <label :for="`t-action-${s.id}`" class="mb-1.5 block text-sm text-ink-300">Action</label>
-            <select :id="`t-action-${s.id}`" v-model="taskForm.action" :class="inputClass" @change="onActionChange">
-              <option value="power">Power action</option>
-              <option value="command">Send command</option>
-              <option value="backup">Create backup</option>
-            </select>
-          </div>
-          <div v-if="taskForm.action === 'power'">
-            <label :for="`t-power-${s.id}`" class="mb-1.5 block text-sm text-ink-300">Power action</label>
-            <select :id="`t-power-${s.id}`" v-model="taskForm.payload" :class="inputClass">
-              <option value="start">Start</option>
-              <option value="stop">Stop</option>
-              <option value="restart">Restart</option>
-              <option value="kill">Kill</option>
-            </select>
-          </div>
-          <div v-else-if="taskForm.action === 'command'">
-            <label :for="`t-cmd-${s.id}`" class="mb-1.5 block text-sm text-ink-300">Command</label>
-            <input :id="`t-cmd-${s.id}`" v-model="taskForm.payload" maxlength="1024" :class="inputClass" />
-          </div>
-          <div v-else>
-            <label :for="`t-ign-${s.id}`" class="mb-1.5 block text-sm text-ink-300">
-              Ignored files (optional, one pattern per line)
-            </label>
-            <textarea :id="`t-ign-${s.id}`" v-model="taskForm.payload" rows="3" maxlength="1024" :class="inputClass" />
-          </div>
-          <div>
-            <label :for="`t-off-${s.id}`" class="mb-1.5 block text-sm text-ink-300">
-              Wait before this task (seconds)
-            </label>
-            <input :id="`t-off-${s.id}`" v-model.number="taskForm.time_offset" type="number" min="0" :class="inputClass" />
-          </div>
-          <label class="flex items-center gap-2 text-sm text-ink-300">
-            <input v-model="taskForm.continue_on_failure" type="checkbox" /> Continue if this task fails
-          </label>
-          <div class="flex gap-2">
-            <button type="submit" :class="primaryClass" :disabled="busy">Add task</button>
-            <button type="button" :class="ghostClass" @click="addingTo = null">Close</button>
-          </div>
-        </form>
       </li>
     </ul>
   </section>
