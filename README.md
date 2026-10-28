@@ -74,8 +74,7 @@ Create the tables and the first administrator:
 
 The second command asks for the password twice.
 
-After an update, run `.venv/bin/pip install .` and `.venv/bin/alembic upgrade head`
-again. Migrations don't run on their own.
+Migrations don't run on their own, see [Updating](#updating).
 
 ### 3. Frontend
 
@@ -145,6 +144,10 @@ server {
 
     location / {
         add_header Cache-Control "no-cache";
+        add_header Strict-Transport-Security "max-age=31536000" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
         try_files $uri /index.html;
     }
 }
@@ -153,6 +156,34 @@ server {
 ### 6. Nodes
 
 Add a node in the admin area. `scripts/install-node.sh` installs the agent on the node.
+
+## Updating
+
+Back up the database first.
+
+```bash
+sudo -u postgres pg_dump -Fc YOUR_DB > /var/backups/epicwing-$(date +%F).dump
+```
+
+Then update the code and run this in `backend`:
+
+```bash
+.venv/bin/pip install .
+.venv/bin/alembic upgrade head
+systemctl restart epicwing-panel
+```
+
+Rebuild the frontend and copy `frontend/dist` to the nginx directory again. Update the
+agent on your nodes so it matches the panel version.
+
+To roll back, go back to the previous code and restore the dump:
+
+```bash
+systemctl stop epicwing-panel
+sudo -u postgres pg_restore --clean --if-exists -d YOUR_DB /var/backups/epicwing-DATE.dump
+```
+
+Start the panel again afterwards. Everything created after the backup is gone.
 
 ## Production notes
 
