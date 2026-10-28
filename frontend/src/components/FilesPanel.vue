@@ -49,6 +49,7 @@ const total = ref(0);
 const next = ref(-1);
 const loading = ref(false);
 const busy = ref(false);
+const dragging = ref(false);
 const error = ref("");
 const query = ref("");
 const progress = ref("");
@@ -668,6 +669,10 @@ async function upload(event: Event): Promise<void> {
   const input = event.target as HTMLInputElement;
   const files = input.files ? Array.from(input.files) : [];
   input.value = "";
+  await uploadFiles(files);
+}
+
+async function uploadFiles(files: File[]): Promise<void> {
   if (files.length === 0 || busy.value) return;
   const clashes = files.filter((file) => exists(file.name)).map((file) => file.name);
   if (clashes.length > 0 && !window.confirm(`Overwrite ${clashes.join(", ")}?`)) return;
@@ -697,6 +702,35 @@ async function upload(event: Event): Promise<void> {
   busy.value = false;
 }
 
+function hasFiles(event: DragEvent): boolean {
+  return Array.from(event.dataTransfer?.types ?? []).includes("Files");
+}
+
+function onDragOver(event: DragEvent): void {
+  if (!hasFiles(event)) return;
+  event.preventDefault();
+  dragging.value = !blocked.value && !editor.value;
+}
+
+function onDragLeave(event: DragEvent): void {
+  const next = event.relatedTarget as Node | null;
+  if (next && (event.currentTarget as HTMLElement | null)?.contains(next)) return;
+  dragging.value = false;
+}
+
+async function onDrop(event: DragEvent): Promise<void> {
+  if (!hasFiles(event)) return;
+  event.preventDefault();
+  dragging.value = false;
+  if (blocked.value || editor.value) return;
+  const items = Array.from(event.dataTransfer?.items ?? []);
+  if (items.some((item) => item.webkitGetAsEntry?.()?.isDirectory)) {
+    error.value = "Folders cannot be dropped. Upload single files or zip the folder first.";
+    return;
+  }
+  await uploadFiles(Array.from(event.dataTransfer?.files ?? []));
+}
+
 onMounted(() => {
   document.addEventListener("click", closeMenu);
   if (!blocked.value) void load("");
@@ -710,7 +744,8 @@ watch(blocked, (value) => {
 </script>
 
 <template>
-  <div class="min-w-0 space-y-4">
+  <div class="relative min-w-0 space-y-4" @dragover="onDragOver" @dragleave="onDragLeave" @drop="onDrop">
+    <div v-if="dragging" class="pointer-events-none absolute inset-0 z-10 flex items-start justify-center rounded-xl border-2 border-dashed border-accent-500 bg-ink-950/70 pt-24 text-lg font-semibold text-accent-300">Drop files to upload</div>
     <div v-if="!editor" class="flex flex-wrap items-start justify-between gap-4">
       <div>
         <h2 class="text-4xl font-bold">Files</h2>
