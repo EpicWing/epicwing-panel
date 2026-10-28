@@ -57,3 +57,25 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
   }
   return (await response.json()) as T;
 }
+
+// Raw upload (no JSON), used for profile pictures.
+export async function apiUpload(path: string, file: Blob): Promise<void> {
+  const response = await fetch(`/api${path}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/octet-stream", "X-CSRF-Token": csrfToken },
+    credentials: "same-origin",
+    body: file,
+  });
+  if (!response.ok) {
+    let detail = `Error ${response.status}`;
+    try {
+      const data = await response.json();
+      if (typeof data.detail === "string") {
+        detail = data.detail;
+      }
+    } catch {
+      // Response without a JSON body, the generic message stays.
+    }
+    throw new ApiError(response.status, detail);
+  }
+}

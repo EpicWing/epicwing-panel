@@ -4,6 +4,7 @@ import { useI18n } from "vue-i18n";
 
 import { ApiError, api } from "../api/client";
 import AppLayout from "../components/AppLayout.vue";
+import AvatarPanel from "../components/AvatarPanel.vue";
 import TwoFactorPanel from "../components/TwoFactorPanel.vue";
 
 const MIN_LENGTH = 12;
@@ -122,6 +123,7 @@ async function submit() {
         </button>
       </form>
     </section>
-    <TwoFactorPanel class="mt-6" />
+    <AvatarPanel />
+      <TwoFactorPanel class="mt-6" />
   </AppLayout>
 </template>
