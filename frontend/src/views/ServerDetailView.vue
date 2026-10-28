@@ -433,7 +433,7 @@ onMounted(async () => {
           </div>
         </section>
 
-        <template v-else>
+        <div v-else :key="active" class="tab-in">
           <FilesPanel v-if="active === 'files'" :server-id="server.id" :status="server.status" />
           <DatabasesPanel v-else-if="active === 'databases'" :server-id="server.id" :permissions="permissions" />
 
@@ -453,9 +453,10 @@ onMounted(async () => {
           <div v-else-if="active === 'settings'" class="space-y-6"><div><h2 class="text-2xl font-semibold">Settings</h2><p class="mt-2 text-sm text-ink-400">Configure your server settings and maintenance actions.</p></div><div class="rounded-xl border border-ink-700 bg-ink-900 p-6"><h3 class="text-lg font-semibold">Server Details</h3><label class="mt-5 block text-sm text-ink-400">Server Name</label><div class="mt-2 flex gap-3"><input :value="nameDraft ?? server.name" @input="nameDraft = ($event.target as HTMLInputElement).value; nameSaved = false" @keydown.enter.prevent="saveName()" class="w-full rounded-lg border border-ink-700 bg-ink-950 px-4 py-3 text-sm text-ink-100" /><button class="shrink-0 rounded-lg bg-accent-500 px-5 py-2 text-sm font-medium text-ink-950 transition hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-40" :disabled="!nameChanged() || savingName" @click="saveName()">{{ savingName ? "Saving…" : "Save" }}</button></div><p v-if="nameError" class="mt-3 text-sm text-bad">{{ nameError }}</p><p v-else-if="nameSaved" class="mt-3 text-sm text-ink-400">Saved.</p></div><div class="rounded-xl border border-ink-700 bg-ink-900 p-6"><h3 class="text-lg font-semibold">Reinstall Server</h3><p class="mt-2 text-sm text-ink-400">Reinstalling replaces the container and runs the installation script again. This can overwrite files.</p><button class="mt-5 rounded-lg border border-bad/50 px-4 py-2 text-sm text-bad transition hover:bg-bad/10 disabled:cursor-not-allowed disabled:opacity-40" :disabled="!canReinstall()" @click="reinstall()">{{ reinstalling ? "Reinstalling…" : "Reinstall Server" }}</button><p v-if="!canReinstall() && !reinstalling" class="mt-3 text-xs text-ink-400">Stop the server before reinstalling.</p><p v-if="reinstallError" class="mt-3 text-sm text-bad">{{ reinstallError }}</p></div><BackupLimitField v-if="auth.state.user?.is_admin" :server-id="server.id" :limit="server.backup_limit" @saved="server.backup_limit = $event" /></div>
 
           <div v-else-if="active === 'activity'" class="space-y-6"><div><h2 class="text-2xl font-semibold">Timeline</h2><p class="mt-2 text-sm text-ink-400">Monitor server activity and track actions performed on this server.</p></div><ActivityPanel :server-id="server.id" :permissions="permissions" /></div>
-        </template>
+        </div>
       </main>
     </div>
-    <div v-else class="rounded-xl border border-ink-700 bg-ink-900 p-8 text-ink-400">{{ error || "Loading server…" }}</div>
+    <div v-else-if="error" class="rounded-xl border border-ink-700 bg-ink-900 p-8 text-ink-400">{{ error }}</div>
+    <div v-else class="space-y-3" aria-busy="true"><div class="skeleton h-12"></div><div class="skeleton h-24"></div><div class="skeleton h-72"></div></div>
   </AppLayout>
 </template>

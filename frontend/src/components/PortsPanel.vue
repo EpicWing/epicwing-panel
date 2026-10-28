@@ -137,7 +137,7 @@ onMounted(load);
         </div>
       </div>
 
-      <p v-if="loading" class="mt-5 text-sm text-ink-400">Loading…</p>
+      <div v-if="loading" class="mt-5 space-y-3" aria-busy="true"><div class="skeleton h-12"></div><div class="skeleton h-12"></div><div class="skeleton h-12"></div></div>
       <div v-else class="mt-5 space-y-2">
         <div
           v-for="row in rows"

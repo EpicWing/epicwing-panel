@@ -577,7 +577,7 @@ onMounted(() => void load());
       </div>
     </form>
 
-    <p v-if="loading" class="py-8 text-center text-ink-400">{{ t("eggs.loading") }}</p>
+    <div v-if="loading" class="space-y-3 py-4" aria-busy="true"><div class="skeleton h-12"></div><div class="skeleton h-12"></div><div class="skeleton h-12"></div></div>
 
     <div
       v-else-if="nests.length === 0"

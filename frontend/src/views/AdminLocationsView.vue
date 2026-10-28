@@ -41,7 +41,7 @@ onUnmounted(() => window.clearInterval(timer));
     <p v-if="error" role="alert" class="mb-6 rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">
       {{ error }}
     </p>
-    <p v-if="loading" class="text-sm text-ink-400">…</p>
+    <div v-if="loading" class="space-y-3" aria-busy="true"><div class="skeleton h-12"></div><div class="skeleton h-12"></div><div class="skeleton h-12"></div></div>
     <div
       v-else-if="rows.length === 0"
       class="flex min-h-[14rem] items-center justify-center rounded-xl border border-ink-700 bg-ink-900 text-center"
