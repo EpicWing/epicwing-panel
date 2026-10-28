@@ -10,7 +10,18 @@ from starlette.concurrency import run_in_threadpool
 from app.agentlink import protocol
 from app.agentlink.console import hub
 from app.agentlink.registry import registry
+from app.models import Server
 from app.services.server_state import apply_state
+
+
+def _owns_container(db: Session, node_id: uuid.UUID, name: str) -> bool:
+    """True, wenn der Containername zu einem Server dieser Node gehört."""
+    try:
+        server_id = uuid.UUID(name)
+    except ValueError:
+        return False
+    server = db.get(Server, server_id)
+    return server is not None and server.node_id == node_id
 
 
 async def handle_frame(db: Session, node_id: uuid.UUID, raw: str) -> bool:
@@ -53,7 +64,10 @@ async def handle_frame(db: Session, node_id: uuid.UUID, raw: str) -> bool:
             "network_tx_bytes": stats.network_tx_bytes,
             "started_at": stats.started_at,
         }
+        if not _owns_container(db, node_id, stats.name):
+            return True
         registry.server_stats[stats.name] = payload
+        registry.register_stats(node_id, stats.name)
         await hub.publish(
             node_id,
             stats.name,

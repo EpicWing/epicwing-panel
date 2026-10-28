@@ -25,6 +25,9 @@ class AgentRegistry:
         self.stats: dict[uuid.UUID, dict[str, Any]] = {}
         self.history: dict[uuid.UUID, deque[dict[str, float]]] = {}
         self.server_stats: dict[str, dict[str, Any]] = {}
+        # Welcher Node ein Server in server_stats gehört, damit das Trennen einer
+        # Node nur die eigenen Live-Werte löscht.
+        self._stats_nodes: dict[uuid.UUID, set[str]] = {}
 
     async def register(self, node_id: uuid.UUID, websocket: WebSocket) -> None:
         previous = self._connections.get(node_id)
@@ -34,6 +37,9 @@ class AgentRegistry:
             with contextlib.suppress(RuntimeError, WebSocketDisconnect):
                 await previous.close(code=WS_REPLACED, reason=WS_REPLACED_REASON)
 
+    def register_stats(self, node_id: uuid.UUID, name: str) -> None:
+        self._stats_nodes.setdefault(node_id, set()).add(name)
+
     def unregister(self, node_id: uuid.UUID, websocket: WebSocket) -> bool:
         """True, wenn es die aktuelle Verbindung war (nicht eine bereits ersetzte)."""
         if self._connections.get(node_id) is not websocket:
@@ -41,7 +47,8 @@ class AgentRegistry:
         del self._connections[node_id]
         self.stats.pop(node_id, None)
         self.history.pop(node_id, None)
-        self.server_stats.clear()
+        for name in self._stats_nodes.pop(node_id, set()):
+            self.server_stats.pop(name, None)
         return True
 
     async def disconnect(self, node_id: uuid.UUID) -> None:

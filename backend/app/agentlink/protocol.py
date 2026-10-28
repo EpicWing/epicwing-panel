@@ -14,6 +14,8 @@ MAX_MESSAGE_CHARS = 16 * 1024
 AUTH_TIMEOUT_SECONDS = 10
 IDLE_TIMEOUT_SECONDS = 30
 COMMAND_TIMEOUT_SECONDS = 90
+# Der Agent installiert bis zu 30 Minuten (agent/docker.go), das Panel wartet länger.
+INSTALL_COMMAND_TIMEOUT_SECONDS = 32 * 60
 COMMAND_ACTIONS = (
     "container.create",
     "container.install",

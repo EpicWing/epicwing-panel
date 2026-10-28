@@ -13,10 +13,12 @@ ExecStart=/opt/epicwing/epicwing-agent run
 Restart=always
 RestartSec=5
 
-# Härtung: Der Agent bekommt nur Schreibrechte auf die Serverordner (Datei-API) und keine neuen Privilegien.
+# Härtung: Der Agent bekommt nur Schreibrechte auf die Serverordner (Datei-API), das
+# Backup-Verzeichnis (backup.create liest die Daten und schreibt das Archiv) und keine
+# neuen Privilegien.
 NoNewPrivileges=true
 ProtectSystem=strict
-ReadWritePaths=-/var/lib/epicwing/servers
+ReadWritePaths=-/var/lib/epicwing/servers -/var/lib/epicwing/backups
 ProtectHome=true
 PrivateTmp=true
 ProtectKernelModules=true

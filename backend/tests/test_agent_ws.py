@@ -13,6 +13,7 @@ from app.agentlink.registry import registry
 from app.main import app
 from app.models import AuditLog, Node, NodeCredential
 from app.security.ratelimit import agent_auth_limiter
+from tests.factories import make_allocations, make_egg, make_nest
 from tests.helpers import collect_routes
 
 PASSWORD = "correct-horse-battery"  # noqa: S105
@@ -222,3 +223,106 @@ def test_websocket_routes_are_known():
     # Signatur anmelden. Jede neue WebSocket-Route muss deshalb bewusst hier stehen.
     found = {r.path for r in collect_routes(app) if r.websocket}
     assert found == {"/api/agent/ws", "/api/servers/{server_id}/console"}
+
+
+def _login(client, user):
+    response = client.post(
+        "/api/auth/login", json={"email": user.email, "password": PASSWORD}
+    )
+    assert response.status_code == 200
+    return {"X-CSRF-Token": response.json()["csrf_token"]}
+
+
+def _server_on(client, user, node_id, port, nest_name="Games"):
+    headers = _login(client, user)
+    nest_id = make_nest(client, headers, nest_name)
+    egg_id = make_egg(client, headers, nest_id, startup="run")
+    allocations = make_allocations(client, headers, node_id, port, port)
+    body = {
+        "name": f"Game {port}",
+        "owner_id": str(user.id),
+        "node_id": node_id,
+        "egg_id": egg_id,
+        "allocation_id": allocations[0],
+    }
+    created = client.post("/api/servers", json=body, headers=headers)
+    assert created.status_code == 201, created.text
+    return created.json()["id"]
+
+
+def _stats_frame(name):
+    return {
+        "type": "stats",
+        "name": name,
+        "cpu_percent": 10.0,
+        "memory_used_bytes": 100,
+        "memory_limit_bytes": 200,
+        "disk_used_bytes": 300,
+        "network_rx_bytes": 0,
+        "network_tx_bytes": 0,
+        "started_at": "2026-01-01T00:00:00Z",
+    }
+
+
+@pytest.fixture
+def clean_stats():
+    registry.server_stats.clear()
+    registry._stats_nodes.clear()
+    yield
+    registry.server_stats.clear()
+    registry._stats_nodes.clear()
+
+
+def _eventually(check, timeout=2.0):
+    import time
+
+    end = time.monotonic() + timeout
+    while time.monotonic() < end:
+        if check():
+            return True
+        time.sleep(0.02)
+    return check()
+
+
+def test_stats_of_a_foreign_container_are_ignored(client, user, clean_stats):
+    node_id, key = _enroll_node(client, user)
+    server_id = _server_on(client, user, node_id, 25001)
+    with client.websocket_connect(WS_URL) as ws:
+        _login_agent(ws, node_id, key)
+        ws.send_json(_stats_frame(str(uuid.uuid4())))
+        ws.send_json(_stats_frame(server_id))
+        # Beim Trennen der Verbindung löscht unregister die Stats dieser Node.
+        assert _eventually(lambda: len(registry.server_stats) == 1)
+        assert server_id in registry.server_stats
+
+
+def test_stats_of_a_server_of_another_node_are_ignored(client, user, clean_stats):
+    node_a, key_a = _enroll_node(client, user, "node-a")
+    node_b, key_b = _enroll_node(client, user, "node-b")
+    server_b = _server_on(client, user, node_b, 25002)
+    with client.websocket_connect(WS_URL) as ws:
+        _login_agent(ws, node_a, key_a)
+        ws.send_json(_stats_frame(server_b))
+        import time
+
+        time.sleep(0.2)
+    assert server_b not in registry.server_stats
+
+
+def test_disconnecting_one_node_keeps_the_stats_of_others(client, user, clean_stats):
+    node_a, key_a = _enroll_node(client, user, "node-a")
+    node_b, key_b = _enroll_node(client, user, "node-b")
+    server_a = _server_on(client, user, node_a, 25001, "Nest A")
+    server_b = _server_on(client, user, node_b, 25002, "Nest B")
+    with client.websocket_connect(WS_URL) as ws_b:
+        _login_agent(ws_b, node_b, key_b)
+        with client.websocket_connect(WS_URL) as ws_a:
+            _login_agent(ws_a, node_a, key_a)
+            ws_a.send_json(_stats_frame(server_a))
+            ws_b.send_json(_stats_frame(server_b))
+            assert _eventually(
+                lambda: set(registry.server_stats) == {server_a, server_b}
+            )
+        # Node A ist getrennt: ihre Stats verschwinden, die von Node B bleiben.
+        assert _eventually(lambda: set(registry.server_stats) == {server_b})
+        assert server_a not in registry.server_stats

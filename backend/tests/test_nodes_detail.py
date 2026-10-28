@@ -26,8 +26,8 @@ def _login(client, user):
     return {"X-CSRF-Token": response.json()["csrf_token"]}
 
 
-def _create(client, headers, name="node-1"):
-    response = client.post("/api/nodes", json={"name": name}, headers=headers)
+def _create(client, headers, name="node-1", **fields):
+    response = client.post("/api/nodes", json={"name": name, **fields}, headers=headers)
     assert response.status_code == 201
     return response.json()["node"]["id"]
 

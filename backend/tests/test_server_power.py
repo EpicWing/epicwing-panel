@@ -18,11 +18,16 @@ class FakeBroker:
         self.calls = []
         self.errors = {}
         self.offline = False
+        self.timeouts = set()
+        self.timeouts_seen = []
 
     async def send(self, node_id, action, params, timeout=90):
         self.calls.append((action, params))
+        self.timeouts_seen.append(timeout)
         if self.offline:
             raise AgentOffline
+        if action in self.timeouts:
+            raise TimeoutError
         error = self.errors.get(action)
         return CommandResult(type="result", id="x", ok=error is None, error=error, data={})
 
@@ -120,6 +125,20 @@ def test_agent_error_sets_the_error_state(client, server, broker):
     del broker.errors["container.create"]
     assert _post(client, server, "/install").json()["status"] == "offline"
     assert client.get(server.url).json()["last_error"] is None
+
+
+def test_install_timeout_keeps_installing(client, server, broker):
+    egg_id = client.get(server.url).json()["egg_id"]
+    script = client.patch(
+        f"/api/eggs/{egg_id}", json={"install_script": "sleep 1"}, headers=server.headers
+    )
+    assert script.status_code == 200
+    broker.timeouts.add("container.install")
+    response = _post(client, server, "/install")
+    assert response.status_code == 504
+    assert _status(client, server) == "installing"
+    install_index = [c[0] for c in broker.calls].index("container.install")
+    assert broker.timeouts_seen[install_index] > 90
 
 
 def test_offline_node_gives_409(client, server, broker):
