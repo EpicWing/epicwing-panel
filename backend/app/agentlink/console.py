@@ -120,6 +120,11 @@ class ConsoleHub:
         node_id = self._nodes.get(name)
         self._drop(name, websocket)
         if name not in self._subs and node_id is not None:
+            from app.services.startup_ready import watcher
+
+            if watcher.watching(name):
+                # Das Panel wartet noch auf die Bereitmeldung und braucht die Ausgabe weiter.
+                return
             with contextlib.suppress(AgentOffline, TimeoutError, ConsoleError):
                 await self._command(node_id, "console.unwatch", name)
 
@@ -173,6 +178,18 @@ class ConsoleHub:
                 await websocket.send_json(payload)
             except (RuntimeError, WebSocketDisconnect):
                 self._drop(name, websocket)
+
+    async def ensure_watch(self, node_id: uuid.UUID, name: str) -> None:
+        """Meldet die Konsole beim Agent an, auch ohne Browser (doppelte Watches sind harmlos)."""
+        with contextlib.suppress(AgentOffline, TimeoutError, ConsoleError):
+            await self._command(node_id, "console.watch", name)
+
+    async def release(self, node_id: uuid.UUID, name: str) -> None:
+        """Beendet den Watch, wenn niemand die Konsole ansieht."""
+        if self._subs.get(name):
+            return
+        with contextlib.suppress(AgentOffline, TimeoutError, ConsoleError):
+            await self._command(node_id, "console.unwatch", name)
 
     async def rewatch(self, node_id: uuid.UUID) -> None:
         """Nach einer neuen Agent-Verbindung die beobachteten Container erneut anmelden."""
