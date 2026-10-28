@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import cronstrue from "cronstrue";
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 
 import { ApiError, api } from "../api/client";
+import Modal from "./Modal.vue";
 
 interface Task {
   id: string;
@@ -37,11 +39,13 @@ const rows = ref<Schedule[]>([]);
 const loading = ref(true);
 const error = ref("");
 const notice = ref("");
+const formError = ref("");
 const busy = ref(false);
-const showForm = ref(false);
+const scheduleOpen = ref(false);
+const taskOpen = ref(false);
 const editing = ref<string | null>(null);
+const taskFor = ref<string | null>(null);
 const expanded = ref<string | null>(null);
-const addingTo = ref<string | null>(null);
 const form = ref(emptyForm());
 const taskForm = ref(emptyTask());
 let timer: number | undefined;
@@ -52,9 +56,11 @@ const base = () => `/servers/${props.serverId}/schedules`;
 const manage = computed(() => can("schedules.manage"));
 
 const inputClass =
-  "w-full rounded-md border border-ink-700 bg-ink-950 px-3 py-2 text-sm outline-none transition focus:border-accent-500";
+  "w-full rounded-md border border-ink-700 bg-ink-800 px-3 py-2 text-sm outline-none transition focus:border-accent-500";
 const primaryClass =
   "rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950 transition hover:bg-accent-400 disabled:opacity-60";
+const cancelClass =
+  "rounded-md bg-ink-800 px-4 py-2 text-sm text-ink-300 transition hover:text-ink-100";
 const ghostClass =
   "rounded-md border border-ink-700 px-3 py-1.5 text-xs text-ink-300 transition hover:border-accent-500 disabled:opacity-40";
 const dangerClass =
@@ -88,6 +94,26 @@ function when(iso: string | null): string {
 }
 
 const zoneName = computed(() => rows.value[0]?.timezone ?? "the panel time zone");
+
+function sentence(parts: string[]): string {
+  try {
+    return cronstrue.toString(parts.map((p) => p.trim()).join(" "), { use24HourTimeFormat: true });
+  } catch {
+    return "";
+  }
+}
+
+function describeSchedule(s: Schedule): string {
+  return sentence([s.minute, s.hour, s.day_of_month, s.month, s.day_of_week]);
+}
+
+const liveDescription = computed(() => {
+  const f = form.value;
+  const text = sentence([f.minute, f.hour, f.day_of_month, f.month, f.day_of_week]);
+  return text
+    ? { ok: true, text }
+    : { ok: false, text: 'This is not a valid schedule yet. Use * for "every".' };
+});
 
 function taskLabel(t: Task): string {
   if (t.action === "power") return `Power: ${t.payload}`;
@@ -136,17 +162,13 @@ function columns(s: Schedule): [string, string][] {
 
 function toggleOpen(s: Schedule) {
   expanded.value = expanded.value === s.id ? null : s.id;
-  addingTo.value = null;
 }
 
 function openNew() {
-  if (showForm.value && editing.value === null) {
-    showForm.value = false;
-    return;
-  }
   editing.value = null;
   form.value = emptyForm();
-  showForm.value = true;
+  formError.value = "";
+  scheduleOpen.value = true;
 }
 
 function openEdit(s: Schedule) {
@@ -161,16 +183,17 @@ function openEdit(s: Schedule) {
     only_when_online: s.only_when_online,
     enabled: s.enabled,
   };
-  showForm.value = true;
+  formError.value = "";
+  scheduleOpen.value = true;
 }
 
 function closeForm() {
-  showForm.value = false;
+  scheduleOpen.value = false;
   editing.value = null;
-  form.value = emptyForm();
 }
 
 async function save() {
+  formError.value = "";
   error.value = "";
   notice.value = "";
   busy.value = true;
@@ -185,25 +208,13 @@ async function save() {
       const created = await api<Schedule>(base(), { method: "POST", body });
       closeForm();
       expanded.value = created?.id ?? null;
-      addingTo.value = created?.id ?? null;
-      taskForm.value = emptyTask();
-      notice.value = "Schedule created. Add at least one task so it can run.";
+      notice.value = "Schedule created. Add a task so it can run.";
       await load();
     }
   } catch (e) {
-    error.value = message(e);
+    formError.value = message(e);
   } finally {
     busy.value = false;
-  }
-}
-
-async function toggle(s: Schedule) {
-  error.value = "";
-  try {
-    await api(`${base()}/${s.id}`, { method: "PATCH", body: { enabled: !s.enabled } });
-    await load();
-  } catch (e) {
-    error.value = message(e);
   }
 }
 
@@ -252,19 +263,22 @@ async function runNow(s: Schedule) {
 }
 
 function openTaskForm(s: Schedule) {
-  addingTo.value = addingTo.value === s.id ? null : s.id;
+  taskFor.value = s.id;
   taskForm.value = emptyTask();
+  formError.value = "";
+  taskOpen.value = true;
 }
 
 function onActionChange() {
   taskForm.value.payload = taskForm.value.action === "power" ? "restart" : "";
 }
 
-async function addTask(s: Schedule) {
-  error.value = "";
+async function addTask() {
+  if (!taskFor.value) return;
+  formError.value = "";
   busy.value = true;
   try {
-    await api(`${base()}/${s.id}/tasks`, {
+    await api(`${base()}/${taskFor.value}/tasks`, {
       method: "POST",
       body: {
         action: taskForm.value.action,
@@ -273,10 +287,11 @@ async function addTask(s: Schedule) {
         continue_on_failure: taskForm.value.continue_on_failure,
       },
     });
-    taskForm.value = emptyTask();
+    taskOpen.value = false;
+    notice.value = "Task added.";
     await load();
   } catch (e) {
-    error.value = message(e);
+    formError.value = message(e);
   } finally {
     busy.value = false;
   }
@@ -308,7 +323,7 @@ onBeforeUnmount(() => {
           Automate server tasks with scheduled commands, power actions and backups. Times are in {{ zoneName }}.
         </p>
       </div>
-      <button v-if="manage" :class="primaryClass" @click="openNew">New Schedule</button>
+      <button v-if="manage" type="button" :class="primaryClass" @click="openNew">+ New Schedule</button>
     </div>
 
     <p v-if="error" role="alert" class="rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">
@@ -317,51 +332,6 @@ onBeforeUnmount(() => {
     <p v-if="notice" role="status" class="rounded-md border border-ink-700 bg-ink-900 px-3 py-2 text-sm text-ink-300">
       {{ notice }}
     </p>
-
-    <form v-if="showForm" class="grid gap-4 rounded-xl border border-ink-700 bg-ink-900 p-5" @submit.prevent="save">
-      <h3 class="text-lg font-semibold">{{ editing ? "Edit schedule" : "New schedule" }}</h3>
-      <div>
-        <label for="s-name" class="mb-1.5 block text-sm text-ink-300">Name</label>
-        <input id="s-name" v-model="form.name" required maxlength="64" :class="inputClass" />
-      </div>
-      <div class="grid grid-cols-2 gap-3 sm:grid-cols-5">
-        <div>
-          <label for="s-min" class="mb-1.5 block text-xs text-ink-400">Minute</label>
-          <input id="s-min" v-model="form.minute" maxlength="32" :class="inputClass" />
-        </div>
-        <div>
-          <label for="s-hour" class="mb-1.5 block text-xs text-ink-400">Hour</label>
-          <input id="s-hour" v-model="form.hour" maxlength="32" :class="inputClass" />
-        </div>
-        <div>
-          <label for="s-dom" class="mb-1.5 block text-xs text-ink-400">Day of month</label>
-          <input id="s-dom" v-model="form.day_of_month" maxlength="32" :class="inputClass" />
-        </div>
-        <div>
-          <label for="s-mon" class="mb-1.5 block text-xs text-ink-400">Month</label>
-          <input id="s-mon" v-model="form.month" maxlength="32" :class="inputClass" />
-        </div>
-        <div>
-          <label for="s-dow" class="mb-1.5 block text-xs text-ink-400">Day of week</label>
-          <input id="s-dow" v-model="form.day_of_week" maxlength="32" :class="inputClass" />
-        </div>
-      </div>
-      <p class="text-xs text-ink-400">
-        Time in {{ zoneName }}. Use * for "every". Day of week: 0 is Sunday, 1 is Monday.
-      </p>
-      <label class="flex items-center gap-2 text-sm text-ink-300">
-        <input v-model="form.only_when_online" type="checkbox" /> Only when the server is online
-      </label>
-      <label class="flex items-center gap-2 text-sm text-ink-300">
-        <input v-model="form.enabled" type="checkbox" /> Schedule enabled
-      </label>
-      <div class="flex gap-2">
-        <button type="submit" :class="primaryClass" :disabled="busy || !form.name.trim()">
-          {{ editing ? "Save" : "Create" }}
-        </button>
-        <button type="button" :class="ghostClass" @click="closeForm">Cancel</button>
-      </div>
-    </form>
 
     <div v-if="loading" class="space-y-3" aria-busy="true"><div class="skeleton h-12"></div><div class="skeleton h-12"></div><div class="skeleton h-12"></div></div>
     <div
@@ -382,7 +352,10 @@ onBeforeUnmount(() => {
           </svg>
           <div class="min-w-0 flex-1">
             <p class="truncate text-lg font-medium">{{ s.name }}</p>
-            <p class="text-xs text-ink-400">Last run at: {{ s.last_run_at ? when(s.last_run_at) : "never" }}</p>
+            <p class="text-xs text-ink-400">
+              Last run: {{ s.last_run_at ? when(s.last_run_at) : "never" }}
+              · Next run: {{ s.enabled ? when(s.next_run_at) : "-" }}
+            </p>
             <p v-if="s.last_result" class="truncate text-xs" :class="resultClass(s)">
               Last result: {{ resultText(s) }}
             </p>
@@ -404,16 +377,13 @@ onBeforeUnmount(() => {
         <div v-if="expanded === s.id" class="space-y-4 border-t border-ink-700 px-5 py-4">
           <div class="flex flex-wrap items-center justify-between gap-3">
             <p class="text-xs text-ink-400">
-              Next run: {{ s.enabled ? when(s.next_run_at) : "-" }}
-              <span v-if="s.only_when_online"> · only when online</span>
+              {{ describeSchedule(s) || "Custom schedule" }}
+              <span v-if="s.only_when_online"> · only when the server is online</span>
             </p>
             <div v-if="manage" class="flex flex-wrap gap-2">
-              <button :class="ghostClass" :disabled="s.is_running || s.tasks.length === 0" @click="runNow(s)">
-                Run now
-              </button>
-              <button :class="ghostClass" @click="openTaskForm(s)">Add task</button>
+              <button :class="ghostClass" :disabled="s.is_running || s.tasks.length === 0" @click="runNow(s)">Run now</button>
+              <button :class="ghostClass" @click="openTaskForm(s)">New task</button>
               <button :class="ghostClass" :disabled="s.is_running" @click="openEdit(s)">Edit</button>
-              <button :class="ghostClass" @click="toggle(s)">{{ s.enabled ? "Disable" : "Enable" }}</button>
               <button :class="dangerClass" :disabled="s.is_running" @click="remove(s)">Delete</button>
             </div>
           </div>
@@ -429,51 +399,123 @@ onBeforeUnmount(() => {
             </li>
           </ol>
           <p v-else class="text-xs text-ink-400">No tasks yet. A schedule without tasks does nothing.</p>
-
-          <form v-if="addingTo === s.id && manage" class="grid gap-3 border-t border-ink-700 pt-4" @submit.prevent="addTask(s)">
-            <div>
-              <label :for="`t-action-${s.id}`" class="mb-1.5 block text-sm text-ink-300">Action</label>
-              <select :id="`t-action-${s.id}`" v-model="taskForm.action" :class="inputClass" @change="onActionChange">
-                <option value="power">Power action</option>
-                <option value="command">Send command</option>
-                <option value="backup">Create backup</option>
-              </select>
-            </div>
-            <div v-if="taskForm.action === 'power'">
-              <label :for="`t-power-${s.id}`" class="mb-1.5 block text-sm text-ink-300">Power action</label>
-              <select :id="`t-power-${s.id}`" v-model="taskForm.payload" :class="inputClass">
-                <option value="start">Start</option>
-                <option value="stop">Stop</option>
-                <option value="restart">Restart</option>
-                <option value="kill">Kill</option>
-              </select>
-            </div>
-            <div v-else-if="taskForm.action === 'command'">
-              <label :for="`t-cmd-${s.id}`" class="mb-1.5 block text-sm text-ink-300">Command</label>
-              <input :id="`t-cmd-${s.id}`" v-model="taskForm.payload" maxlength="1024" :class="inputClass" />
-            </div>
-            <div v-else>
-              <label :for="`t-ign-${s.id}`" class="mb-1.5 block text-sm text-ink-300">
-                Ignored files (optional, one pattern per line)
-              </label>
-              <textarea :id="`t-ign-${s.id}`" v-model="taskForm.payload" rows="3" maxlength="1024" :class="inputClass" />
-            </div>
-            <div>
-              <label :for="`t-off-${s.id}`" class="mb-1.5 block text-sm text-ink-300">
-                Wait before this task (seconds)
-              </label>
-              <input :id="`t-off-${s.id}`" v-model.number="taskForm.time_offset" type="number" min="0" :class="inputClass" />
-            </div>
-            <label class="flex items-center gap-2 text-sm text-ink-300">
-              <input v-model="taskForm.continue_on_failure" type="checkbox" /> Continue if this task fails
-            </label>
-            <div class="flex gap-2">
-              <button type="submit" :class="primaryClass" :disabled="busy">Add task</button>
-              <button type="button" :class="ghostClass" @click="addingTo = null">Close</button>
-            </div>
-          </form>
         </div>
       </li>
     </ul>
+
+    <Modal v-model="scheduleOpen" :title="editing ? 'Edit schedule' : 'Create new schedule'">
+      <form id="schedule-form" class="grid gap-4" @submit.prevent="save">
+        <p v-if="formError" role="alert" class="rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">{{ formError }}</p>
+        <div>
+          <label for="s-name" class="mb-1.5 block text-sm text-ink-300">Schedule name</label>
+          <input id="s-name" v-model="form.name" required maxlength="64" :class="inputClass" />
+          <p class="mt-1.5 text-xs text-ink-400">A human readable name for this schedule.</p>
+        </div>
+        <div class="grid grid-cols-2 gap-2 sm:grid-cols-5">
+          <div>
+            <label for="s-min" class="mb-1.5 block text-xs text-ink-400">Minute</label>
+            <input id="s-min" v-model="form.minute" maxlength="32" :class="[inputClass, 'font-mono']" />
+          </div>
+          <div>
+            <label for="s-hour" class="mb-1.5 block text-xs text-ink-400">Hour</label>
+            <input id="s-hour" v-model="form.hour" maxlength="32" :class="[inputClass, 'font-mono']" />
+          </div>
+          <div>
+            <label for="s-dom" class="mb-1.5 block text-xs text-ink-400">Day of month</label>
+            <input id="s-dom" v-model="form.day_of_month" maxlength="32" :class="[inputClass, 'font-mono']" />
+          </div>
+          <div>
+            <label for="s-mon" class="mb-1.5 block text-xs text-ink-400">Month</label>
+            <input id="s-mon" v-model="form.month" maxlength="32" :class="[inputClass, 'font-mono']" />
+          </div>
+          <div>
+            <label for="s-dow" class="mb-1.5 block text-xs text-ink-400">Day of week</label>
+            <input id="s-dow" v-model="form.day_of_week" maxlength="32" :class="[inputClass, 'font-mono']" />
+          </div>
+        </div>
+        <div
+          class="rounded-md border border-ink-700 bg-ink-800 px-3 py-2 text-sm"
+          :class="liveDescription.ok ? 'text-ink-100' : 'text-ink-400'"
+        >
+          {{ liveDescription.text }}
+        </div>
+        <p class="text-xs text-ink-400">
+          Times are in {{ zoneName }}. Use * for "every". Day of week: 0 is Sunday, 1 is Monday.
+        </p>
+        <label class="flex cursor-pointer items-center justify-between gap-4 rounded-md border border-ink-700 bg-ink-800 px-4 py-3">
+          <span>
+            <span class="block text-sm font-medium">Only When Server Is Online</span>
+            <span class="block text-xs text-ink-400">Only execute this schedule when the server is running.</span>
+          </span>
+          <input v-model="form.only_when_online" type="checkbox" class="h-4 w-4 shrink-0 accent-accent-500" />
+        </label>
+        <label class="flex cursor-pointer items-center justify-between gap-4 rounded-md border border-ink-700 bg-ink-800 px-4 py-3">
+          <span>
+            <span class="block text-sm font-medium">Schedule Enabled</span>
+            <span class="block text-xs text-ink-400">This schedule will be executed automatically if enabled.</span>
+          </span>
+          <input v-model="form.enabled" type="checkbox" class="h-4 w-4 shrink-0 accent-accent-500" />
+        </label>
+      </form>
+      <template #footer>
+        <button type="button" :class="cancelClass" @click="closeForm">Cancel</button>
+        <button type="submit" form="schedule-form" :class="primaryClass" :disabled="busy || !form.name.trim()">
+          <span v-if="busy" class="spinner mr-2"></span>{{ editing ? "Save schedule" : "Create schedule" }}
+        </button>
+      </template>
+    </Modal>
+
+    <Modal v-model="taskOpen" title="Create Task">
+      <form id="task-form" class="grid gap-4" @submit.prevent="addTask">
+        <p v-if="formError" role="alert" class="rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">{{ formError }}</p>
+        <div>
+          <label for="t-action" class="mb-1.5 block text-sm text-ink-300">Action</label>
+          <select id="t-action" v-model="taskForm.action" :class="inputClass" @change="onActionChange">
+            <option value="power">Send power action</option>
+            <option value="command">Send command</option>
+            <option value="backup">Create backup</option>
+          </select>
+        </div>
+        <div v-if="taskForm.action === 'power'">
+          <label for="t-power" class="mb-1.5 block text-sm text-ink-300">Power action</label>
+          <select id="t-power" v-model="taskForm.payload" :class="inputClass">
+            <option value="start">Start</option>
+            <option value="stop">Stop</option>
+            <option value="restart">Restart</option>
+            <option value="kill">Kill</option>
+          </select>
+        </div>
+        <div v-else-if="taskForm.action === 'command'">
+          <label for="t-cmd" class="mb-1.5 block text-sm text-ink-300">Command</label>
+          <input id="t-cmd" v-model="taskForm.payload" required maxlength="1024" :class="[inputClass, 'font-mono']" />
+        </div>
+        <div v-else>
+          <label for="t-ign" class="mb-1.5 block text-sm text-ink-300">Ignored files (optional)</label>
+          <textarea id="t-ign" v-model="taskForm.payload" rows="3" maxlength="1024" :class="[inputClass, 'font-mono text-xs']"></textarea>
+          <p class="mt-1.5 text-xs text-ink-400">One file or folder pattern per line. These are left out of the backup.</p>
+        </div>
+        <div>
+          <label for="t-off" class="mb-1.5 block text-sm text-ink-300">Time offset (in seconds)</label>
+          <input id="t-off" v-model.number="taskForm.time_offset" type="number" min="0" :class="inputClass" />
+          <p class="mt-1.5 text-xs text-ink-400">
+            The amount of time to wait after the previous task executes before running this one.
+            If this is the first task on a schedule this will not be applied.
+          </p>
+        </div>
+        <label class="flex cursor-pointer items-center justify-between gap-4 rounded-md border border-ink-700 bg-ink-800 px-4 py-3">
+          <span>
+            <span class="block text-sm font-medium">Continue on Failure</span>
+            <span class="block text-xs text-ink-400">Future tasks will be run if this task fails.</span>
+          </span>
+          <input v-model="taskForm.continue_on_failure" type="checkbox" class="h-4 w-4 shrink-0 accent-accent-500" />
+        </label>
+      </form>
+      <template #footer>
+        <button type="button" :class="cancelClass" @click="taskOpen = false">Cancel</button>
+        <button type="submit" form="task-form" :class="primaryClass" :disabled="busy">
+          <span v-if="busy" class="spinner mr-2"></span>Create Task
+        </button>
+      </template>
+    </Modal>
   </section>
 </template>

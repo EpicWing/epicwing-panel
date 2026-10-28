@@ -363,9 +363,15 @@ onMounted(() => void load());
           type="file"
           accept="application/json,.json"
           :disabled="busy || !importNestId"
-          :class="inputClass"
+          class="sr-only"
           @change="importEgg"
         />
+        <label
+          for="import-file"
+          :class="[inputClass, 'block cursor-pointer text-ink-300', busy || !importNestId ? 'cursor-not-allowed opacity-50' : '']"
+        >
+          Choose file…
+        </label>
       </div>
     </form>
     <div
