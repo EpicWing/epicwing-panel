@@ -123,6 +123,7 @@ class ServerUpdate(CleanedFields):
     image: str | None = None
     startup: str | None = None
     variables: dict[str, str] | None = Field(default=None, max_length=64)
+    backup_limit: int | None = Field(default=None, ge=0, le=1000)
 
     @field_validator("memory_mb", "cpus", "disk_mb")
     @classmethod
@@ -157,6 +158,7 @@ class ServerOut(BaseModel):
     memory_mb: int
     cpus: float
     disk_mb: int
+    backup_limit: int = 0
     status: str
     last_error: str | None
     allocations: list[AllocationRef] = []
