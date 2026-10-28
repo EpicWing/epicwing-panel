@@ -34,7 +34,16 @@ const results = reactive<Record<Channel, TestResult | null>>({ discord: null, em
 const saved = reactive({ discordEnabled: false, emailEnabled: false, emailTo: "" });
 
 
-const showDelivery = ref(false);
+type Tab = "discord" | "email" | "delivery";
+
+const tab = ref<Tab>("discord");
+
+function tabCls(name: Tab): string {
+  const base = "-mb-px border-b-2 px-1 pb-3 text-sm font-medium transition";
+  return tab.value === name
+    ? `${base} border-accent-500 text-accent-400`
+    : `${base} border-transparent text-ink-300 hover:text-ink-100`;
+}
 
 const form = reactive({
   discord_enabled: false,
@@ -150,115 +159,100 @@ onMounted(() => void load());
 
 <template>
   <AppLayout area="admin" :title="t('notify.title')" :subtitle="t('notify.subtitle')">
-    <p v-if="error" role="alert" class="mb-8 max-w-4xl rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">
+    <p v-if="error" role="alert" class="mb-6 max-w-3xl rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">
       {{ error }}
     </p>
-    <p v-if="notice" role="status" class="mb-8 max-w-4xl rounded-md border border-ink-700 bg-ink-900 px-3 py-2 text-sm">
+    <p v-if="notice" role="status" class="mb-6 max-w-3xl rounded-md border border-ink-700 bg-ink-900 px-3 py-2 text-sm">
       {{ notice }}
     </p>
     <p v-if="loading" class="text-sm text-ink-400">…</p>
 
-    <div v-else class="max-w-4xl pb-20">
-      <p class="mb-14 max-w-2xl text-sm leading-6 text-ink-300">{{ t("notify.intro2") }}</p>
+    <div v-else class="max-w-3xl">
+      <nav class="flex gap-8 border-b border-ink-700" role="tablist">
+        <button type="button" role="tab" :aria-selected="tab === 'discord'" :class="tabCls('discord')" @click="tab = 'discord'">
+          {{ t("notify.tileDiscord") }}
+        </button>
+        <button type="button" role="tab" :aria-selected="tab === 'email'" :class="tabCls('email')" @click="tab = 'email'">
+          {{ t("notify.emailTitle") }}
+        </button>
+        <button type="button" role="tab" :aria-selected="tab === 'delivery'" :class="tabCls('delivery')" @click="tab = 'delivery'">
+          {{ t("notify.deliveryTitle") }}
+        </button>
+      </nav>
 
-      <form class="space-y-14" @submit.prevent="save">
-        <section class="grid gap-8 md:grid-cols-3">
+      <form v-show="tab !== 'delivery'" class="pt-8" @submit.prevent="save">
+        <div v-show="tab === 'discord'" class="space-y-6">
+          <p class="text-sm text-ink-400">{{ discordLine() }}</p>
+          <label class="flex items-center gap-2 text-sm">
+            <input v-model="form.discord_enabled" type="checkbox" />
+            {{ t("notify.discordCheck") }}
+          </label>
           <div>
-            <h2 class="text-base font-semibold">{{ t("notify.tileDiscord") }}</h2>
-            <p class="mt-2 text-sm leading-6 text-ink-400">{{ discordLine() }}</p>
+            <label :class="labelCls" for="nt-webhook">{{ t("notify.discordUrl") }}</label>
+            <input
+              id="nt-webhook"
+              v-model="form.discord_webhook"
+              type="password"
+              autocomplete="new-password"
+              placeholder="https://discord.com/api/webhooks/…"
+              :class="fieldCls"
+            />
+            <p :class="hintCls">{{ t("notify.discordHint2") }}</p>
           </div>
-          <div class="space-y-6 md:col-span-2">
-            <label class="flex items-center gap-2 text-sm">
-              <input v-model="form.discord_enabled" type="checkbox" />
-              {{ t("notify.discordCheck") }}
-            </label>
-            <div>
-              <label :class="labelCls" for="nt-webhook">{{ t("notify.discordUrl") }}</label>
-              <input
-                id="nt-webhook"
-                v-model="form.discord_webhook"
-                type="password"
-                autocomplete="new-password"
-                placeholder="https://discord.com/api/webhooks/…"
-                :class="fieldCls"
-              />
-              <p :class="hintCls">{{ t("notify.discordHint2") }}</p>
-            </div>
-            <div class="flex flex-wrap gap-3">
-              <button type="button" :class="buttonCls" :disabled="testing === 'discord' || !(webhookSet || form.discord_webhook.trim())" @click="runTest('discord')">
-                {{ testing === "discord" ? t("notify.testing") : t("notify.discordTest") }}
-              </button>
-              <button v-if="webhookSet" type="button" :class="buttonCls" :disabled="saving" @click="removeWebhook">
-                {{ t("notify.discordRemove") }}
-              </button>
-            </div>
-            <p
-              v-if="results.discord"
-              role="status"
-              class="rounded-md border px-3 py-2 text-sm"
-              :class="results.discord.ok ? 'border-ink-700' : 'border-bad/40 bg-bad/10 text-bad'"
-            >
-              {{ results.discord.ok ? t("notify.testOk") : t("notify.testFailed", { detail: results.discord.detail }) }}
-            </p>
+          <div class="flex flex-wrap gap-3">
+            <button type="button" :class="buttonCls" :disabled="testing === 'discord' || !(webhookSet || form.discord_webhook.trim())" @click="runTest('discord')">
+              {{ testing === "discord" ? t("notify.testing") : t("notify.discordTest") }}
+            </button>
+            <button v-if="webhookSet" type="button" :class="buttonCls" :disabled="saving" @click="removeWebhook">
+              {{ t("notify.discordRemove") }}
+            </button>
           </div>
-        </section>
-
-        <section class="grid gap-8 border-t border-ink-800 pt-14 md:grid-cols-3">
-          <div>
-            <h2 class="text-base font-semibold">{{ t("notify.tileEmail") }}</h2>
-            <p class="mt-2 text-sm leading-6 text-ink-400">{{ emailLine() }}</p>
-          </div>
-          <div class="space-y-6 md:col-span-2">
-            <label class="flex items-center gap-2 text-sm">
-              <input v-model="form.email_enabled" type="checkbox" />
-              {{ t("notify.emailCheck") }}
-            </label>
-            <div>
-              <label :class="labelCls" for="nt-email">{{ t("notify.emailTo") }}</label>
-              <input id="nt-email" v-model="form.email_to" type="text" autocomplete="email" :class="fieldCls" />
-            </div>
-            <div>
-              <button type="button" :class="buttonCls" :disabled="testing === 'email' || !form.email_to.trim()" @click="runTest('email')">
-                {{ testing === "email" ? t("notify.testing") : t("notify.emailTestBtn") }}
-              </button>
-            </div>
-            <p
-              v-if="results.email"
-              role="status"
-              class="rounded-md border px-3 py-2 text-sm"
-              :class="results.email.ok ? 'border-ink-700' : 'border-bad/40 bg-bad/10 text-bad'"
-            >
-              {{ results.email.ok ? t("notify.testOk") : t("notify.testFailed", { detail: results.email.detail }) }}
-            </p>
-          </div>
-        </section>
-
-        <div class="flex items-center gap-4 border-t border-ink-800 pt-10">
-          <button
-            type="submit"
-            class="rounded-md bg-accent-500 px-5 py-2 text-sm font-semibold text-black hover:bg-accent-400 disabled:opacity-50"
-            :disabled="saving"
+          <p
+            v-if="results.discord"
+            role="status"
+            class="rounded-md border px-3 py-2 text-sm"
+            :class="results.discord.ok ? 'border-ink-700' : 'border-bad/40 bg-bad/10 text-bad'"
           >
+            {{ results.discord.ok ? t("notify.testOk") : t("notify.testFailed", { detail: results.discord.detail }) }}
+          </p>
+        </div>
+
+        <div v-show="tab === 'email'" class="space-y-6">
+          <p class="text-sm text-ink-400">{{ emailLine() }}</p>
+          <label class="flex items-center gap-2 text-sm">
+            <input v-model="form.email_enabled" type="checkbox" />
+            {{ t("notify.emailCheck") }}
+          </label>
+          <div>
+            <label :class="labelCls" for="nt-email">{{ t("notify.emailTo") }}</label>
+            <input id="nt-email" v-model="form.email_to" type="text" autocomplete="email" :class="fieldCls" />
+          </div>
+          <div>
+            <button type="button" :class="buttonCls" :disabled="testing === 'email' || !form.email_to.trim()" @click="runTest('email')">
+              {{ testing === "email" ? t("notify.testing") : t("notify.emailTestBtn") }}
+            </button>
+          </div>
+          <p
+            v-if="results.email"
+            role="status"
+            class="rounded-md border px-3 py-2 text-sm"
+            :class="results.email.ok ? 'border-ink-700' : 'border-bad/40 bg-bad/10 text-bad'"
+          >
+            {{ results.email.ok ? t("notify.testOk") : t("notify.testFailed", { detail: results.email.detail }) }}
+          </p>
+        </div>
+
+        <div class="mt-10">
+          <button type="submit" :class="buttonCls" :disabled="saving">
             {{ saving ? t("notify.saving") : t("notify.saveChanges") }}
           </button>
-          <p class="text-xs text-ink-400">{{ t("notify.saveNote") }}</p>
         </div>
       </form>
 
-      <section class="mt-14 grid gap-8 border-t border-ink-800 pt-14 md:grid-cols-3">
-        <div>
-          <h2 class="text-base font-semibold">{{ t("notify.deliveryTitle") }}</h2>
-          <p class="mt-2 text-sm leading-6 text-ink-400">{{ t("notify.deliveryLead") }}</p>
-        </div>
-        <div class="space-y-6 md:col-span-2">
-          <div>
-            <button type="button" :class="buttonCls" @click="showDelivery = !showDelivery">
-              {{ showDelivery ? t("notify.deliveryClose") : t("notify.deliveryOpen") }}
-            </button>
-          </div>
-          <MailSettingsPanel v-if="showDelivery" />
-        </div>
-      </section>
+      <div v-if="tab === 'delivery'" class="space-y-6 pt-8">
+        <p class="text-sm text-ink-400">{{ t("notify.deliveryLead") }}</p>
+        <MailSettingsPanel />
+      </div>
     </div>
   </AppLayout>
 </template>
