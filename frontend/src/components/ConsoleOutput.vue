@@ -6,6 +6,7 @@ import { type ConsoleLine, segmentClass } from "../utils/ansi";
 const props = defineProps<{
   lines: ConsoleLine[];
   placeholder: string;
+  offlineText?: string;
 }>();
 
 const scroller = ref<HTMLElement | null>(null);
@@ -43,7 +44,8 @@ onMounted(toBottom);
     role="log"
     @scroll.passive="onScroll"
   >
-    <p v-if="empty" class="text-ink-400">{{ placeholder }}</p>
+    <p v-if="offlineText" class="text-ink-400">{{ offlineText }}</p>
+    <p v-else-if="empty" class="text-ink-400">{{ placeholder }}</p>
     <template v-else>
       <div v-for="line in lines" :key="line.id" v-memo="[line.rev]" class="min-h-5 whitespace-pre-wrap break-words">
         <span v-for="(segment, index) in line.segments" :key="index" :class="segmentClass(segment)">{{ segment.text }}</span>

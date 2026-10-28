@@ -258,7 +258,7 @@ onMounted(async () => {
         </div>
 
         <section v-if="active === 'home'" class="overflow-hidden rounded-xl border border-ink-700 bg-ink-900">
-          <ConsoleOutput :lines="lines" :placeholder="t('console.waiting')" class="h-[min(34vh,28rem)] min-h-[17rem]" />
+          <ConsoleOutput :lines="lines" :placeholder="t('console.waiting')" :offline-text="server.status === 'running' || server.status === 'starting' ? undefined : 'EpicWing container: Server marked as offline'" class="h-[min(34vh,28rem)] min-h-[17rem]" />
           <p v-if="error || consoleError" class="border-t border-bad/30 bg-bad/10 px-4 py-2 text-xs text-bad">{{ error || consoleError }}</p>
           <form class="flex gap-2 border-t border-ink-700 p-3" @submit.prevent="sendCommand">
             <input v-model="command" class="min-w-0 flex-1 rounded-md border border-ink-700 bg-ink-950 px-3 py-2 font-mono text-sm outline-none focus:border-accent-500" placeholder="Enter a command…" :disabled="connection !== 'connected' && connection !== 'running'" autocomplete="off" />
