@@ -138,12 +138,11 @@ onMounted(() => void load());
       {{ notice }}
     </p>
     <p v-if="loading" class="text-sm text-ink-400">…</p>
-    <div v-else class="space-y-6">
+    <div v-else class="grid items-start gap-6 lg:grid-cols-2">
       <form class="space-y-5 rounded-xl border border-ink-700 bg-ink-900 p-6" @submit.prevent="save">
         <p class="text-sm text-ink-400">
           {{ configured ? t("mail.configured") : t("mail.notConfigured") }}
         </p>
-        <p class="text-xs text-ink-400">{{ t("mail.envNote") }}</p>
 
         <div>
           <label :class="labelCls" for="mail-provider">{{ t("mail.provider") }}</label>

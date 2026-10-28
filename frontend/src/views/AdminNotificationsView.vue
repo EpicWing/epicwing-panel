@@ -167,7 +167,7 @@ onMounted(() => void load());
     </p>
     <p v-if="loading" class="text-sm text-ink-400">…</p>
 
-    <div v-else class="max-w-3xl">
+    <div v-else :class="tab === 'delivery' ? 'max-w-5xl' : 'max-w-3xl'">
       <nav class="flex gap-8 border-b border-ink-700" role="tablist">
         <button type="button" role="tab" :aria-selected="tab === 'discord'" :class="tabCls('discord')" @click="tab = 'discord'">
           {{ t("notify.tileDiscord") }}
@@ -249,8 +249,7 @@ onMounted(() => void load());
         </div>
       </form>
 
-      <div v-if="tab === 'delivery'" class="space-y-6 pt-8">
-        <p class="text-sm text-ink-400">{{ t("notify.deliveryLead") }}</p>
+      <div v-if="tab === 'delivery'" class="pt-6">
         <MailSettingsPanel />
       </div>
     </div>
