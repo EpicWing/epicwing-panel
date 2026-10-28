@@ -21,7 +21,7 @@ from app.schemas.node import (
     NodeOut,
     NodeUpdate,
 )
-from app.security.permissions import Permission, require
+from app.security.permissions import AdminAuth, Permission, require
 from app.security.sessions import AuthContext
 from app.services import audit
 from app.services import nodes as node_service
@@ -285,7 +285,7 @@ async def run_command(
     node_id: uuid.UUID,
     body: CommandRequest,
     request: Request,
-    auth: ManageNodes,
+    auth: AdminAuth,
     db: Annotated[Session, Depends(get_db)],
 ) -> CommandOut:
     node = await run_in_threadpool(_get_node, db, node_id)

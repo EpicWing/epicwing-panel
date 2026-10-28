@@ -126,3 +126,34 @@ def test_invalid_egg_input_is_rejected(client, user, changes):
     nest_id = make_nest(client, headers)
     response = client.post("/api/eggs", json=egg_body(nest_id, **changes), headers=headers)
     assert response.status_code == 422
+
+
+def _plain_user(db_session):
+    from app.models import Role, RolePermission, User, UserRole
+    from app.security.passwords import hash_password
+    from app.security.permissions import Permission
+
+    account = User(
+        email="plain@example.test",
+        password_hash=hash_password("correct-horse-battery"),
+        is_admin=False,
+    )
+    db_session.add(account)
+    role = Role(name="node-operator", scope="global")
+    db_session.add(role)
+    db_session.flush()
+    db_session.add(RolePermission(role_id=role.id, permission=Permission.NODES_MANAGE.value))
+    db_session.add(UserRole(user_id=account.id, role_id=role.id))
+    db_session.commit()
+    return account
+
+
+def test_egg_writing_requires_an_admin(client, db_session, user):
+    plain = _plain_user(db_session)
+    headers = _login(client, plain)
+    nest_id = make_nest(client, headers)
+    assert client.post("/api/eggs", json=egg_body(nest_id), headers=headers).status_code == 403
+    egg_id = make_egg(client, _login(client, user), nest_id)
+    changed = client.patch(f"/api/eggs/{egg_id}", json={"name": "X"}, headers=headers)
+    assert changed.status_code == 403
+    assert client.delete(f"/api/eggs/{egg_id}", headers=headers).status_code == 403
