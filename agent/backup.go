@@ -433,6 +433,8 @@ func (d *commandDispatcher) executeBackup(action string, raw json.RawMessage) (m
 		Ignored string `json:"ignored"`
 		SHA256  string `json:"sha256"`
 		Kind    string `json:"kind"`
+		Offset  int64  `json:"offset"`
+		Length  int    `json:"length"`
 	}
 	if err := decodeParams(raw, &p); err != nil {
 		return nil, err
@@ -502,6 +504,8 @@ func (d *commandDispatcher) executeBackup(action string, raw json.RawMessage) (m
 			bkJobs.finish(p.Name, key, st)
 		}()
 		return map[string]any{"state": "running"}, nil
+	case "backup.read":
+		return bkReadChunk(archive, p.Offset, p.Length)
 	case "backup.status":
 		kind := p.Kind
 		if kind == "" {

@@ -1,13 +1,20 @@
+import asyncio
+import base64
+import re
 import uuid
+from collections import deque
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.agentlink import protocol
+from app.agentlink.commands import AgentOffline, broker
 from app.api.servers import FILES_BLOCKED, _conflict, _exclusive, _not_found, _send
 from app.db import get_db
 from app.models import Server
@@ -22,6 +29,9 @@ BackupsView = Annotated[ServerAccess, Depends(server_access(ServerPermission.BAC
 BackupsCreate = Annotated[ServerAccess, Depends(server_access(ServerPermission.BACKUPS_CREATE))]
 BackupsRestore = Annotated[ServerAccess, Depends(server_access(ServerPermission.BACKUPS_RESTORE))]
 BackupsDelete = Annotated[ServerAccess, Depends(server_access(ServerPermission.BACKUPS_DELETE))]
+BackupsDownload = Annotated[
+    ServerAccess, Depends(server_access(ServerPermission.BACKUPS_DOWNLOAD))
+]
 
 MAX_LISTED = 200
 REFRESH_LIMIT = 5
@@ -317,3 +327,112 @@ async def delete_backup(
     db.delete(backup)
     db.commit()
     _audit(db, request, auth, "delete", name)
+
+
+DOWNLOAD_CHUNK = 8 * 1024  # a reply from the node must stay below the message limit
+DOWNLOAD_WINDOW = 3  # chunks requested from the node at the same time
+DOWNLOAD_RETRIES = 4
+
+
+def _download_name(backup: ServerBackup) -> str:
+    slug = re.sub(r"[^A-Za-z0-9._-]+", "_", backup.name).strip("._-") or "backup"
+    return f"{slug[:60]}-{backup.created_at:%Y%m%d-%H%M%S}.tar.gz"
+
+
+def _chunk(data: dict[str, Any]) -> bytes:
+    try:
+        return base64.b64decode(str(data.get("data", "")), validate=True)
+    except ValueError:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY, "The node sent an invalid chunk."
+        ) from None
+
+
+async def _read_archive(
+    node_id: uuid.UUID, params: dict[str, Any], offset: int
+) -> dict[str, Any]:
+    attempt = 0
+    while True:
+        try:
+            result = await broker.send(
+                node_id, "backup.read", {**params, "offset": offset, "length": DOWNLOAD_CHUNK}
+            )
+        except (AgentOffline, TimeoutError):
+            raise HTTPException(
+                status.HTTP_503_SERVICE_UNAVAILABLE, "The node is not reachable."
+            ) from None
+        attempt += 1
+        busy = "too many open commands" in (result.error or "").lower()
+        if result.ok or not busy or attempt >= DOWNLOAD_RETRIES:
+            return _data(result)
+        await asyncio.sleep(0.2 * attempt)
+
+
+async def _fetch_chunk(
+    node_id: uuid.UUID, params: dict[str, Any], offset: int, expected: int
+) -> bytes:
+    data = _chunk(await _read_archive(node_id, params, offset))
+    if len(data) != expected:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "The node sent an incomplete chunk.")
+    return data
+
+
+async def _archive_chunks(
+    node_id: uuid.UUID, params: dict[str, Any], first: bytes, size: int
+) -> AsyncIterator[bytes]:
+    """Streams the archive in order while a few more chunks are already on their way."""
+    if first:
+        yield first
+    sent = len(first)
+    requested = sent
+    pending: deque[asyncio.Task[bytes]] = deque()
+    try:
+        while sent < size:
+            while requested < size and len(pending) < DOWNLOAD_WINDOW:
+                expected = min(DOWNLOAD_CHUNK, size - requested)
+                pending.append(
+                    asyncio.create_task(_fetch_chunk(node_id, params, requested, expected))
+                )
+                requested += expected
+            data = await pending.popleft()
+            yield data
+            sent += len(data)
+    finally:
+        for task in pending:
+            task.cancel()
+        await asyncio.gather(*pending, return_exceptions=True)
+
+
+@router.get("/{server_id}/backups/{backup_id}/download")
+async def download_backup(
+    backup_id: uuid.UUID, request: Request, auth: BackupsDownload, db: DbSession
+) -> StreamingResponse:
+    server = auth.server
+    _check_available(server)
+    backup = _get_backup(db, server, backup_id)
+    if backup.status != "ok":
+        raise _conflict("Only finished backups can be downloaded.")
+    # Plain values only: the streaming part must not touch database objects.
+    node_id = server.node_id
+    params = _params(server, backup)
+    filename = _download_name(backup)
+    name = backup.name
+    first = _data(
+        await _send(server, "backup.read", {**params, "offset": 0, "length": DOWNLOAD_CHUNK})
+    )
+    size = first.get("size")
+    if isinstance(size, bool) or not isinstance(size, int) or size < 0:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "The node sent an invalid size.")
+    head = _chunk(first)
+    if len(head) != min(DOWNLOAD_CHUNK, size):
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "The node sent an incomplete chunk.")
+    _audit(db, request, auth, "download", name)
+    return StreamingResponse(
+        _archive_chunks(node_id, params, head, size),
+        media_type="application/gzip",
+        headers={
+            "Content-Length": str(size),
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-store",
+        },
+    )

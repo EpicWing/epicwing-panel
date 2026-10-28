@@ -104,6 +104,7 @@ DENIED_FOR_VIEWERS = [
     ("DELETE", "/backups/00000000-0000-4000-8000-000000000003", None),
     ("POST", "/backups/00000000-0000-4000-8000-000000000003/restore", None),
     ("GET", "/backups/00000000-0000-4000-8000-000000000003/restore", None),
+    ("GET", "/backups/00000000-0000-4000-8000-000000000003/download", None),
 ]
 
 # Routen mit Server-ID, die absichtlich nicht in der Matrix stehen.
@@ -388,6 +389,7 @@ def test_backup_view_does_not_allow_changes(client, db_session, world):
         ("DELETE", f"/backups/{backup}", None),
         ("POST", f"/backups/{backup}/restore", None),
         ("GET", f"/backups/{backup}/restore", None),
+        ("GET", f"/backups/{backup}/download", None),
     ]:
         response = client.request(method, world.url + path, json=body, headers=headers)
         assert response.status_code == 403, (method, path, response.status_code)
