@@ -325,3 +325,19 @@ body:has(.server-detail-shell) {
   vertical-align: -0.1em;
   animation: spinner-turn 0.7s linear infinite;
 }
+
+/* Diagramme gleiten bei jedem neuen Messpunkt um einen Schritt nach links */
+@keyframes chart-glide {
+  from { transform: translateX(var(--glide, 0px)); }
+}
+.chart-glide {
+  animation: chart-glide 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Dateizeilen blenden beim Ordnerwechsel ein */
+@keyframes row-in {
+  from { opacity: 0; transform: translateY(4px); }
+}
+.file-row-in {
+  animation: row-in 0.2s ease-out backwards;
+}
