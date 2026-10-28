@@ -54,6 +54,24 @@ const groups = [
   { title: "Admin", items: [["users", "Access"], ["settings", "Settings"]] },
 ] as const;
 
+// Linien-Icons (24x24) für die Seitenleiste, ohne zusätzliche Bibliothek.
+const NAV_ICONS: Record<string, string> = {
+  home: "M3 11l9-8 9 8 M5 10v10h14V10 M10 20v-6h4v6",
+  activity: "M22 12h-4l-3 9L9 3l-3 9H2",
+  files: "M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9l-.8-1.2A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z",
+  startup: "M5 3l14 9-14 9V3z",
+  networking: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z M2 12h20 M12 2a15 15 0 0 1 0 20 M12 2a15 15 0 0 0 0 20",
+  schedules: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z M12 6v6l4 2",
+  databases: "M3 6c0-1.7 4-3 9-3s9 1.3 9 3-4 3-9 3-9-1.3-9-3z M21 12c0 1.7-4 3-9 3s-9-1.3-9-3 M3 6v12c0 1.7 4 3 9 3s9-1.3 9-3V6",
+  backups: "M21 8v13H3V8 M1 3h22v5H1z M10 12h4",
+  users: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M22 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75",
+  settings: "M4 21v-7 M4 10V3 M12 21v-9 M12 8V3 M20 21v-5 M20 12V3 M1 14h6 M9 8h6 M17 16h6",
+};
+
+function navIcon(key: string): string {
+  return NAV_ICONS[key] ?? "M12 12h.01";
+}
+
 function onAllocationsChanged(rows: Allocation[]): void {
   if (server.value) server.value.allocations = rows;
 }
@@ -191,12 +209,13 @@ onMounted(async () => {
         <button
           v-for="item in group.items"
           :key="item[0]"
-          class="mb-0.5 flex w-full items-center rounded-md px-3 py-2 text-left text-sm font-medium transition last:mb-0"
+          class="mb-0.5 flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm font-medium transition last:mb-0"
           :class="active === item[0] ? 'bg-accent-500/15 text-accent-300' : 'text-ink-200 hover:bg-ink-800 hover:text-ink-100'"
           @click="active = item[0]"
         >
-          {{ item[1] }}
-        </button>
+            <svg viewBox="0 0 24 24" class="h-[18px] w-[18px] shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path :d="navIcon(item[0])" /></svg>
+            <span>{{ item[1] }}</span>
+          </button>
       </div>
     </template>
 
