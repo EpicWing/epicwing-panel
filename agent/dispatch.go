@@ -91,6 +91,7 @@ type commandDispatcher struct {
 	mu         sync.Mutex
 	slots      chan struct{}
 	containers *containerManager
+	console    *consoleManager
 }
 
 func newCommandDispatcher(policy ContainerPolicy) *commandDispatcher {
@@ -113,6 +114,9 @@ func decodeParams(raw json.RawMessage, v any) error {
 }
 
 func (d *commandDispatcher) execute(ctx context.Context, action string, params json.RawMessage) (map[string]any, error) {
+	if strings.HasPrefix(action, "console.") {
+		return d.console.execute(ctx, action, params)
+	}
 	switch action {
 	case "container.create":
 		var spec ContainerSpec

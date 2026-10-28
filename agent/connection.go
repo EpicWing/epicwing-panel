@@ -102,6 +102,13 @@ func session(ctx context.Context, url, nodeID string, key ed25519.PrivateKey, s 
 	sessionCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	dispatcher := newCommandDispatcher(loadContainerPolicy())
+	send := func(frame map[string]any) {
+		if err := writeJSON(sessionCtx, conn, ioTimeout, frame); err != nil && sessionCtx.Err() == nil {
+			log.Printf("sending a %v frame: %v", frame["type"], err)
+		}
+	}
+	dispatcher.console = newConsoleManager(sessionCtx, dispatcher.containers, send)
+	go watchEvents(sessionCtx, send)
 
 	readErr := make(chan error, 1)
 	go func() { readErr <- readLoop(sessionCtx, conn, dispatcher) }()
