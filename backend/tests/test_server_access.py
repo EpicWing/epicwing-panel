@@ -106,6 +106,11 @@ DENIED_FOR_VIEWERS = [
     ("POST", "/backups/00000000-0000-4000-8000-000000000003/restore", None),
     ("GET", "/backups/00000000-0000-4000-8000-000000000003/restore", None),
     ("GET", "/backups/00000000-0000-4000-8000-000000000003/download", None),
+    (
+        "POST",
+        "/backups/00000000-0000-4000-8000-000000000003/transfer",
+        {"target_server_id": "00000000-0000-4000-8000-000000000004"},
+    ),
     ("GET", "/activity", None),
     ("GET", "/activity/export", None),
 ]
