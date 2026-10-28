@@ -3,8 +3,8 @@ from collections import defaultdict
 from collections.abc import Awaitable, Callable
 from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel, ConfigDict
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -412,3 +412,188 @@ async def power_server(
         details={"name": server.name, "action": body.action},
     )
     return _outs(db, [server])[0]
+
+
+# --- Dateien im Datenverzeichnis des Servers ---------------------------------------------------
+
+# Vorher gibt es kein Datenverzeichnis, oder die Installation schreibt gerade hinein.
+FILES_BLOCKED = {"new", "installing"}
+# 8 KiB Rohdaten sind als base64 rund 10,9 Tausend Zeichen und bleiben unter dem 16-KiB-Rahmen.
+FILE_CHUNK_B64 = 12_000
+FILE_MAX_OFFSET = 1 << 30
+
+
+def _no_nul(value: str) -> str:
+    if "\x00" in value:
+        raise ValueError("Invalid path.")
+    return value
+
+
+FilePath = Annotated[str, Field(max_length=1024), AfterValidator(_no_nul)]
+
+
+class FileWrite(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    path: FilePath
+    offset: int = Field(default=0, ge=0, le=FILE_MAX_OFFSET)
+    data: str = Field(max_length=FILE_CHUNK_B64)
+    create: bool = True
+    truncate: bool = False
+
+
+class FileFolder(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    path: FilePath
+
+
+class FileRename(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    path: FilePath
+    to: FilePath
+
+
+class FileDelete(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    path: FilePath
+    recursive: bool = False
+
+
+# Übersetzt die Fehlertexte des Agents in saubere Statuscodes.
+FILE_ERRORS = (
+    ("no such file", status.HTTP_404_NOT_FOUND, "File not found."),
+    ("file exists", status.HTTP_409_CONFLICT, "A file with this name already exists."),
+    ("already exists", status.HTTP_409_CONFLICT, "A file with this name already exists."),
+    ("not a directory", status.HTTP_409_CONFLICT, "This is not a directory."),
+    ("is a directory", status.HTTP_409_CONFLICT, "This is a directory."),
+    ("directory not empty", status.HTTP_409_CONFLICT, "The directory is not empty."),
+    ("not a regular file", status.HTTP_409_CONFLICT, "This is not a regular file."),
+    ("escapes", status.HTTP_400_BAD_REQUEST, "Invalid path."),
+    ("invalid path", status.HTTP_400_BAD_REQUEST, "Invalid path."),
+    ("invalid offset", status.HTTP_400_BAD_REQUEST, "Invalid offset."),
+    ("invalid data", status.HTTP_400_BAD_REQUEST, "Invalid data."),
+    (
+        "cannot delete the server root",
+        status.HTTP_400_BAD_REQUEST,
+        "The server root cannot be deleted.",
+    ),
+)
+
+
+def _file_data(result: protocol.CommandResult) -> dict[str, Any]:
+    if result.ok:
+        return result.data or {}
+    message = (result.error or "").lower()
+    for needle, code, text in FILE_ERRORS:
+        if needle in message:
+            raise HTTPException(code, text)
+    raise HTTPException(
+        status.HTTP_502_BAD_GATEWAY, "The node could not complete the file operation."
+    )
+
+
+async def _files(
+    db: Session, server_id: uuid.UUID, action: str, **params: Any
+) -> tuple[Server, dict[str, Any]]:
+    server = _get(db, server_id)
+    if server.status in FILES_BLOCKED:
+        raise _conflict(f"Files are not available while the server is {server.status}.")
+    result = await _send(
+        server, action, {"name": lifecycle.container_name(server.id), **params}
+    )
+    return server, _file_data(result)
+
+
+def _audit_file(
+    db: Session,
+    request: Request,
+    auth: AuthContext,
+    server: Server,
+    action: str,
+    details: dict[str, Any],
+) -> None:
+    audit.record(
+        db,
+        f"server.file.{action}",
+        actor_id=auth.user.id,
+        target_type="server",
+        target_id=str(server.id),
+        ip=audit.client_ip(request),
+        details={"name": server.name, **details},
+    )
+
+
+@router.get("/{server_id}/files")
+async def list_files(
+    server_id: uuid.UUID,
+    _auth: ManageServers,
+    db: DbSession,
+    path: Annotated[str, Query(max_length=1024)] = "",
+    offset: Annotated[int, Query(ge=0, le=1_000_000)] = 0,
+) -> dict[str, Any]:
+    _, data = await _files(db, server_id, "file.list", path=path, offset=offset)
+    return data
+
+
+@router.get("/{server_id}/files/content")
+async def read_file(
+    server_id: uuid.UUID,
+    _auth: ManageServers,
+    db: DbSession,
+    path: Annotated[str, Query(max_length=1024)],
+    offset: Annotated[int, Query(ge=0, le=FILE_MAX_OFFSET)] = 0,
+    length: Annotated[int, Query(ge=1, le=8 * 1024)] = 8 * 1024,
+) -> dict[str, Any]:
+    _, data = await _files(
+        db, server_id, "file.read", path=path, offset=offset, length=length
+    )
+    return data
+
+
+@router.put("/{server_id}/files/content", status_code=status.HTTP_204_NO_CONTENT)
+async def write_file(
+    server_id: uuid.UUID, body: FileWrite, request: Request, auth: ManageServers, db: DbSession
+) -> None:
+    server, _ = await _files(
+        db,
+        server_id,
+        "file.write",
+        path=body.path,
+        offset=body.offset,
+        data=body.data,
+        create=body.create,
+        truncate=body.truncate,
+    )
+    if body.offset == 0:
+        _audit_file(db, request, auth, server, "write", {"path": body.path})
+
+
+@router.post("/{server_id}/files/folder", status_code=status.HTTP_204_NO_CONTENT)
+async def create_folder(
+    server_id: uuid.UUID, body: FileFolder, request: Request, auth: ManageServers, db: DbSession
+) -> None:
+    server, _ = await _files(db, server_id, "file.mkdir", path=body.path)
+    _audit_file(db, request, auth, server, "mkdir", {"path": body.path})
+
+
+@router.post("/{server_id}/files/rename", status_code=status.HTTP_204_NO_CONTENT)
+async def rename_file(
+    server_id: uuid.UUID, body: FileRename, request: Request, auth: ManageServers, db: DbSession
+) -> None:
+    server, _ = await _files(db, server_id, "file.rename", path=body.path, to=body.to)
+    _audit_file(db, request, auth, server, "rename", {"path": body.path, "to": body.to})
+
+
+@router.post("/{server_id}/files/delete", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_file(
+    server_id: uuid.UUID, body: FileDelete, request: Request, auth: ManageServers, db: DbSession
+) -> None:
+    server, _ = await _files(
+        db, server_id, "file.delete", path=body.path, recursive=body.recursive
+    )
+    _audit_file(
+        db, request, auth, server, "delete", {"path": body.path, "recursive": body.recursive}
+    )

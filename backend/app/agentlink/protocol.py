@@ -25,6 +25,12 @@ COMMAND_ACTIONS = (
     "console.watch",
     "console.unwatch",
     "console.input",
+    "file.list",
+    "file.read",
+    "file.write",
+    "file.mkdir",
+    "file.rename",
+    "file.delete",
 )
 
 WS_GOING_AWAY = 1001
