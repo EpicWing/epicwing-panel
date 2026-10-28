@@ -310,3 +310,18 @@ body:has(.server-detail-shell) {
 @media (prefers-reduced-motion: reduce) {
   .tab-in { animation: none; }
 }
+
+/* Kleiner Spinner in Knöpfen */
+@keyframes spinner-turn {
+  to { transform: rotate(360deg); }
+}
+.spinner {
+  display: inline-block;
+  width: 0.9em;
+  height: 0.9em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 9999px;
+  vertical-align: -0.1em;
+  animation: spinner-turn 0.7s linear infinite;
+}
