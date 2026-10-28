@@ -21,34 +21,36 @@ func parseBytes(value string) (int64, bool) {
 	if value == "" || value == "-" {
 		return 0, false
 	}
-	parts := strings.Fields(value)
-	if len(parts) == 0 {
-		return 0, false
+	// docker stats prints "1.212GiB" without a space before the unit.
+	split := strings.IndexFunc(value, func(r rune) bool {
+		return (r < '0' || r > '9') && r != '.'
+	})
+	number, unit := value, ""
+	if split >= 0 {
+		number, unit = value[:split], strings.TrimSpace(value[split:])
 	}
-	n, err := strconv.ParseFloat(parts[0], 64)
+	n, err := strconv.ParseFloat(number, 64)
 	if err != nil {
 		return 0, false
 	}
 	multiplier := float64(1)
-	if len(parts) > 1 {
-		switch strings.ToLower(parts[1]) {
-		case "kb":
-			multiplier = 1000
-		case "kib":
-			multiplier = 1024
-		case "mb":
-			multiplier = 1000 * 1000
-		case "mib":
-			multiplier = 1024 * 1024
-		case "gb":
-			multiplier = 1000 * 1000 * 1000
-		case "gib":
-			multiplier = 1024 * 1024 * 1024
-		case "tb":
-			multiplier = 1000 * 1000 * 1000 * 1000
-		case "tib":
-			multiplier = 1024 * 1024 * 1024 * 1024
-		}
+	switch strings.ToLower(unit) {
+	case "kb":
+		multiplier = 1000
+	case "kib":
+		multiplier = 1024
+	case "mb":
+		multiplier = 1000 * 1000
+	case "mib":
+		multiplier = 1024 * 1024
+	case "gb":
+		multiplier = 1000 * 1000 * 1000
+	case "gib":
+		multiplier = 1024 * 1024 * 1024
+	case "tb":
+		multiplier = 1000 * 1000 * 1000 * 1000
+	case "tib":
+		multiplier = 1024 * 1024 * 1024 * 1024
 	}
 	return int64(n * multiplier), true
 }
