@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.models import RecoveryCode, User
 
-ISSUER = "Forge"
+ISSUER = "EpicWing"
 TOTP_STEP = 30
 TOTP_WINDOW = 1
 RECOVERY_CODE_COUNT = 10
