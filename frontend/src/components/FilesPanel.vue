@@ -359,7 +359,7 @@ watch(blocked, (value) => {
                 <button class="text-bad disabled:opacity-50" :disabled="busy" @click="remove(entry)">Delete</button>
               </td>
             </tr>
-            <tr v-if="!loading && entries.length === 0">
+            <tr v-if="!loading && !error && entries.length === 0">
               <td class="px-4 py-10 text-center text-ink-500" colspan="4">This folder is empty.</td>
             </tr>
           </tbody>
