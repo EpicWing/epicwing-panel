@@ -156,7 +156,7 @@ async function pollRestore(id: string) {
 }
 
 async function restore(b: Backup) {
-  if (!window.confirm(`Restore "${b.name}"? The current server files will be replaced.`)) return;
+  if (!window.confirm(`Restore "${b.name}"? The server files are reset to this backup and everything created since is deleted.`)) return;
   error.value = "";
   try {
     await api(`${base()}/${b.id}/restore`, { method: "POST" });
@@ -246,6 +246,7 @@ onBeforeUnmount(() => {
             <p v-if="restoring === b.id" class="mt-1 text-xs text-ink-300">Restoring...</p>
           </div>
           <div class="flex flex-wrap gap-2">
+            <a v-if="can('backups.download') && b.status === 'ok'" :href="`/api${base()}/${b.id}/download`" download class="inline-block rounded-md border border-ink-700 px-3 py-1.5 text-xs text-ink-300 transition hover:border-accent-500">Download</a>
             <button
               v-if="can('backups.restore')"
               :class="ghostClass"
