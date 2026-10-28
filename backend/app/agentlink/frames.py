@@ -14,7 +14,7 @@ from app.agentlink import protocol
 from app.agentlink.console import hub
 from app.agentlink.registry import registry
 from app.models import Server
-from app.services import ddos_alerts
+from app.services import ddos_alerts, startup_ready
 from app.services import sftp as sftp_service
 from app.services.ddos_detect import detector
 from app.services.server_state import apply_state
@@ -86,6 +86,10 @@ async def handle_frame(db: Session, node_id: uuid.UUID, raw: str) -> bool:
         except ValidationError:
             return True
         await hub.publish(node_id, frame.name, {"type": "output", "data": frame.data})
+        if startup_ready.watcher.feed(frame.name, frame.data) and await run_in_threadpool(
+            startup_ready.mark_running, db, node_id, frame.name
+        ):
+            await hub.publish(node_id, frame.name, {"type": "status", "status": "running"})
         return True
     if kind == "state":
         try:
@@ -97,6 +101,7 @@ async def handle_frame(db: Session, node_id: uuid.UUID, raw: str) -> bool:
             await hub.publish(node_id, state.name, {"type": "status", "status": status})
             if status in ("running", "starting"):
                 hub.clear_install(state.name)
+        await run_in_threadpool(startup_ready.register, db, node_id, state.name, state.state)
         return True
     if kind == "install":
         # Ausgabe des Installer-Containers; kommt unter dem Namen des Server-Containers.
@@ -166,5 +171,9 @@ async def handle_frame(db: Session, node_id: uuid.UUID, raw: str) -> bool:
             stats.name,
             payload,
         )
+        if startup_ready.watcher.expired(stats.name, time.monotonic()) and await run_in_threadpool(
+            startup_ready.mark_running, db, node_id, stats.name
+        ):
+            await hub.publish(node_id, stats.name, {"type": "status", "status": "running"})
         return True
     return False
