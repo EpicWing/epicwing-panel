@@ -209,10 +209,10 @@ function area(values: number[]): string {
         </div>
       </div>
       <div class="mt-3 flex gap-2">
-        <div class="flex h-40 flex-col justify-between py-2 font-mono text-[10px] leading-none text-ink-500">
+        <div class="flex h-64 flex-col justify-between py-2 font-mono text-[10px] leading-none text-ink-500">
           <span>{{ axis(1) }}</span><span>{{ axis(0.5) }}</span><span>{{ axis(0) }}</span>
         </div>
-        <svg viewBox="0 0 300 80" class="h-40 min-w-0 flex-1" preserveAspectRatio="none" aria-hidden="true">
+        <svg viewBox="0 0 300 80" class="h-64 min-w-0 flex-1" preserveAspectRatio="none" aria-hidden="true">
           <path :d="area(chartRx)" :fill="RX_COLOR" fill-opacity="0.2" />
           <path :d="line(chartRx)" fill="none" :stroke="RX_COLOR" stroke-width="2" vector-effect="non-scaling-stroke" />
           <path :d="area(chartTx)" :fill="TX_COLOR" fill-opacity="0.2" />
