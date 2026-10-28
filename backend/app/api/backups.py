@@ -1,6 +1,6 @@
 import asyncio
 import base64
-import re
+import secrets
 import uuid
 from collections import deque
 from collections.abc import AsyncIterator
@@ -334,9 +334,8 @@ DOWNLOAD_WINDOW = 3  # chunks requested from the node at the same time
 DOWNLOAD_RETRIES = 4
 
 
-def _download_name(backup: ServerBackup) -> str:
-    slug = re.sub(r"[^A-Za-z0-9._-]+", "_", backup.name).strip("._-") or "backup"
-    return f"{slug[:60]}-{backup.created_at:%Y%m%d-%H%M%S}.tar.gz"
+def _download_name() -> str:
+    return f"backup-{secrets.token_hex(4)}.tar.gz"
 
 
 def _chunk(data: dict[str, Any]) -> bytes:
@@ -415,7 +414,7 @@ async def download_backup(
     # Plain values only: the streaming part must not touch database objects.
     node_id = server.node_id
     params = _params(server, backup)
-    filename = _download_name(backup)
+    filename = _download_name()
     name = backup.name
     first = _data(
         await _send(server, "backup.read", {**params, "offset": 0, "length": DOWNLOAD_CHUNK})
