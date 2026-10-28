@@ -6,7 +6,7 @@ os.environ.setdefault("EPICWING_ENCRYPTION_KEY", "test")
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
-from sqlalchemy import create_engine  # noqa: E402
+from sqlalchemy import create_engine, event  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
 from sqlalchemy.pool import StaticPool  # noqa: E402
 
@@ -30,6 +30,12 @@ def db_session():
     engine = create_engine(
         "sqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False}
     )
+
+    # SQLite setzt Fremdschlüssel (ON DELETE CASCADE) nur mit diesem Pragma durch.
+    @event.listens_for(engine, "connect")
+    def _enable_foreign_keys(dbapi_connection, _record):
+        dbapi_connection.execute("PRAGMA foreign_keys=ON")
+
     Base.metadata.create_all(engine)
     with sessionmaker(bind=engine, expire_on_commit=False)() as session:
         yield session
