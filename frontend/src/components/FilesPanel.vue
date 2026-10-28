@@ -443,19 +443,76 @@ async function newFolder(): Promise<void> {
   );
 }
 
+// Löst eine Eingabe relativ zum aktuellen Ordner auf, ein führendes "/" meint die Wurzel.
+function resolveTarget(input: string): string | null {
+  const parts = input.startsWith("/") || !path.value ? [] : path.value.split("/");
+  for (const part of input.split("/")) {
+    if (part === "" || part === ".") continue;
+    if (part === "..") {
+      if (parts.length === 0) return null;
+      parts.pop();
+    } else if (part.includes("\0")) {
+      return null;
+    } else {
+      parts.push(part);
+    }
+  }
+  return parts.join("/");
+}
+
 async function rename(entry: Entry): Promise<void> {
-  const name = window.prompt("New name", entry.name)?.trim();
-  if (name === undefined || name === entry.name) return;
-  if (!validName(name)) {
+  const input = window
+    .prompt("New name, or a path to move it (e.g. plugins/name.dll)", entry.name)
+    ?.trim();
+  if (input === undefined || input === entry.name) return;
+  const from = join(path.value, entry.name);
+  const to = resolveTarget(input);
+  if (!to) {
     error.value = "Invalid name.";
     return;
   }
-  await action(() =>
-    api(`${base()}/rename`, {
-      method: "POST",
-      body: { path: join(path.value, entry.name), to: join(path.value, name) },
-    }),
+  if (to === from) return;
+  if (entry.dir && to.startsWith(`${from}/`)) {
+    error.value = "A folder cannot be moved into itself.";
+    return;
+  }
+  await action(() => api(`${base()}/rename`, { method: "POST", body: { path: from, to } }));
+}
+
+async function moveSelected(): Promise<void> {
+  const targets = selectedEntries.value;
+  if (targets.length === 0) return;
+  const input = window.prompt(
+    `Move ${targets.length} selected items to this folder (relative to the current one, "/" is the root)`,
+    "",
   );
+  if (input === null) return;
+  const dest = resolveTarget(input.trim());
+  if (dest === null) {
+    error.value = "Invalid folder.";
+    return;
+  }
+  if (dest === path.value) return;
+  selected.value = [];
+  await action(async () => {
+    const failed: string[] = [];
+    for (const entry of targets) {
+      const from = join(path.value, entry.name);
+      if (entry.dir && (dest === from || dest.startsWith(`${from}/`))) {
+        failed.push(entry.name);
+        continue;
+      }
+      try {
+        await api(`${base()}/rename`, {
+          method: "POST",
+          body: { path: from, to: join(dest, entry.name) },
+        });
+      } catch {
+        failed.push(entry.name);
+      }
+    }
+    if (failed.length > 0) throw new LocalError(`Could not move: ${failed.join(", ")}`);
+  });
 }
 
 async function remove(entry: Entry): Promise<void> {
@@ -710,6 +767,7 @@ watch(blocked, (value) => {
       <template v-else>
         <span class="text-ink-300">{{ selectedEntries.length }} selected</span>
         <button class="rounded-lg bg-accent-500 px-3 py-1.5 font-semibold text-ink-950 disabled:opacity-50" :disabled="busy" @click="download(selectedEntries)">{{ downloadLabel }}</button>
+        <button class="rounded-lg border border-ink-700 px-3 py-1.5 text-ink-200 hover:bg-ink-800 disabled:opacity-50" :disabled="busy" @click="moveSelected">Move</button>
         <button class="rounded-lg border border-ink-700 px-3 py-1.5 text-bad hover:bg-ink-800 disabled:opacity-50" :disabled="busy" @click="removeSelected">Delete</button>
         <button class="px-2 py-1.5 text-ink-400 hover:text-ink-100" @click="selected = []">Clear</button>
       </template>
