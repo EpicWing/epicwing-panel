@@ -31,6 +31,10 @@ COMMAND_ACTIONS = (
     "file.mkdir",
     "file.rename",
     "file.delete",
+    "backup.create",
+    "backup.restore",
+    "backup.delete",
+    "backup.status",
 )
 
 WS_GOING_AWAY = 1001
