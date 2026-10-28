@@ -229,199 +229,221 @@ const linkButton = "rounded px-2 py-1 text-xs text-ink-300 transition hover:bg-i
 
 <template>
   <div class="space-y-6">
-    <div class="flex items-start justify-between gap-4">
+    <form v-if="dialog && dialog.kind !== 'remove'" class="space-y-6" @submit.prevent="submit">
       <div>
-        <h2 class="text-2xl font-semibold">{{ t("access.title") }}</h2>
-        <p class="mt-2 text-sm text-ink-400">{{ t("access.subtitle") }}</p>
+        <button type="button" :disabled="busy" :class="linkButton" @click="closeDialog">
+          &larr; {{ t("access.back") }}
+        </button>
+        <h2 class="mt-2 text-2xl font-semibold">
+          {{ dialog.kind === "add" ? t("access.addTitle") : t("access.editTitle") }}
+        </h2>
+        <p v-if="dialog.kind === 'add'" class="mt-2 text-sm text-ink-400">{{ t("access.addSubtitle") }}</p>
+        <p v-else class="mt-2 text-sm text-ink-300">{{ dialog.member.email }}</p>
       </div>
-      <button
-        v-if="data?.can_manage"
-        class="shrink-0 rounded-md bg-accent-500 px-3 py-1.5 text-sm font-semibold text-ink-950 transition hover:bg-accent-400"
-        @click="openDialog({ kind: 'add' })"
-      >
-        {{ t("access.addUser") }}
-      </button>
-    </div>
 
-    <p v-if="!canView" class="rounded-lg border border-ink-700 bg-ink-900 px-4 py-3 text-sm text-ink-300">
-      {{ t("access.noAccess") }}
-    </p>
+      <div v-if="dialog.kind === 'add'" class="rounded-xl border border-ink-700 bg-ink-900 p-5">
+        <p class="mb-3 text-sm font-medium">{{ t("access.selectUser") }}</p>
+        <div class="grid gap-3 sm:grid-cols-2">
+          <input
+            v-model="search"
+            type="search"
+            autocomplete="off"
+            :placeholder="t('access.searchUsers')"
+            :class="inputClass"
+            @input="onSearch"
+          />
+          <select
+            id="access-user"
+            v-model="chosen"
+            :disabled="busy || candidates.length === 0"
+            :class="inputClass"
+            :aria-label="t('access.selectUser')"
+          >
+            <option v-for="candidate in candidates" :key="candidate.id" :value="candidate.id">
+              {{ candidate.email }}
+            </option>
+          </select>
+        </div>
+        <p class="mt-2 text-xs text-ink-400">
+          {{
+            candidatesLoading
+              ? t("access.loadingUsers")
+              : candidates.length === 0
+                ? t("access.noCandidates")
+                : t("access.selectUserHint")
+          }}
+        </p>
+      </div>
 
-    <template v-else>
-      <p v-if="error" role="alert" class="rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">
-        {{ error }}
-      </p>
-
-      <div v-if="data && data.members.length > 0" class="divide-y divide-ink-800 rounded-xl border border-ink-700 bg-ink-900">
-        <div v-for="member in data.members" :key="member.id" class="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-          <div class="min-w-0">
-            <p class="truncate text-sm font-medium">
-              {{ member.email }}
-              <span v-if="isSelf(member)" class="ml-1.5 text-xs font-normal text-ink-400">({{ t("access.you") }})</span>
-            </p>
-            <div class="mt-1.5 flex flex-wrap gap-1.5">
-              <span v-if="member.permissions.length === 0" class="rounded bg-ink-800 px-1.5 py-0.5 text-xs text-ink-300">
-                {{ t("access.noPermissions") }}
+      <fieldset class="space-y-4">
+        <legend class="mb-1 text-sm font-medium text-ink-200">{{ t("access.permissionsLabel") }}</legend>
+        <div v-for="group in dialogGroups" :key="group.key" class="rounded-xl border border-ink-700 bg-ink-900 p-5">
+          <div class="mb-4 flex items-start justify-between gap-3">
+            <div class="flex items-start gap-3">
+              <span class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-accent-500/15 text-accent-400">
+                <svg
+                  viewBox="0 0 24 24"
+                  class="h-5 w-5"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path :d="iconPath(group.key)" />
+                </svg>
               </span>
-              <span
-                v-for="group in groupsFor(member.permissions)"
-                :key="group.key"
-                class="rounded bg-ink-800 px-1.5 py-0.5 text-xs text-ink-300"
-              >
-                {{ groupLabel(group.key) }} · {{ group.items.length }}
-              </span>
+              <div>
+                <p class="text-sm font-semibold">{{ groupLabel(group.key) }}</p>
+                <p v-if="groupDesc(group.key)" class="text-xs text-ink-400">{{ groupDesc(group.key) }}</p>
+              </div>
             </div>
+            <span class="flex shrink-0 gap-1">
+              <button type="button" :class="linkButton" @click="setGroup(group.items, true)">{{ t("access.all") }}</button>
+              <button type="button" :class="linkButton" @click="setGroup(group.items, false)">{{ t("access.none") }}</button>
+            </span>
           </div>
-          <div class="flex shrink-0 gap-1">
-            <button v-if="editable(member)" :class="linkButton" @click="openDialog({ kind: 'edit', member })">
-              {{ t("access.edit") }}
-            </button>
-            <button
-              v-if="removable(member)"
-              class="rounded px-2 py-1 text-xs text-bad transition hover:bg-bad/10"
-              @click="openDialog({ kind: 'remove', member })"
+          <div class="grid gap-x-10 gap-y-4 sm:grid-cols-2">
+            <label
+              v-for="permission in group.items"
+              :key="permission"
+              class="flex items-start gap-3 text-sm"
+              :class="isAvailable(permission) ? 'cursor-pointer' : 'opacity-50'"
             >
-              {{ t("access.remove") }}
-            </button>
+              <input
+                v-model="selected"
+                type="checkbox"
+                :value="permission"
+                :disabled="busy || !isAvailable(permission)"
+                class="mt-0.5 h-4 w-4 shrink-0 accent-accent-500"
+              />
+              <span>
+                <span class="block font-medium">{{ permLabel(permission) }}</span>
+                <span v-if="permDesc(permission)" class="block text-xs text-ink-400">{{ permDesc(permission) }}</span>
+              </span>
+            </label>
           </div>
         </div>
+      </fieldset>
+
+      <p v-if="formError" role="alert" class="rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">
+        {{ formError }}
+      </p>
+
+      <div class="flex justify-end gap-2">
+        <button
+          type="button"
+          :disabled="busy"
+          class="rounded-md border border-ink-700 px-4 py-2 text-sm text-ink-300 transition hover:border-ink-600 hover:text-ink-100"
+          @click="closeDialog"
+        >
+          {{ t("access.cancel") }}
+        </button>
+        <button
+          type="submit"
+          :disabled="busy || (dialog.kind === 'add' && !chosen)"
+          class="rounded-md bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950 transition hover:bg-accent-400 disabled:opacity-60"
+        >
+          {{ dialog.kind === "add" ? t("access.add") : t("access.save") }}
+        </button>
+      </div>
+    </form>
+
+    <template v-else>
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <h2 class="text-2xl font-semibold">{{ t("access.title") }}</h2>
+          <p class="mt-2 text-sm text-ink-400">{{ t("access.subtitle") }}</p>
+        </div>
+        <button
+          v-if="data?.can_manage"
+          class="shrink-0 rounded-md bg-accent-500 px-3 py-1.5 text-sm font-semibold text-ink-950 transition hover:bg-accent-400"
+          @click="openDialog({ kind: 'add' })"
+        >
+          {{ t("access.addUser") }}
+        </button>
       </div>
 
-      <div
-        v-else-if="!loading && !error"
-        class="rounded-xl border border-dashed border-ink-700 px-6 py-12 text-center"
-      >
-        <p class="font-medium">{{ t("access.emptyTitle") }}</p>
-        <p class="mt-1 text-sm text-ink-400">{{ t("access.emptyBody") }}</p>
-      </div>
+      <p v-if="!canView" class="rounded-lg border border-ink-700 bg-ink-900 px-4 py-3 text-sm text-ink-300">
+        {{ t("access.noAccess") }}
+      </p>
 
-      <p class="text-xs text-ink-400">{{ t("access.note") }}</p>
+      <template v-else>
+        <p v-if="error" role="alert" class="rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">
+          {{ error }}
+        </p>
+
+        <div v-if="data && data.members.length > 0" class="divide-y divide-ink-800 rounded-xl border border-ink-700 bg-ink-900">
+          <div v-for="member in data.members" :key="member.id" class="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+            <div class="min-w-0">
+              <p class="truncate text-sm font-medium">
+                {{ member.email }}
+                <span v-if="isSelf(member)" class="ml-1.5 text-xs font-normal text-ink-400">({{ t("access.you") }})</span>
+              </p>
+              <div class="mt-1.5 flex flex-wrap gap-1.5">
+                <span v-if="member.permissions.length === 0" class="rounded bg-ink-800 px-1.5 py-0.5 text-xs text-ink-300">
+                  {{ t("access.noPermissions") }}
+                </span>
+                <span
+                  v-for="group in groupsFor(member.permissions)"
+                  :key="group.key"
+                  class="rounded bg-ink-800 px-1.5 py-0.5 text-xs text-ink-300"
+                >
+                  {{ groupLabel(group.key) }} · {{ group.items.length }}
+                </span>
+              </div>
+            </div>
+            <div class="flex shrink-0 gap-1">
+              <button v-if="editable(member)" :class="linkButton" @click="openDialog({ kind: 'edit', member })">
+                {{ t("access.edit") }}
+              </button>
+              <button
+                v-if="removable(member)"
+                class="rounded px-2 py-1 text-xs text-bad transition hover:bg-bad/10"
+                @click="openDialog({ kind: 'remove', member })"
+              >
+                {{ t("access.remove") }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div
+          v-else-if="!loading && !error"
+          class="rounded-xl border border-dashed border-ink-700 px-6 py-12 text-center"
+        >
+          <p class="font-medium">{{ t("access.emptyTitle") }}</p>
+          <p class="mt-1 text-sm text-ink-400">{{ t("access.emptyBody") }}</p>
+        </div>
+
+        <p class="text-xs text-ink-400">{{ t("access.note") }}</p>
+      </template>
     </template>
 
     <div
-      v-if="dialog"
+      v-if="dialog && dialog.kind === 'remove'"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
       @mousedown.self="!busy && closeDialog()"
     >
       <form
         role="dialog"
         aria-modal="true"
-        aria-labelledby="access-dialog-title"
-        class="max-h-[92vh] w-full max-w-5xl space-y-5 overflow-y-auto rounded-xl border border-ink-700 bg-ink-900 p-6"
+        class="w-full max-w-md space-y-4 rounded-xl border border-ink-700 bg-ink-900 p-6"
         @submit.prevent="submit"
       >
-        <h3 id="access-dialog-title" class="text-xl font-semibold tracking-tight">
-          {{
-            dialog.kind === "add"
-              ? t("access.addTitle")
-              : dialog.kind === "edit"
-                ? t("access.editTitle")
-                : t("access.removeTitle")
-          }}
-        </h3>
-
-        <template v-if="dialog.kind !== 'remove'">
-          <div v-if="dialog.kind === 'add'" class="rounded-lg border border-ink-700 bg-ink-950 p-4">
-            <p class="mb-3 text-sm font-medium">{{ t("access.selectUser") }}</p>
-            <div class="grid gap-3 sm:grid-cols-2">
-              <input
-                v-model="search"
-                type="search"
-                autocomplete="off"
-                :placeholder="t('access.searchUsers')"
-                :class="inputClass"
-                @input="onSearch"
-              />
-              <select
-                id="access-user"
-                v-model="chosen"
-                :disabled="busy || candidates.length === 0"
-                :class="inputClass"
-                :aria-label="t('access.selectUser')"
-              >
-                <option v-for="candidate in candidates" :key="candidate.id" :value="candidate.id">
-                  {{ candidate.email }}
-                </option>
-              </select>
-            </div>
-            <p class="mt-2 text-xs text-ink-400">
-              {{
-                candidatesLoading
-                  ? t("access.loadingUsers")
-                  : candidates.length === 0
-                    ? t("access.noCandidates")
-                    : t("access.selectUserHint")
-              }}
-            </p>
-          </div>
-          <p v-else class="text-sm text-ink-300">{{ dialog.member.email }}</p>
-
-          <fieldset class="space-y-4">
-            <legend class="mb-1 text-sm font-medium text-ink-200">{{ t("access.permissionsLabel") }}</legend>
-            <div v-for="group in dialogGroups" :key="group.key" class="rounded-lg border border-ink-700 bg-ink-950 p-4">
-              <div class="mb-3 flex items-start justify-between gap-3">
-                <div class="flex items-start gap-3">
-                  <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-accent-500/15 text-accent-400">
-                    <svg
-                      viewBox="0 0 24 24"
-                      class="h-5 w-5"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.8"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path :d="iconPath(group.key)" />
-                    </svg>
-                  </span>
-                  <div>
-                    <p class="text-sm font-semibold">{{ groupLabel(group.key) }}</p>
-                    <p v-if="groupDesc(group.key)" class="text-xs text-ink-400">{{ groupDesc(group.key) }}</p>
-                  </div>
-                </div>
-                <span class="flex shrink-0 gap-1">
-                  <button type="button" :class="linkButton" @click="setGroup(group.items, true)">{{ t("access.all") }}</button>
-                  <button type="button" :class="linkButton" @click="setGroup(group.items, false)">{{ t("access.none") }}</button>
-                </span>
-              </div>
-              <div class="grid gap-x-8 gap-y-3 sm:grid-cols-2">
-                <label
-                  v-for="permission in group.items"
-                  :key="permission"
-                  class="flex items-start gap-2.5 text-sm"
-                  :class="isAvailable(permission) ? 'cursor-pointer' : 'opacity-50'"
-                >
-                  <input
-                    v-model="selected"
-                    type="checkbox"
-                    :value="permission"
-                    :disabled="busy || !isAvailable(permission)"
-                    class="mt-0.5 h-4 w-4 shrink-0 accent-accent-500"
-                  />
-                  <span>
-                    <span class="block font-medium">{{ permLabel(permission) }}</span>
-                    <span v-if="permDesc(permission)" class="block text-xs text-ink-400">{{ permDesc(permission) }}</span>
-                  </span>
-                </label>
-              </div>
-            </div>
-          </fieldset>
-        </template>
-
-        <p v-else class="text-sm text-ink-300">
+        <h3 class="text-lg font-semibold tracking-tight">{{ t("access.removeTitle") }}</h3>
+        <p class="text-sm text-ink-300">
           {{
             dialog.member.user_id === meId
               ? t("access.removeSelfBody")
               : t("access.removeBody", { email: dialog.member.email })
           }}
         </p>
-
         <p v-if="formError" role="alert" class="rounded-md border border-bad/40 bg-bad/10 px-3 py-2 text-sm text-bad">
           {{ formError }}
         </p>
-
-        <div class="flex justify-end gap-2 pt-1">
+        <div class="flex justify-end gap-2">
           <button
             type="button"
             :disabled="busy"
@@ -432,11 +454,10 @@ const linkButton = "rounded px-2 py-1 text-xs text-ink-300 transition hover:bg-i
           </button>
           <button
             type="submit"
-            :disabled="busy || (dialog.kind === 'add' && !chosen)"
-            class="rounded-md px-3 py-2 text-sm font-semibold transition disabled:opacity-60"
-            :class="dialog.kind === 'remove' ? 'bg-bad text-white hover:opacity-90' : 'bg-accent-500 text-ink-950 hover:bg-accent-400'"
+            :disabled="busy"
+            class="rounded-md bg-bad px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
           >
-            {{ dialog.kind === "add" ? t("access.add") : dialog.kind === "edit" ? t("access.save") : t("access.remove") }}
+            {{ t("access.remove") }}
           </button>
         </div>
       </form>
