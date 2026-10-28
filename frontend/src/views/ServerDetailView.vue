@@ -106,6 +106,7 @@ function pushHistory(key: keyof typeof history.value, value: number): void {
 
 // rx and tx share one scale (floor 1 KiB/s) so an idle connection stays flat.
 function scalePeak(key: string, values: number[]): number {
+  if (key === "ram" && server.value && server.value.memory_mb > 0) return Math.max(server.value.memory_mb * 1024 * 1024, ...values);
   if (key !== "rx" && key !== "tx") return Math.max(...values, 1);
   return Math.max(...history.value.rx, ...history.value.tx, 1024);
 }
@@ -119,6 +120,18 @@ function uptimeText(): string {
   return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m ${seconds % 60}s`;
 }
 
+function smoothPath(points: string, area = 0): string {
+  const pts = points.split(" ").map((point) => point.split(",").map(Number));
+  let d = `M${pts[0][0]},${pts[0][1]}`;
+  for (let i = 1; i < pts.length; i++) {
+    const [x0, y0] = pts[i - 1];
+    const [x1, y1] = pts[i];
+    const mid = (x0 + x1) / 2;
+    d += ` C${mid},${y0} ${mid},${y1} ${x1},${y1}`;
+  }
+  return area ? `${d} L${area},72 L0,72 Z` : d;
+}
+
 function isOnline(): boolean {
   return server.value?.status === "running" || server.value?.status === "starting";
 }
@@ -126,7 +139,7 @@ function isOnline(): boolean {
 // Axis labels follow the scaling of the line: top = peak, middle = half, bottom = 0.
 function axisLabel(key: string, fraction: number): string {
   const values = history.value[key as keyof typeof history.value] ?? [];
-  const max = isOnline() ? Math.max(...values, 1) : key === "cpu" ? 1 : 0;
+  const max = isOnline() ? scalePeak(key, values) : key === "cpu" ? 1 : key === "ram" && (server.value?.memory_mb ?? 0) > 0 ? scalePeak(key, []) : 0;
   const value = max * fraction;
   if (key === "cpu") return `${value.toFixed(2)}%`;
   if (value > 0) return formatBytes(value);
@@ -327,7 +340,7 @@ onMounted(async () => {
             { key: 'ram', title: 'RAM', value: (server.status === 'running' || server.status === 'starting') ? formatBytes(metrics.ram) : 'Offline', color: '#d9a21b' },
           ]" :key="chart.key" class="rounded-xl border border-ink-700 bg-ink-900 p-4">
             <div class="flex items-center justify-between"><p class="flex items-center gap-2 text-xs uppercase tracking-wider text-ink-400"><span class="h-2 w-2 rounded-full" :style="{ backgroundColor: chart.color }"></span>{{ chart.title }}</p><p class="font-mono text-sm">{{ chart.value }}</p></div>
-            <div class="mt-3 flex gap-2"><div class="flex h-16 flex-col justify-between font-mono text-[10px] leading-none text-ink-500"><span>{{ axisLabel(chart.key, 1) }}</span><span>{{ axisLabel(chart.key, 0.5) }}</span><span>{{ axisLabel(chart.key, 0) }}</span></div><svg viewBox="0 0 300 80" class="h-16 min-w-0 flex-1" preserveAspectRatio="none" aria-hidden="true"><polygon :points="chartPoints(chart.key) + ' 300,72 0,72'" :fill="chart.color" fill-opacity="0.12" /><polyline :points="chartPoints(chart.key)" fill="none" :stroke="chart.color" stroke-width="2" vector-effect="non-scaling-stroke" /></svg></div>
+            <div class="mt-3 flex gap-2"><div class="flex h-32 flex-col justify-between py-2 font-mono text-[10px] leading-none text-ink-500"><span>{{ axisLabel(chart.key, 1) }}</span><span>{{ axisLabel(chart.key, 0.5) }}</span><span>{{ axisLabel(chart.key, 0) }}</span></div><svg viewBox="0 0 300 80" class="h-32 min-w-0 flex-1" preserveAspectRatio="none" aria-hidden="true"><path :d="smoothPath(chartPoints(chart.key), 300)" :fill="chart.color" fill-opacity="0.2" /><path :d="smoothPath(chartPoints(chart.key))" fill="none" :stroke="chart.color" stroke-width="2" vector-effect="non-scaling-stroke" /></svg></div>
           </div>
           <div class="rounded-xl border border-ink-700 bg-ink-900 p-4">
             <div class="flex items-center justify-between"><p class="text-xs uppercase tracking-wider text-ink-400">Network activity</p><p class="font-mono text-sm">↓ {{ formatBytes(metrics.rx) }}/s · ↑ {{ formatBytes(metrics.tx) }}/s</p></div>
@@ -336,9 +349,9 @@ onMounted(async () => {
               <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full" style="background-color: #f778ba"></span>↑ Upload (outgoing)</span>
               <span class="text-ink-500">Both lines share one scale.</span>
             </div>
-            <div class="mt-3 flex gap-2"><div class="flex h-16 flex-col justify-between font-mono text-[10px] leading-none text-ink-500"><span>{{ networkAxisLabel(1) }}</span><span>{{ networkAxisLabel(0.5) }}</span><span>{{ networkAxisLabel(0) }}</span></div><div class="min-w-0 flex-1"><svg viewBox="0 0 900 80" class="h-16 w-full" preserveAspectRatio="none" aria-hidden="true">
-              <polygon :points="networkPoints('rx') + ' 900,72 0,72'" fill="#49c58a" fill-opacity="0.12" /><polyline :points="networkPoints('rx')" fill="none" stroke="#49c58a" stroke-width="2" vector-effect="non-scaling-stroke" />
-              <polygon :points="networkPoints('tx') + ' 900,72 0,72'" fill="#f778ba" fill-opacity="0.12" /><polyline :points="networkPoints('tx')" fill="none" stroke="#f778ba" stroke-width="2" vector-effect="non-scaling-stroke" />
+            <div class="mt-3 flex gap-2"><div class="flex h-32 flex-col justify-between py-2 font-mono text-[10px] leading-none text-ink-500"><span>{{ networkAxisLabel(1) }}</span><span>{{ networkAxisLabel(0.5) }}</span><span>{{ networkAxisLabel(0) }}</span></div><div class="min-w-0 flex-1"><svg viewBox="0 0 900 80" class="h-32 w-full" preserveAspectRatio="none" aria-hidden="true">
+              <path :d="smoothPath(networkPoints('rx'), 900)" fill="#49c58a" fill-opacity="0.2" /><path :d="smoothPath(networkPoints('rx'))" fill="none" stroke="#49c58a" stroke-width="2" vector-effect="non-scaling-stroke" />
+              <path :d="smoothPath(networkPoints('tx'), 900)" fill="#f778ba" fill-opacity="0.2" /><path :d="smoothPath(networkPoints('tx'))" fill="none" stroke="#f778ba" stroke-width="2" vector-effect="non-scaling-stroke" />
             </svg></div></div>
           </div>
         </section>
