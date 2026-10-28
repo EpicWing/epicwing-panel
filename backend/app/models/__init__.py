@@ -1,4 +1,5 @@
 from app.models.apikey import ApiKey
+from app.models.sshkey import SshKey
 from app.models.audit import AuditLog
 from app.models.database import DatabaseHost, ServerDatabase
 from app.models.egg import Egg, EggVariable, Nest
@@ -11,6 +12,7 @@ from app.models.user import RecoveryCode, User, UserAvatar, UserSession
 
 __all__ = [
     "ApiKey",
+    "SshKey",
     "Allocation",
     "AuditLog",
     "DatabaseHost",
