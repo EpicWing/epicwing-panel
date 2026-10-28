@@ -7,13 +7,18 @@ from sqlalchemy.orm import Session
 
 from app.agentlink.protocol import StateFrame
 from app.models import Server
+from app.models.egg import Egg
+from app.services.startup_ready import done_texts
 
 
 def next_status(
-    status: str, state: str, exit_code: int | None
+    status: str, state: str, exit_code: int | None, hold: bool = False
 ) -> tuple[str | None, str | None]:
     """Gibt (neuer Status, Fehlermeldung) zurück. Der Status None heißt: keine Änderung."""
     if state == "running":
+        if hold:
+            # Das Egg meldet Bereitschaft über die Konsole: bis dahin bleibt es bei "starting".
+            return ("starting", None) if status in {"offline", "error"} else (None, None)
         return ("running", None) if status in {"offline", "starting", "error"} else (None, None)
     if state == "exited":
         if status == "stopping":
@@ -50,7 +55,9 @@ def apply_state(db: Session, node_id: uuid.UUID, frame: StateFrame) -> str | Non
             select(Server).where(Server.id == server_id).execution_options(populate_existing=True)
         )
         if server is not None and server.node_id == node_id:
-            new_status, error = next_status(server.status, frame.state, frame.exit_code)
+            egg = db.get(Egg, server.egg_id)
+            hold = bool(egg and done_texts(egg.config))
+            new_status, error = next_status(server.status, frame.state, frame.exit_code, hold)
             if new_status is not None:
                 server.status = new_status
                 server.last_error = error
