@@ -12,8 +12,8 @@ class Settings(BaseSettings):
     epicwing_secret_key: str = Field(min_length=32)
     epicwing_encryption_key: str
     resend_api_key: str = ""
-    mail_from: str = "EpicWing <noreply@epicwing.de>"
-    mail_reply_to: str = "support@epicwing.de"
+    mail_from: str = ""
+    mail_reply_to: str = ""
     epicwing_allowed_origins: str = (
         "http://127.0.0.1:5183,http://localhost:5183,http://127.0.0.1:5184,http://localhost:5184"
     )

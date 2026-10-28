@@ -21,6 +21,7 @@ from app.api import (
     two_factor,
     users,
 )
+from app.api.admin_mail import router as admin_mail_router
 from app.config import get_settings
 
 _SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
@@ -76,6 +77,7 @@ def create_app() -> FastAPI:
     app.include_router(avatars.router, prefix="/api")
     app.include_router(backups.router, prefix="/api")
     app.include_router(admin.router, prefix="/api")
+    app.include_router(admin_mail_router, prefix="/api")
     app.include_router(panel.router, prefix="/api")
     return app
 
