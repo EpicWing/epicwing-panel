@@ -3,6 +3,7 @@ import os
 os.environ.setdefault("DATABASE_URL", "postgresql+psycopg://forge:test@localhost:5433/forge")
 os.environ.setdefault("EPICWING_SECRET_KEY", "x" * 48)
 os.environ.setdefault("EPICWING_ENCRYPTION_KEY", "test")
+os.environ.setdefault("EPICWING_SCHEDULER", "0")
 
 import pytest  # noqa: E402
 from argon2 import PasswordHasher  # noqa: E402
