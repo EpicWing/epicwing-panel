@@ -5,11 +5,13 @@ import AdminOverviewView from "../views/AdminOverviewView.vue";
 import LoginView from "../views/LoginView.vue";
 import NodesView from "../views/NodesView.vue";
 import ServersView from "../views/ServersView.vue";
+import SettingsView from "../views/SettingsView.vue";
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: "/", name: "servers", component: ServersView, meta: { requiresAuth: true } },
+    { path: "/settings", name: "settings", component: SettingsView, meta: { requiresAuth: true } },
     {
       path: "/admin",
       name: "admin",
