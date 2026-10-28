@@ -569,7 +569,7 @@ onMounted(async () => {
         <p v-if="active === 'home' && server.status === 'new'" class="rounded-xl border border-warn/40 bg-warn/10 px-4 py-3 text-sm text-ink-100">This server has not been installed yet. Open Settings and choose Install Server to set it up.</p>
 
         <section v-if="active === 'home'" class="overflow-hidden rounded-xl border border-ink-700 bg-ink-900">
-          <ConsoleOutput :lines="lines" :placeholder="t('console.waiting')" :offline-text="server.status === 'running' || server.status === 'starting' ? undefined : server.status === 'installing' ? (lines.length > 1 || lines[0]?.segments.length ? undefined : 'EpicWing container: Installing server, this can take a few minutes...') : 'EpicWing container: Server marked as offline...'" class="h-[min(34vh,28rem)] min-h-[17rem]" />
+          <ConsoleOutput :lines="lines" :placeholder="t('console.waiting')" :offline-text="server.status === 'running' || server.status === 'starting' || lines.length > 1 || lines[0]?.segments.length ? undefined : server.status === 'installing' ? 'EpicWing container: Installing server, this can take a few minutes...' : 'EpicWing container: Server marked as offline...'" class="h-[min(46vh,32rem)] min-h-[17rem]" />
           <p v-if="shownError()" class="border-t border-bad/30 bg-bad/10 px-4 py-2 text-xs text-bad">{{ shownError() }}</p>
           <details v-if="errorTechnical" class="border-t border-bad/30 bg-bad/10 px-4 py-2 text-xs text-bad"><summary class="cursor-pointer select-none">Technical details (visible to admins only)</summary><pre class="mt-2 whitespace-pre-wrap break-all font-mono">{{ errorTechnical }}</pre></details>
           <form class="flex gap-2 border-t border-ink-700 p-3" @submit.prevent="sendCommand">
