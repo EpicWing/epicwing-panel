@@ -221,4 +221,4 @@ def test_websocket_routes_are_known():
     # Der Auth-Test für HTTP-Routen überspringt WebSocket-Routen, weil diese sich per
     # Signatur anmelden. Jede neue WebSocket-Route muss deshalb bewusst hier stehen.
     found = {r.path for r in collect_routes(app) if r.websocket}
-    assert found == {"/api/agent/ws"}
+    assert found == {"/api/agent/ws", "/api/servers/{server_id}/console"}

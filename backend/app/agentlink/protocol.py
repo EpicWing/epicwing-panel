@@ -21,6 +21,9 @@ COMMAND_ACTIONS = (
     "container.kill",
     "container.remove",
     "container.status",
+    "console.watch",
+    "console.unwatch",
+    "console.input",
 )
 
 WS_GOING_AWAY = 1001
@@ -73,3 +76,20 @@ class CommandResult(BaseModel):
     ok: bool
     data: dict[str, Any] | None = None
     error: str | None = Field(default=None, max_length=1024)
+
+
+class ConsoleFrame(BaseModel):
+    """Ausgabe eines Containers, vom Agent in Stücken geschickt."""
+
+    type: Literal["console"]
+    name: str = Field(min_length=1, max_length=64)
+    data: str = Field(max_length=16_000)
+
+
+class StateFrame(BaseModel):
+    """Zustandswechsel eines Containers (auch der Abgleich beim Verbinden)."""
+
+    type: Literal["state"]
+    name: str = Field(min_length=1, max_length=64)
+    state: Literal["running", "exited", "removed", "created"]
+    exit_code: int | None = None

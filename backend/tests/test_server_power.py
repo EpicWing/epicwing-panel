@@ -82,9 +82,9 @@ def test_install_creates_the_container(client, server, broker):
 
 def test_start_stop_and_kill(client, server, broker):
     _post(client, server, "/install")
-    assert _power(client, server, "start").json()["status"] == "running"
+    assert _power(client, server, "start").json()["status"] == "starting"
     assert _power(client, server, "stop").json()["status"] == "offline"
-    assert _power(client, server, "start").json()["status"] == "running"
+    assert _power(client, server, "start").json()["status"] == "starting"
     assert _power(client, server, "kill").json()["status"] == "offline"
     assert broker.actions() == [
         "container.create",

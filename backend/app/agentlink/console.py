@@ -1,0 +1,132 @@
+"""Konsolen im Panel: Ausgabe der Agents an Browser verteilen, Eingaben als Befehl senden."""
+
+import asyncio
+import contextlib
+import hashlib
+import secrets
+import time
+import uuid
+from collections.abc import Coroutine
+from typing import Any
+
+from starlette.websockets import WebSocket, WebSocketDisconnect
+
+from app.agentlink.commands import AgentOffline, CommandBroker, broker
+
+TICKET_TTL_SECONDS = 30
+COMMAND_TIMEOUT_SECONDS = 15
+
+
+class ConsoleError(Exception):
+    """Der Agent hat einen Konsolenbefehl abgelehnt."""
+
+
+class TicketStore:
+    """Einmalige, kurzlebige Tickets für den WebSocket der Konsole. Nur im Speicher."""
+
+    def __init__(self) -> None:
+        self._items: dict[str, tuple[uuid.UUID, uuid.UUID, float]] = {}
+
+    @staticmethod
+    def _key(token: str) -> str:
+        return hashlib.sha256(token.encode()).hexdigest()
+
+    def _purge(self) -> None:
+        now = time.monotonic()
+        for key in [k for k, (_, _, expires) in self._items.items() if expires <= now]:
+            del self._items[key]
+
+    def issue(self, user_id: uuid.UUID, server_id: uuid.UUID) -> str:
+        self._purge()
+        token = secrets.token_urlsafe(32)
+        expires = time.monotonic() + TICKET_TTL_SECONDS
+        self._items[self._key(token)] = (user_id, server_id, expires)
+        return token
+
+    def redeem(self, token: str, server_id: uuid.UUID) -> uuid.UUID | None:
+        """Gibt die Benutzer-ID zurück. Das Ticket ist danach verbraucht."""
+        self._purge()
+        entry = self._items.pop(self._key(token), None)
+        if entry is None or entry[1] != server_id:
+            return None
+        return entry[0]
+
+
+class ConsoleHub:
+    """Verteilt die Ausgabe eines Containers an alle Browser, die ihn ansehen."""
+
+    def __init__(self, commands: CommandBroker) -> None:
+        self._commands = commands
+        self._subs: dict[str, set[WebSocket]] = {}
+        self._nodes: dict[str, uuid.UUID] = {}
+
+    async def _command(
+        self, node_id: uuid.UUID, action: str, name: str, data: str | None = None
+    ) -> None:
+        params = {"name": name} if data is None else {"name": name, "data": data}
+        result = await self._commands.send(
+            node_id, action, params, timeout=COMMAND_TIMEOUT_SECONDS
+        )
+        if not result.ok:
+            raise ConsoleError(result.error or "The node reported an error.")
+
+    async def subscribe(self, name: str, node_id: uuid.UUID, websocket: WebSocket) -> None:
+        subs = self._subs.setdefault(name, set())
+        first = not subs
+        subs.add(websocket)
+        self._nodes[name] = node_id
+        if first:
+            try:
+                await self._command(node_id, "console.watch", name)
+            except Exception:
+                self._drop(name, websocket)
+                raise
+
+    def _drop(self, name: str, websocket: WebSocket) -> None:
+        subs = self._subs.get(name)
+        if subs is None:
+            return
+        subs.discard(websocket)
+        if not subs:
+            del self._subs[name]
+            self._nodes.pop(name, None)
+
+    async def unsubscribe(self, name: str, websocket: WebSocket) -> None:
+        node_id = self._nodes.get(name)
+        self._drop(name, websocket)
+        if name not in self._subs and node_id is not None:
+            with contextlib.suppress(AgentOffline, TimeoutError, ConsoleError):
+                await self._command(node_id, "console.unwatch", name)
+
+    async def publish(self, node_id: uuid.UUID, name: str, payload: dict[str, Any]) -> None:
+        # Nur die Node, auf der der Container liegt, darf in dessen Konsole schreiben.
+        if self._nodes.get(name) != node_id:
+            return
+        for websocket in list(self._subs.get(name, ())):
+            try:
+                await websocket.send_json(payload)
+            except (RuntimeError, WebSocketDisconnect):
+                self._drop(name, websocket)
+
+    async def send_input(self, node_id: uuid.UUID, name: str, data: str) -> None:
+        await self._command(node_id, "console.input", name, data)
+
+    async def rewatch(self, node_id: uuid.UUID) -> None:
+        """Nach einer neuen Agent-Verbindung die beobachteten Container erneut anmelden."""
+        for name, owner in list(self._nodes.items()):
+            if owner == node_id and self._subs.get(name):
+                with contextlib.suppress(AgentOffline, TimeoutError, ConsoleError):
+                    await self._command(node_id, "console.watch", name)
+
+
+hub = ConsoleHub(broker)
+tickets = TicketStore()
+
+_background: set[asyncio.Task[None]] = set()
+
+
+def spawn(coro: Coroutine[Any, Any, None]) -> None:
+    """Startet eine Hintergrundaufgabe und hält eine Referenz, bis sie fertig ist."""
+    task = asyncio.get_running_loop().create_task(coro)
+    _background.add(task)
+    task.add_done_callback(_background.discard)

@@ -44,3 +44,14 @@ leaves the node. The token is single use and valid for one hour.
 - The panel accepts a result only from the node the command was sent to and waits at most
   90 seconds. A closed or replaced connection fails all open commands of that node.
 - Commands and heartbeats share the connection, so the agent must read while it waits.
+
+## Console and state
+
+- Panel to agent (commands): `console.watch` and `console.unwatch` with `{"name"}`, and
+  `console.input` with `{"name", "data"}` (one line, no control characters).
+- Agent to panel, unprompted and not acknowledged:
+  `{"type": "console", "name", "data"}` with output chunks of at most 2000 bytes, and
+  `{"type": "state", "name", "state", "exit_code"}` with `state` one of `running`, `exited`,
+  `removed`, `created`. The agent also sends the state of all managed containers once after
+  connecting.
+- The panel accepts these frames only for containers of the node that sent them.

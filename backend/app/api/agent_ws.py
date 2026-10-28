@@ -14,6 +14,8 @@ from starlette.concurrency import run_in_threadpool
 
 from app.agentlink import protocol
 from app.agentlink.commands import fail_pending, handle_result
+from app.agentlink.console import hub, spawn
+from app.agentlink.frames import handle_frame
 from app.agentlink.registry import registry
 from app.db import get_db
 from app.models import Node, NodeCredential
@@ -123,6 +125,9 @@ async def _heartbeat_loop(websocket: WebSocket, db: Session, node_id: uuid.UUID)
         if handle_result(node_id, raw):
             continue
 
+        if await handle_frame(db, node_id, raw):
+            continue
+
         try:
             beat = protocol.Heartbeat.model_validate_json(raw)
         except ValidationError:
@@ -158,6 +163,7 @@ async def agent_socket(websocket: WebSocket, db: Annotated[Session, Depends(get_
         await run_in_threadpool(_mark_online, db, node_id, None)
         await websocket.send_json({"type": "auth_ok"})
         log.info("Agent %s verbunden", node_id)
+        spawn(hub.rewatch(node_id))
         await _heartbeat_loop(websocket, db, node_id)
     except (WebSocketDisconnect, RuntimeError):
         pass

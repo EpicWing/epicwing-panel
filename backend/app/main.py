@@ -2,7 +2,19 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import agent, agent_ws, allocations, audit, auth, eggs, health, nodes, servers, users
+from app.api import (
+    agent,
+    agent_ws,
+    allocations,
+    audit,
+    auth,
+    console_ws,
+    eggs,
+    health,
+    nodes,
+    servers,
+    users,
+)
 from app.config import get_settings
 
 _SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
@@ -47,6 +59,7 @@ def create_app() -> FastAPI:
     app.include_router(nodes.router, prefix="/api")
     app.include_router(agent.router, prefix="/api")
     app.include_router(agent_ws.router, prefix="/api")
+    app.include_router(console_ws.router, prefix="/api")
     app.include_router(eggs.nests_router, prefix="/api")
     app.include_router(eggs.router, prefix="/api")
     app.include_router(allocations.router, prefix="/api")

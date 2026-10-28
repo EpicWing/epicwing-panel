@@ -263,7 +263,8 @@ POWER_FROM = {
     "kill": {"running", "starting", "stopping", "error"},
 }
 POWER_BUSY = {"start": "starting", "stop": "stopping", "kill": "stopping"}
-POWER_DONE = {"start": "running", "stop": "offline", "kill": "offline"}
+# Nach dem Start meldet der Agent selbst "running", sobald der Container wirklich läuft.
+POWER_DONE = {"start": None, "stop": "offline", "kill": "offline"}
 INSTALL_FROM = {"new", "offline", "error"}
 
 
@@ -314,7 +315,7 @@ async def _transition(
     db: Session,
     server: Server,
     busy: str,
-    done: str,
+    done: str | None,
     work: Callable[[], Awaitable[None]],
 ) -> None:
     _set_status(db, server, busy)
@@ -323,7 +324,8 @@ async def _transition(
     except HTTPException as exc:
         _set_status(db, server, "error", str(exc.detail))
         raise
-    _set_status(db, server, done)
+    if done is not None:
+        _set_status(db, server, done)
 
 
 @router.post("/{server_id}/install")
