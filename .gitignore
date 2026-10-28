@@ -31,3 +31,9 @@ dist/
 # Lokale Dev-Prozesse (Logs)
 .dev/
 bin/
+
+# Datenbanken und lokale Daten
+*.db
+*.sqlite
+.env.*
+!.env.example
