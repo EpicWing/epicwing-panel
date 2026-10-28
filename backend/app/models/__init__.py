@@ -1,3 +1,4 @@
+from app.models.apikey import ApiKey
 from app.models.audit import AuditLog
 from app.models.database import DatabaseHost, ServerDatabase
 from app.models.egg import Egg, EggVariable, Nest
@@ -9,6 +10,7 @@ from app.models.server import Allocation, Server, ServerVariable
 from app.models.user import RecoveryCode, User, UserAvatar, UserSession
 
 __all__ = [
+    "ApiKey",
     "Allocation",
     "AuditLog",
     "DatabaseHost",

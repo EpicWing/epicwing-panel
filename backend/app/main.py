@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.api.api_keys import router as api_keys_router
 from app.api import (
     admin,
     agent,
@@ -86,6 +87,7 @@ def create_app() -> FastAPI:
     app.include_router(admin_mail_router, prefix="/api")
     app.include_router(admin_notifications_router, prefix="/api")
     app.include_router(schedules_router, prefix="/api")
+    app.include_router(api_keys_router, prefix="/api")
     app.include_router(admin_database_hosts_router, prefix="/api")
     app.include_router(server_databases_router, prefix="/api")
     app.include_router(panel.router, prefix="/api")

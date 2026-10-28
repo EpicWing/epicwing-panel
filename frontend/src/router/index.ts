@@ -16,12 +16,15 @@ const SettingsView = () => import("../views/SettingsView.vue");
 const ServerDetailView = () => import("../views/ServerDetailView.vue");
 const AdminDatabasesView = () => import("../views/AdminDatabasesView.vue");
 
+const ApiKeysView = () => import("../views/ApiKeysView.vue");
+
 const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: "/", name: "servers", component: ServersView, meta: { requiresAuth: true } },
     { path: "/servers/:id", name: "server-detail", component: ServerDetailView, meta: { requiresAuth: true } },
     { path: "/settings", name: "settings", component: SettingsView, meta: { requiresAuth: true } },
+    { path: "/api-keys", name: "api-keys", component: ApiKeysView, meta: { requiresAuth: true } },
     {
       path: "/admin",
       name: "admin",

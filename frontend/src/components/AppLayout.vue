@@ -69,7 +69,7 @@ const sections = computed<NavSection[]>(() => {
       heading: t("nav.account"),
       items: [
         { label: t("nav.servers"), to: "/", icon: "servers" },
-        { label: t("nav.apiKeys"), to: null, icon: "key" },
+        { label: t("nav.apiKeys"), to: "/api-keys", icon: "key" },
         { label: t("nav.sshKeys"), to: null, icon: "terminal" },
         ...(auth.state.user?.is_admin
           ? [{ label: t("nav.adminPanel"), to: "/admin", badge: t("nav.adminBadge"), icon: "shield" }]
