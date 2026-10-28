@@ -139,13 +139,13 @@ async def _run(
     return result
 
 
-def run_in_background(schedule_id: uuid.UUID) -> None:
+def run_in_background(schedule_id: uuid.UUID, trigger: str = "manual") -> None:
     """Startet den Lauf als Hintergrundaufgabe mit eigener Datenbank-Sitzung."""
 
     async def job() -> None:
         try:
             with open_session() as db:
-                await run_schedule(db, schedule_id)
+                await run_schedule(db, schedule_id, trigger=trigger)
         except Exception:
             log.exception("schedule %s failed unexpectedly", schedule_id)
 

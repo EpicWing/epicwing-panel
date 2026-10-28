@@ -24,6 +24,7 @@ from app.api import (
 from app.api.admin_mail import router as admin_mail_router
 from app.api.schedules import router as schedules_router
 from app.config import get_settings
+from app.services.scheduler import lifespan
 
 _SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 
@@ -34,6 +35,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="EpicWing",
         version="0.0.1",
+        lifespan=lifespan,
         # API-Doku nur in der Entwicklung öffentlich
         docs_url=None if settings.is_production else "/docs",
         redoc_url=None,

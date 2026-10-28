@@ -5,7 +5,13 @@ from app.services.mail import MailConfig, render, render_for
 
 def test_footer_is_always_present():
     html, text = render("Hi", ["Body"])
-    for part in ("Powered by", "https://epicwing.de", "not by EpicWing", "not the official EpicWing logo"):
+    parts = (
+        "Powered by",
+        "https://epicwing.de",
+        "not by EpicWing",
+        "not the official EpicWing logo",
+    )
+    for part in parts:
         assert part in html
     assert "Powered by EpicWing (https://epicwing.de)" in text
     assert "not by EpicWing" in text
