@@ -30,3 +30,4 @@ dist/
 
 # Lokale Dev-Prozesse (Logs)
 .dev/
+bin/
