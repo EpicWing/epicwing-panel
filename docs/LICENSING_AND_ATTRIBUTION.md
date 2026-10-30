@@ -27,12 +27,8 @@ Dieses Dokument ist keine Rechtsberatung und trifft keine Lizenzentscheidung fü
 
 ## Lizenzentscheidung für EpicWing
 
-Noch offen. Zwei übliche Optionen für eine eigenständige Implementierung:
+Entschieden: EpicWing steht unter der MIT-Lizenz (siehe `LICENSE`, Copyright (c) 2026 EpicWing). Die Lizenz gilt nur für den eigenen Code. Abhängigkeiten (Python, npm, Go) behalten ihre eigenen Lizenzen. Pterodactyl-Eggs werden nur im Format importiert, ein Pterodactyl-Code wurde laut Audit nicht übernommen.
 
-- MIT: sehr kurze, permissive Lizenz mit Copyright-/Permission-Hinweis.
-- Apache-2.0: permissiv mit ausführlicheren Patent- und NOTICE-Regeln.
-
-Die Entscheidung muss zur tatsächlichen Herkunft des Codes, zu verwendeten Eggs/Assets und zum gewünschten Redistribution-Modell passen. Bis dahin sollte EpicWing keine Lizenz im README behaupten, die nicht mit einer Root-`LICENSE` und den Notices übereinstimmt.
 
 ## Sicherheits- und Lizenzgrenze
 
