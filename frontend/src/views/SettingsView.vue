@@ -7,7 +7,7 @@ import AppLayout from "../components/AppLayout.vue";
 import AvatarPanel from "../components/AvatarPanel.vue";
 import TwoFactorPanel from "../components/TwoFactorPanel.vue";
 
-const MIN_LENGTH = 12;
+const MIN_LENGTH = 1;
 
 const { t } = useI18n();
 

@@ -24,7 +24,7 @@ class AuthResponse(BaseModel):
 
 class PasswordChangeRequest(BaseModel):
     current_password: str = Field(max_length=1024)
-    new_password: str = Field(min_length=12, max_length=1024)
+    new_password: str = Field(min_length=1, max_length=1024)
 
 
 class TwoFactorChallenge(BaseModel):

@@ -299,7 +299,6 @@ const linkButton =
               v-model="form.password"
               type="password"
               autocomplete="new-password"
-              minlength="12"
               required
               :class="inputClass"
             />
@@ -326,7 +325,6 @@ const linkButton =
               v-model="form.password"
               type="password"
               autocomplete="new-password"
-              minlength="12"
               required
               autofocus
               :class="inputClass"
