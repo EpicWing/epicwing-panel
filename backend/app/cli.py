@@ -11,7 +11,7 @@ from app.security import totp
 from app.security.passwords import hash_password
 from app.services import audit
 
-MIN_PASSWORD_LENGTH = 1
+MIN_PASSWORD_LENGTH = 8
 
 
 def _normalize_email(email: str) -> str | None:
