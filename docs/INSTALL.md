@@ -31,7 +31,7 @@ show a warning. Do not run it on a machine that already runs EpicWing: it stops 
 finds an existing installation. The package output goes to `/var/log/epicwing-install.log`.
 Add nodes afterwards with `scripts/install-node.sh`.
 
-There is no minimum password length. Choose a long, unique password, because the
+Passwords need at least 8 characters. Choose a long, unique one, because the
 administrator account controls your servers.
 
 ### Installation failed, what now?
