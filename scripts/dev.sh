@@ -43,8 +43,8 @@ wait_for() {
 }
 
 start() {
-  [ -z "$(listener_pid 8010)" ] || { echo "!! 8010 ist belegt, erst 'stop' oder 'restart'."; return 1; }
-  [ -z "$(listener_pid 5183)" ] || { echo "!! 5183 ist belegt, erst 'stop' oder 'restart'."; return 1; }
+  [ -z "$(listener_pid 8010)" ] || { echo "!! Port 8010 is in use, run 'stop' or 'restart' first."; return 1; }
+  [ -z "$(listener_pid 5183)" ] || { echo "!! Port 5183 is in use, run 'stop' or 'restart' first."; return 1; }
 
   (
     cd "$ROOT/backend"
@@ -69,10 +69,10 @@ start() {
 status() {
   wait_for http://127.0.0.1:8010/api/health \
     && echo "Backend  :8010 ok" \
-    || { echo "!! Backend antwortet nicht, siehe $RUN/backend.log"; return 1; }
+    || { echo "!! Backend is not responding, see $RUN/backend.log"; return 1; }
   wait_for http://127.0.0.1:5183/api/health \
     && echo "Frontend :5183 ok (Proxy zum Backend funktioniert)" \
-    || { echo "!! Frontend oder Proxy antwortet nicht, siehe $RUN/frontend.log"; return 1; }
+    || { echo "!! Frontend or proxy is not responding, see $RUN/frontend.log"; return 1; }
 }
 
 case "${1:-}" in

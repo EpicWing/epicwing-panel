@@ -6,11 +6,11 @@ EMAIL="${1:?Aufruf: bash scripts/smoke_auth.sh <admin-email>}"
 BASE="http://127.0.0.1:8010/api/auth"
 
 if ss -ltn | grep ':8010 ' >/dev/null; then
-  echo "Port 8010 ist belegt, bitte den laufenden Dev-Server beenden." >&2
+  echo "Port 8010 is in use, please stop the running dev server." >&2
   exit 1
 fi
 
-read -rsp "Passwort für ${EMAIL}: " PASSWORD
+read -rsp "Password for ${EMAIL}: " PASSWORD
 echo
 
 cd "$(dirname "$0")/../backend"
@@ -31,7 +31,7 @@ payload() {
 JSON='Content-Type: application/json'
 
 echo "1) /me ohne Login     (erwartet 401): $(code "$BASE/me")"
-echo "2) falsches Passwort  (erwartet 401): $(code -X POST "$BASE/login" -H "$JSON" -d "$(payload 'falsch-falsch-falsch')")"
+echo "2) wrong password  (expect 401): $(code -X POST "$BASE/login" -H "$JSON" -d "$(payload 'wrong-wrong-wrong')")"
 
 RESPONSE="$(curl -s -c "$JAR" -X POST "$BASE/login" -H "$JSON" -d "$(payload "$PASSWORD")")"
 CSRF="$(printf '%s' "$RESPONSE" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("csrf_token", ""))')"

@@ -52,7 +52,7 @@ def seed(db: Session) -> list[str]:
 def main() -> int:
     with Session(get_engine()) as db:
         added = seed(db)
-    print("Neu angelegt: " + ", ".join(added) if added else "Keine neuen Eggs.")
+    print("Created: " + ", ".join(added) if added else "No new eggs.")
     return 0
 
 

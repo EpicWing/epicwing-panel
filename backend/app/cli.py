@@ -112,7 +112,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="epicwing")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    admin = sub.add_parser("create-admin", help="Ersten Administrator anlegen")
+    admin = sub.add_parser("create-admin", help="Create the first administrator")
     admin.add_argument("--email", required=True)
 
     password = sub.add_parser("set-password", help="Change the password of a user")
@@ -121,7 +121,7 @@ def main(argv: list[str] | None = None) -> int:
     twofa = sub.add_parser("disable-2fa", help="Turn off 2FA for a user (emergency)")
     twofa.add_argument("--email", required=True)
 
-    sub.add_parser("seed-eggs", help="Mitgelieferte Eggs anlegen, die noch fehlen")
+    sub.add_parser("seed-eggs", help="Create the bundled eggs that are missing")
 
     args = parser.parse_args(argv)
     if args.command == "seed-eggs":
