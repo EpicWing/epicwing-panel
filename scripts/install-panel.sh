@@ -156,7 +156,7 @@ for _ in 1 2 3; do
   if runuser -u "$APP_USER" -- "$VENV/bin/python" -m app.cli create-admin --email "$ADMIN_EMAIL"; then created=1; break; fi
   warn "The administrator was not created. Try again."
 done
-[ "$created" = 1 ] || die "Could not create the administrator. Remove the partial install (see README) and run the installer again."
+[ "$created" = 1 ] || die "Could not create the administrator. Remove the partial install (see docs/INSTALL.md) and run the installer again."
 
 info "Building the frontend (this takes a minute)"
 BUILD="$(mktemp -d)"
