@@ -5,7 +5,7 @@ os.environ.setdefault("EPICWING_SECRET_KEY", "x" * 48)
 os.environ.setdefault("EPICWING_ENCRYPTION_KEY", "test")
 os.environ.setdefault("EPICWING_SCHEDULER", "0")
 os.environ.setdefault("EPICWING_TIMEZONE", "UTC")
-os.environ["EPICWING_ENV"] = "development"  # Tests immer im Dev-Modus (kein Secure-Cookie ueber HTTP)
+os.environ["EPICWING_ENV"] = "development"  # Tests always use dev mode
 
 import pytest  # noqa: E402
 from argon2 import PasswordHasher  # noqa: E402
