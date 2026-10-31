@@ -35,8 +35,7 @@ The details are in [Installation](#installation).
 
 ## Bundled eggs
 
-Minecraft (Vanilla, Paper, Purpur, Fabric), Unturned, SCP: Secret Laboratory and a static
-website. Pterodactyl-format egg files can be imported for everything else.
+Minecraft (Vanilla, Paper, Purpur, Fabric), Unturned and a static website. Pterodactyl-format egg files can be imported for everything else.
 
 ## Components
 
@@ -76,6 +75,50 @@ website. Pterodactyl-format egg files can be imported for everything else.
 Tested on Debian 13 with systemd. You need Python 3.11 or newer (tested with 3.13), Node.js 20 or newer,
 PostgreSQL 16 or newer and a reverse proxy (nginx) with a TLS certificate. Nodes need Docker.
 The paths below are examples, adjust them to your setup.
+
+### Quick install
+
+The installer sets up PostgreSQL, nginx, the backend, the frontend, a systemd service,
+TLS and the first administrator on a fresh machine. It is tested on Debian 13 (x86_64) only.
+Run it once as root, from a checkout or an extracted release archive:
+
+```bash
+sudo bash scripts/install-panel.sh
+```
+
+It asks for the domain (or IP), the administrator e-mail and an optional e-mail for
+Let's Encrypt. You can also pass them as options:
+
+```bash
+sudo bash scripts/install-panel.sh --domain panel.example.com --admin-email you@example.com --email you@example.com
+```
+
+For a Let's Encrypt certificate the domain must point to the machine and port 80 must be
+reachable. Without `--email` the installer creates a self-signed certificate and browsers
+show a warning. Do not run it on a machine that already runs EpicWing: it stops when it
+finds an existing installation. The package output goes to `/var/log/epicwing-install.log`.
+Add nodes afterwards with `scripts/install-node.sh`.
+
+There is no minimum password length. Choose a long, unique password, because the
+administrator account controls your servers.
+
+#### Installation failed, what now?
+
+The installer does not undo a partial installation. Read the end of
+`/var/log/epicwing-install.log` and the message on screen, fix the cause, then remove
+the leftovers and run the installer again:
+
+```bash
+systemctl stop epicwing-panel 2>/dev/null; systemctl disable epicwing-panel 2>/dev/null
+runuser -u postgres -- psql -c 'DROP DATABASE IF EXISTS epicwing' -c 'DROP USER IF EXISTS epicwing'
+rm -rf /opt/epicwing /var/www/epicwing-panel /etc/ssl/epicwing /etc/systemd/system/epicwing-panel.service \
+  /etc/nginx/sites-available/epicwing-panel /etc/nginx/sites-enabled/epicwing-panel
+systemctl daemon-reload && systemctl reload nginx
+```
+
+### Manual installation
+
+The steps below do the same by hand.
 
 ### 1. Database
 
