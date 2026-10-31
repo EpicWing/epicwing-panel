@@ -8,7 +8,7 @@ from tests.factories import make_allocations, make_egg, make_nest
 from tests.test_nodes_detail import _create, _login
 from tests.test_server_power import FakeBroker
 
-IP = "45.142.104.41"
+IP = "203.0.113.45"
 
 
 @pytest.fixture

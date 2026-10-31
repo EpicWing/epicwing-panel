@@ -18,7 +18,7 @@ world = _access.world
 
 RAW = (
     "docker start: exit status 1: Error response from daemon: failed to set up container "
-    "networking: Bind for 5.175.164.154:27015 failed: port is already allocated"
+    "networking: Bind for 203.0.113.154:27015 failed: port is already allocated"
 )
 
 
@@ -74,7 +74,7 @@ def test_user_sees_a_friendly_message_and_no_raw_text(client, db_session, instal
     assert body["code"] == "PORT_IN_USE"
     assert body["detail"] == MESSAGES["PORT_IN_USE"]
     assert "technical" not in body
-    assert "5.175.164.154" not in response.text and "docker" not in response.text.lower()
+    assert "203.0.113.154" not in response.text and "docker" not in response.text.lower()
 
 
 def test_last_error_is_the_friendly_text(client, installed, broker):
@@ -84,7 +84,7 @@ def test_last_error_is_the_friendly_text(client, installed, broker):
     shown = client.get(installed.url).json()
     assert shown["status"] == "error"
     assert shown["last_error"] == MESSAGES["PORT_IN_USE"]
-    assert "5.175.164.154" not in str(shown)
+    assert "203.0.113.154" not in str(shown)
 
 
 def test_admin_gets_the_technical_text_too(client, user, installed, broker):

@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-const bindingsJSON = `{"27015/tcp":[{"HostIp":"5.175.164.154","HostPort":"27015"}],"27015/udp":[{"HostIp":"5.175.164.154","HostPort":"27015"}],"27016/udp":[{"HostIp":"5.175.164.154","HostPort":"27016"}]}`
+const bindingsJSON = `{"27015/tcp":[{"HostIp":"203.0.113.154","HostPort":"27015"}],"27015/udp":[{"HostIp":"203.0.113.154","HostPort":"27015"}],"27016/udp":[{"HostIp":"203.0.113.154","HostPort":"27016"}]}`
 
 // startHarness fakes docker for Start: inspectPorts is the answer to the port inspect,
 // startErr the result of docker start.
@@ -48,7 +48,7 @@ func hasCall(calls []string, prefix string) bool {
 }
 
 func TestStartRefusesBusyPortWithoutCallingDockerStart(t *testing.T) {
-	m, calls := startHarness("false|"+bindingsJSON, nil, map[string]bool{"udp/5.175.164.154:27015": true})
+	m, calls := startHarness("false|"+bindingsJSON, nil, map[string]bool{"udp/203.0.113.154:27015": true})
 	err := m.Start(context.Background(), "web-1")
 	if errorCode(err) != codePortInUse {
 		t.Fatalf("want PORT_IN_USE, got %v", err)
@@ -73,7 +73,7 @@ func TestStartRunsWhenPortsAreFree(t *testing.T) {
 
 func TestStartSkipsPortCheckForRunningContainer(t *testing.T) {
 	// The container's own published ports are busy while it runs.
-	m, calls := startHarness("true|"+bindingsJSON, nil, map[string]bool{"udp/5.175.164.154:27015": true})
+	m, calls := startHarness("true|"+bindingsJSON, nil, map[string]bool{"udp/203.0.113.154:27015": true})
 	if err := m.Start(context.Background(), "web-1"); err != nil {
 		t.Fatalf("running container must not be reported as busy: %v", err)
 	}
@@ -84,7 +84,7 @@ func TestStartSkipsPortCheckForRunningContainer(t *testing.T) {
 
 func TestStartIgnoresUnreadableInspect(t *testing.T) {
 	for _, out := range []string{"", "garbage", "false|not json", "true"} {
-		m, calls := startHarness(out, nil, map[string]bool{"udp/5.175.164.154:27015": true})
+		m, calls := startHarness(out, nil, map[string]bool{"udp/203.0.113.154:27015": true})
 		if err := m.Start(context.Background(), "web-1"); err != nil {
 			t.Fatalf("inspect %q: docker decides, got %v", out, err)
 		}
@@ -95,13 +95,13 @@ func TestStartIgnoresUnreadableInspect(t *testing.T) {
 }
 
 func TestStartClassifiesDockerRaceError(t *testing.T) {
-	raw := errors.New("docker start: exit status 1: Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint x (y): Bind for 5.175.164.154:27015 failed: port is already allocated")
+	raw := errors.New("docker start: exit status 1: Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint x (y): Bind for 203.0.113.154:27015 failed: port is already allocated")
 	m, _ := startHarness("false|{}", raw, nil)
 	err := m.Start(context.Background(), "web-1")
 	if errorCode(err) != codePortInUse {
 		t.Fatalf("want PORT_IN_USE, got %v", err)
 	}
-	if !strings.Contains(err.Error(), "5.175.164.154:27015") {
+	if !strings.Contains(err.Error(), "203.0.113.154:27015") {
 		t.Fatalf("technical text should keep the address, got %q", err)
 	}
 }
