@@ -133,7 +133,6 @@ async function submit() {
         </button>
       </form>
 
-      <p class="mt-4 text-center text-xs text-ink-400">{{ t("login.notice") }}</p>
     </div>
   </main>
 </template>
