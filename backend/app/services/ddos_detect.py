@@ -11,7 +11,7 @@ from typing import Any
 
 LEVELS = ("learning", "normal", "watch", "attack")
 
-HISTORY_POINTS = 300  # bei 2 s Abstand 10 Minuten
+HISTORY_POINTS = 300  # 10 minutes at 2 s steps
 RECENT_POINTS = 3
 MIN_SAMPLES = 15
 MIN_INTERVAL = 0.5  # shorter gaps do not give a usable rate
@@ -29,7 +29,7 @@ LINES_WATCH, LINES_ATTACK = 100, 500  # Konsolenzeilen pro Sekunde
 SOURCES_WATCH, SOURCES_ATTACK = 30, 150  # verschiedene Quellen pro Sekunde
 SOURCES_MIN_LINES = 30  # sources only count from this line rate
 
-# Zähler, die steigen, wenn Pakete abgelehnt oder verworfen werden.
+# Counters that go up when packets are refused or dropped.
 DROP_KEYS = (
     "rx_dropped",
     "ip_in_hdr_errors",
@@ -52,7 +52,7 @@ class Verdict:
 
 
 class _Series:
-    """Letzte Werte und Baseline einer Rate."""
+    """Latest values and baseline of a rate."""
 
     def __init__(self) -> None:
         self.recent: deque[float] = deque(maxlen=RECENT_POINTS)
@@ -61,7 +61,7 @@ class _Series:
     def add(
         self, rate: float, watch_floor: float, attack_floor: float
     ) -> tuple[int, float | None, float]:
-        """Gibt (Stufe als Index in LEVELS, übliche Rate, Faktor) zurück. 0 = lernt noch."""
+        """Returns (level as index in LEVELS, usual rate, factor). 0 = still learning."""
         self.recent.append(rate)
         if len(self.history) < MIN_SAMPLES:
             self.history.append(rate)
@@ -75,8 +75,8 @@ class _Series:
         elif recent >= watch_floor and factor >= WATCH_FACTOR:
             index = 2
         if index < 2:
-            # Auffällige Werte fließen nicht in die Baseline ein, sonst würde ein
-            # langer Angriff irgendwann zum Normalzustand.
+            # Unusual values do not go into the baseline, otherwise a
+            # long attack would become the normal state at some point.
             self.history.append(rate)
         return index, usual, factor
 
@@ -115,7 +115,7 @@ def _delta(now: dict[str, int], before: dict[str, int], key: str) -> int:
 class Detector:
     def __init__(self) -> None:
         self._states: dict[str, _State] = {}
-        # Aus der DB geladene Punkte, bis der erste echte Frame nach dem Start eintrifft.
+        # Points loaded from the DB, until the first real frame arrives after the start.
         self._seed: dict[str, list[tuple[float, float, float]]] = {}
 
     def forget(self, name: str) -> None:
@@ -151,13 +151,13 @@ class Detector:
     def restore(
         self, rows: list[tuple[str, int, int, int]], now_mono: float, now_wall: float
     ) -> None:
-        """Übernimmt gespeicherte Buckets. Wanduhrzeit wird auf die monotone Uhr umgerechnet."""
+        """Takes over stored buckets. Wall clock time is converted to the monotonic clock."""
         for name, bucket, rx, tx in sorted(rows, key=lambda row: row[1]):
             at = now_mono - (now_wall - (bucket + BUCKET_SECONDS / 2))
             self._seed.setdefault(name, []).append((at, float(rx), float(tx)))
 
     def history(self, name: str, now: float) -> tuple[list[int], list[int]]:
-        """rx/tx der letzten Stunde in Buckets, ältester zuerst. Lücken sind 0."""
+        """rx/tx of the last hour in buckets, oldest first. Gaps are 0."""
         count = HISTORY_SECONDS // BUCKET_SECONDS
         rx, tx = [0] * count, [0] * count
         state = self._states.get(name)
@@ -189,7 +189,7 @@ class Detector:
             seeded = self._seed.pop(name, None)
             if seeded:
                 state.points.extend(seeded)
-                # Baseline aus der gespeicherten Stunde, damit nichts neu gelernt werden muss.
+                # Baseline from the stored hour, so nothing has to be learned again.
                 for _, rx_rate, _ in seeded:
                     state.bytes.history.append(rx_rate)
             return Verdict("learning", (), False)
@@ -201,7 +201,7 @@ class Detector:
         state.at, state.rx_bytes, state.counters = now, rx_bytes, dict(net)
         if tx_bytes is not None:
             state.tx_bytes = tx_bytes
-        # Ein Zähler, der kleiner wird, heißt: der Container wurde neu gestartet.
+        # A counter that gets smaller means: the container was restarted.
         if (
             rx_bytes < previous_rx
             or (tx_bytes is not None and tx_bytes < previous_tx)

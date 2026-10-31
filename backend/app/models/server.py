@@ -71,8 +71,8 @@ class Server(Base):
     restart_failures: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     restart_due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_auto_start_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    # 'new' heißt: nur im Panel angelegt, noch nichts auf der Node. Die übrigen Werte
-    # (installing, offline, starting, running, stopping, error) setzt die Agent-Anbindung.
+    # 'new' means: only created in the panel, nothing on the node yet. The other values
+    # (installing, offline, starting, running, stopping, error) are set by the agent link.
     status: Mapped[str] = mapped_column(String(16), default="new")
     last_error: Mapped[str | None] = mapped_column(String(1024))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -119,7 +119,7 @@ class ServerMemberPermission(Base):
 
 
 class ServerBackup(Base):
-    """Ein Backup eines Servers. Die Datei liegt auf der Node, hier nur die Metadaten."""
+    """A backup of a server. The file is on the node, only the metadata is here."""
 
     __tablename__ = "server_backups"
 

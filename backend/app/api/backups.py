@@ -269,7 +269,7 @@ async def perform_backup(
             _data(result)
         except HTTPException as exc:
             if exc.status_code == status.HTTP_504_GATEWAY_TIMEOUT:
-                # Der Agent kann schon arbeiten. Der Eintrag bleibt als fehlgeschlagen sichtbar.
+                # The agent may already be working. The entry stays visible as failed.
                 _finish(backup, "failed", "The node did not answer in time.")
             else:
                 db.delete(backup)
@@ -350,7 +350,7 @@ async def transfer_backup(
     auth: BackupsDownload,
     db: DbSession,
 ) -> BackupOut:
-    """Kopiert ein fertiges Backup auf einen anderen Server derselben Node."""
+    """Copies a finished backup to another server on the same node."""
     source = auth.server
     _check_available(source)
     original = _get_backup(db, source, backup_id)

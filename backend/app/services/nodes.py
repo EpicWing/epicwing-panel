@@ -16,8 +16,8 @@ ENROLL_TTL = timedelta(hours=1)
 
 
 def create_enrollment(db: Session, node: Node, created_by: uuid.UUID) -> tuple[str, NodeEnrollment]:
-    """Erzeugt einen neuen Token. Der Klartext wird nur hier zurückgegeben."""
-    # Ältere unbenutzte Token für diesen Node werden ungültig.
+    """Creates a new token. The plain text is only returned here."""
+    # Older unused tokens for this node become invalid.
     db.execute(
         delete(NodeEnrollment).where(
             NodeEnrollment.node_id == node.id, NodeEnrollment.used_at.is_(None)
@@ -35,15 +35,15 @@ def create_enrollment(db: Session, node: Node, created_by: uuid.UUID) -> tuple[s
 
 
 class EnrollmentError(Exception):
-    """Token ungültig, abgelaufen oder benutzt. Bewusst nicht genauer."""
+    """Token invalid, expired or used. Deliberately not more exact."""
 
 
 class InvalidPublicKeyError(Exception):
-    """Der öffentliche Schlüssel ist kein gültiger Ed25519-Schlüssel."""
+    """The public key is not a valid Ed25519 key."""
 
 
 def parse_public_key(value: str) -> tuple[str, str]:
-    """Prüft den Schlüssel und gibt (Base64, SHA-256-Fingerprint) zurück."""
+    """Checks the key and returns (Base64, SHA-256 fingerprint)."""
     try:
         raw = base64.b64decode(value, validate=True)
         Ed25519PublicKey.from_public_bytes(raw)
@@ -55,8 +55,8 @@ def parse_public_key(value: str) -> tuple[str, str]:
 def enroll_agent(
     db: Session, token: str, public_key: str, agent_version: str | None
 ) -> tuple[Node, str]:
-    """Löst einen Enrollment-Token ein. Der Aufrufer macht den Commit."""
-    # Zuerst den Schlüssel prüfen, damit ein Tippfehler den Token nicht verbraucht.
+    """Redeems an enrollment token. The caller does the commit."""
+    # Check the key first, so a typo does not use up the token.
     key_b64, fingerprint = parse_public_key(public_key)
 
     enrollment = db.scalar(
@@ -77,7 +77,7 @@ def enroll_agent(
         raise EnrollmentError
 
     enrollment.used_at = now
-    # Registriert, aber noch nicht verbunden.
+    # Registered, but not connected yet.
     node.status = "offline"
     node.agent_version = agent_version
     db.add(NodeCredential(node_id=node.id, public_key=key_b64, fingerprint=fingerprint))
@@ -88,7 +88,7 @@ HEARTBEAT_TIMEOUT = timedelta(seconds=30)
 
 
 def display_status(node: Node) -> str:
-    """Wartet, online oder offline. Online gilt nur bei frischem Heartbeat."""
+    """Waiting, online or offline. Online only counts with a fresh heartbeat."""
     if node.status == "pending":
         return "pending"
     beat = node.last_heartbeat_at

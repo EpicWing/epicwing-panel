@@ -1,7 +1,7 @@
 """Anmeldung per API Key (Authorization: Bearer ewk_...).
 
-Ein Key gilt nur an Endpunkten, die ServerAuth benutzen. Konto, 2FA, Keys, Benutzer und der
-Admin-Bereich bleiben an die Cookie-Session gebunden.
+A key only works at endpoints that use ServerAuth. Account, 2FA, keys, users and the
+admin area stay tied to the cookie session.
 """
 
 import secrets

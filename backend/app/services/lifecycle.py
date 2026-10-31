@@ -1,4 +1,4 @@
-"""Container-Spezifikation eines Servers, so wie der Node-Agent sie erwartet."""
+"""Container spec of a server, as the node agent expects it."""
 
 import json
 import uuid
@@ -6,12 +6,12 @@ from typing import Any
 
 from app.services.eggio import DEFAULT_INSTALLER
 
-# Diese Namen setzt das Panel selbst, eine Egg-Variable darf sie nicht überschreiben.
+# The panel sets these names itself, an egg variable must not overwrite them.
 RESERVED = ("STARTUP", "SERVER_MEMORY", "SERVER_IP", "SERVER_PORT")
 
 
 def container_name(server_id: uuid.UUID) -> str:
-    """Name des Containers und des Datenverzeichnisses auf der Node."""
+    """Name of the container and the data folder on the node."""
     return str(server_id)
 
 
@@ -21,8 +21,8 @@ def build_spec(
     variables: dict[str, str],
     host_memory_mb: int | None,
 ) -> dict[str, Any]:
-    """allocations: die primäre zuerst. Der Startbefehl bleibt unersetzt in STARTUP,
-    die Yolks-Images setzen die Platzhalter im Container selbst ein."""
+    """allocations: the primary one first. The start command stays unreplaced in STARTUP,
+    the Yolks images fill in the placeholders in the container themselves."""
     env = {k: v for k, v in variables.items() if k not in RESERVED}
     if server.startup:
         env["STARTUP"] = server.startup

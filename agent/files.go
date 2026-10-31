@@ -36,7 +36,7 @@ type fileParams struct {
 	Recursive bool   `json:"recursive"`
 }
 
-// cleanPath macht aus einem Panel-Pfad einen relativen Pfad im Server-Ordner.
+// cleanPath turns a panel path into a relative path inside the server folder.
 // A leading "/" and ".." are caught as plain text at the root,
 // symlinks are resolved by os.Root only inside the root.
 func cleanPath(p string) (string, error) {

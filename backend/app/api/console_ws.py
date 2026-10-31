@@ -1,4 +1,4 @@
-"""Konsole eines Servers im Browser: erst ein Ticket holen, dann per WebSocket verbinden."""
+"""Console of a server in the browser: get a ticket first, then connect through WebSocket."""
 
 import asyncio
 import contextlib

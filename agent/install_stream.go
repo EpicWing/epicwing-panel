@@ -43,7 +43,7 @@ func (w *chunkWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-// Flush gibt den Rest ohne Zeilenumbruch aus.
+// Flush writes out the rest that has no line break.
 func (w *chunkWriter) Flush() {
 	w.mu.Lock()
 	defer w.mu.Unlock()

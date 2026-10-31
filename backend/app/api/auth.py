@@ -81,7 +81,7 @@ def login(
     if user is None or not valid or user.disabled_at is not None:
         login_ip_limiter.add_failure(ip)
         login_email_limiter.add_failure(email)
-        log.warning("Fehlgeschlagener Login von %s", ip)
+        log.warning("Failed login from %s", ip)
         # The e-mail that was typed in is deliberately not stored.
         reason = "disabled" if user and valid else "invalid_credentials"
         audit.record(

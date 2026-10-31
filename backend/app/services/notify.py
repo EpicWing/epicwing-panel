@@ -1,4 +1,4 @@
-"""Benachrichtigungen an Discord und per E-Mail, mit Ausfallschutz zwischen den Kanälen."""
+"""Notifications to Discord and by e-mail, with failover between the channels."""
 
 import logging
 from collections.abc import Callable
@@ -62,7 +62,7 @@ def save_settings(
     email_to: str,
     discord_webhook: str | None,
 ) -> None:
-    """discord_webhook: None lässt die gespeicherte URL unverändert, "" löscht sie."""
+    """discord_webhook: None leaves the stored URL unchanged, "" deletes it."""
     _put(db, "discord_enabled", "1" if discord_enabled else "0")
     _put(db, "email_enabled", "1" if email_enabled else "0")
     _put(db, "email_to", email_to)
@@ -84,7 +84,7 @@ def send_discord(url: str, title: str, text: str) -> tuple[bool, str]:
             timeout=10.0,
         )
     except httpx.HTTPError as exc:
-        # Nur der Typ, nie die Meldung: sie könnte die Webhook-URL enthalten.
+        # Only the type, never the message: it could contain the webhook URL.
         return False, f"Request failed ({type(exc).__name__})"
     if response.status_code in (200, 204):
         return True, "OK"
@@ -102,7 +102,7 @@ def send_email(db: Session, to: str, title: str, text: str) -> tuple[bool, str]:
 def _attempt(channel: str, send: Callable[[], tuple[bool, str]]) -> tuple[bool, str]:
     try:
         ok, detail = send()
-    except Exception as exc:  # ein ausgefallener Kanal darf die anderen nie blockieren
+    except Exception as exc:  # a failed channel must never block the others
         ok, detail = False, type(exc).__name__
     if not ok:
         log.warning("Notification via %s failed: %s", channel, detail)
@@ -110,7 +110,7 @@ def _attempt(channel: str, send: Callable[[], tuple[bool, str]]) -> tuple[bool, 
 
 
 def notify(db: Session, title: str, text: str) -> dict[str, tuple[bool, str]]:
-    """Schickt an alle aktivierten Kanäle. Jeder Kanal wird einzeln versucht."""
+    """Sends to all enabled channels. Every channel is tried on its own."""
     settings = load_settings(db)
     results: dict[str, tuple[bool, str]] = {}
     if settings.discord_enabled and settings.discord_webhook:

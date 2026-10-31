@@ -1,4 +1,4 @@
-"""Status der Angriffserkennung eines Servers."""
+"""Status of the attack detection of a server."""
 
 import time
 import uuid

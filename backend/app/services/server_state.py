@@ -1,4 +1,4 @@
-"""Zustandsmeldungen eines Agents in den Status der Server übersetzen."""
+"""Turn state messages of an agent into the status of the servers."""
 
 import uuid
 
@@ -15,10 +15,10 @@ from app.services.startup_ready import done_texts
 def next_status(
     status: str, state: str, exit_code: int | None, hold: bool = False
 ) -> tuple[str | None, str | None]:
-    """Gibt (neuer Status, Fehlermeldung) zurück. Der Status None heißt: keine Änderung."""
+    """Returns (new status, error message). Status None means: no change."""
     if state == "running":
         if hold:
-            # Das Egg meldet Bereitschaft über die Konsole: bis dahin bleibt es bei "starting".
+            # The egg reports ready through the console: until then it stays "starting".
             return ("starting", None) if status in {"offline", "error"} else (None, None)
         return ("running", None) if status in {"offline", "starting", "error"} else (None, None)
     if state == "exited":
@@ -28,8 +28,8 @@ def next_status(
             if exit_code in (0, None):
                 return "offline", None
             if exit_code in (126, 127):
-                # Der Startbefehl fehlt oder lässt sich nicht ausführen: meist fehlen die
-                # Serverdateien (leere oder unvollständige Installation).
+                # The start command is missing or cannot be run: usually the
+                # server files are missing (empty or incomplete installation).
                 return "error", (
                     "The server stopped right after starting: the startup command was not found. "
                     "The server files may be missing. Try reinstalling the server."
@@ -44,14 +44,14 @@ def next_status(
 
 
 def apply_state(db: Session, node_id: uuid.UUID, frame: StateFrame) -> str | None:
-    """Übernimmt eine Meldung. Gibt den neuen Status zurück, None ohne Änderung."""
+    """Takes over a message. Returns the new status, None without a change."""
     new_status: str | None = None
     try:
         server_id = uuid.UUID(frame.name)
     except ValueError:
         server_id = None
     if server_id is not None:
-        # populate_existing: Diese Session lebt lange, andere Requests ändern den Status.
+        # populate_existing: this session lives long, other requests change the status.
         server = db.scalar(
             select(Server).where(Server.id == server_id).execution_options(populate_existing=True)
         )

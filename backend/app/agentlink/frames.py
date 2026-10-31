@@ -107,7 +107,7 @@ async def handle_frame(db: Session, node_id: uuid.UUID, raw: str) -> bool:
             spawn(hub.ensure_watch(node_id, state.name))
         return True
     if kind == "install":
-        # Ausgabe des Installer-Containers; kommt unter dem Namen des Server-Containers.
+        # Output of the installer container; it comes under the name of the server container.
         name, text = data.get("name"), data.get("data")
         if not isinstance(name, str) or not _owns_container(db, node_id, name):
             return True

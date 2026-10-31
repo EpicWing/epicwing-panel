@@ -18,7 +18,7 @@ from app.db import Base
 
 
 class Schedule(Base):
-    """Ein Zeitplan eines Servers. Die Zeiten sind Cron-Felder in UTC."""
+    """A schedule of a server. The times are cron fields in UTC."""
 
     __tablename__ = "schedules"
 
@@ -45,7 +45,7 @@ class Schedule(Base):
 
 
 class ScheduleTask(Base):
-    """Eine Aufgabe in einem Zeitplan. Die Aufgaben laufen nacheinander nach sequence."""
+    """A task in a schedule. The tasks run one after the other by sequence."""
 
     __tablename__ = "schedule_tasks"
     __table_args__ = (
@@ -59,7 +59,7 @@ class ScheduleTask(Base):
     sequence: Mapped[int] = mapped_column(Integer)
     # power, command or backup
     action: Mapped[str] = mapped_column(String(16))
-    # Bei power: start, stop, restart, kill. Bei command: der Befehl. Bei backup: leer.
+    # For power: start, stop, restart, kill. For command: the command. For backup: empty.
     payload: Mapped[str] = mapped_column(String(1024), default="")
     # Wartezeit in Sekunden, bevor diese Aufgabe startet.
     time_offset: Mapped[int] = mapped_column(Integer, default=0, server_default="0")

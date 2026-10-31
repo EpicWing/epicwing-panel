@@ -1,4 +1,4 @@
-"""E-Mail-Versand über Resend oder SMTP und das gemeinsame EpicWing-Mail-Layout."""
+"""Sending e-mail through Resend or SMTP and the shared EpicWing mail layout."""
 
 import smtplib
 import ssl
@@ -53,7 +53,7 @@ def config_from_env() -> MailConfig:
 
 
 def load_config(db: Session) -> MailConfig:
-    """Mail-Einstellungen aus den Panel-Einstellungen, mit Werten aus der .env als Rückfall."""
+    """Mail settings from the panel settings, with values from .env as fallback."""
     config = config_from_env()
     rows = {
         row.key: row.value
@@ -80,7 +80,7 @@ def load_config(db: Session) -> MailConfig:
 
 
 def save_config(db: Session, values: dict[str, object]) -> None:
-    """Speichert Einstellungen; Geheimnisse verschlüsselt, None lässt einen Wert unverändert."""
+    """Saves settings; secrets are encrypted, None leaves a value unchanged."""
     for name, value in values.items():
         if name not in FIELD_NAMES or value is None:
             continue
@@ -124,7 +124,7 @@ ABUSE_EMAIL = "abuse@epicwing.de"
 
 
 def _footer(year: int, reply_hint: bool) -> str:
-    """Fester Footer. Betreiber können ihn nicht über Einstellungen ändern."""
+    """Fixed footer. Operators cannot change it through settings."""
     site = f'<a href="{SITE_URL}" style="color:{ACCENT};text-decoration:none;">EpicWing</a>'
     ask = " Questions? Reply to this email." if reply_hint else ""
     abuse = (
@@ -145,7 +145,7 @@ def render(
     *,
     reply_hint: bool = False,
 ) -> tuple[str, str]:
-    """Baut HTML- und Textversion einer Mail im EpicWing-Design."""
+    """Builds the HTML and text version of a mail in the EpicWing design."""
     if button and not button[1].startswith(("https://", "http://")):
         raise ValueError("button url must start with http(s)://")
     year = datetime.now(UTC).year
@@ -192,7 +192,7 @@ def render_for(
     paragraphs: list[str],
     button: tuple[str, str] | None = None,
 ) -> tuple[str, str]:
-    """Wie render, mit Antwort-Hinweis nur wenn eine Reply-To-Adresse gesetzt ist."""
+    """Like render, with a reply hint only if a Reply-To address is set."""
     return render(title, paragraphs, button, reply_hint=bool(config.reply_to))
 
 
@@ -265,7 +265,7 @@ def _send_smtp(config: MailConfig, to: str, subject: str, html: str, text: str) 
 def send_mail(
     to: str, subject: str, html: str, text: str, config: MailConfig | None = None
 ) -> tuple[bool, str]:
-    """Sendet eine Mail. Wirft nie; Rückgabe: (Erfolg, ID oder Fehlertext)."""
+    """Sends a mail. Never raises; returns (success, ID or error text)."""
     config = config or config_from_env()
     if not config.sender:
         return False, "sender address is not set"

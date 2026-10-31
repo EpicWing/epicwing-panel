@@ -65,7 +65,7 @@ class EggVariable(Base):
     description: Mapped[str] = mapped_column(String(255), default="")
     user_editable: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
     user_viewable: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
-    # Regeln im Pterodactyl-Stil, zum Beispiel required|integer|between:1,100.
+    # Rules in Pterodactyl style, for example required|integer|between:1,100.
     rules: Mapped[str] = mapped_column(
         String(512), default="nullable|string", server_default="nullable|string"
     )

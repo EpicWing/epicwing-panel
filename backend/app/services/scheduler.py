@@ -1,4 +1,4 @@
-"""Scheduler: startet fällige Zeitpläne. Läuft als Hintergrundaufgabe im Panel-Prozess."""
+"""Scheduler: starts due schedules. Runs as a background task in the panel process."""
 
 import asyncio
 import contextlib
@@ -21,7 +21,7 @@ from app.services.schedules import build_expression, next_run
 log = logging.getLogger(__name__)
 
 INTERVAL_SECONDS = 30
-# Ein Termin, der länger überfällig ist (Panel war aus), wird nicht nachgeholt.
+# A date that is overdue for longer (panel was off) is not made up.
 GRACE = timedelta(seconds=120)
 
 
@@ -30,7 +30,7 @@ def _utc(value: datetime) -> datetime:
 
 
 def tick(db: Session, now: datetime, launch: Callable[[uuid.UUID], None]) -> list[uuid.UUID]:
-    """Startet alle fälligen Zeitpläne und setzt ihren nächsten Termin. Gibt die IDs zurück."""
+    """Starts all due schedules and sets their next date. Returns the IDs."""
     rows = db.scalars(
         select(Schedule).where(Schedule.enabled.is_(True), Schedule.next_run_at.is_not(None))
     ).all()
@@ -52,7 +52,7 @@ def tick(db: Session, now: datetime, launch: Callable[[uuid.UUID], None]) -> lis
             db.commit()
             log.warning("schedule %s has an invalid cron expression", row.id)
             continue
-        # Zuerst den nächsten Termin speichern, dann starten: kein Doppellauf.
+        # Save the next date first, then start: no double run.
         row.next_run_at = next_run(expression, now)
         db.commit()
         if now - due <= GRACE:
@@ -72,7 +72,7 @@ async def scheduler_loop() -> None:
 
 
 def _seed_eggs_if_empty() -> None:
-    """Frische Installation: mitgelieferte Eggs anlegen, solange die Tabelle leer ist."""
+    """Fresh installation: create the bundled eggs as long as the table is empty."""
     from sqlalchemy import func, select
     from sqlalchemy.orm import Session
 

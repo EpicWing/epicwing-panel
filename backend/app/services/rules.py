@@ -1,4 +1,4 @@
-"""Validierungsregeln für Variablen im Pterodactyl-Stil, zum Beispiel required|integer."""
+"""Validation rules for variables in Pterodactyl style, for example required|integer."""
 
 import re
 
@@ -27,7 +27,7 @@ Parsed = list[tuple[str, list[str], str]]
 
 
 def parse(rules: str) -> Parsed:
-    """Zerlegt die Regeln in (Name, Argumente, Originaltext)."""
+    """Splits the rules into (name, arguments, original text)."""
     parsed: Parsed = []
     for match in _TOKEN.finditer(rules):
         if match.group("rx") is not None:
@@ -74,7 +74,7 @@ def _problem(name: str, args: list[str]) -> str | None:
 
 
 def problems(rules: str) -> list[str]:
-    """Prüft beim Speichern, ob alle Regeln bekannt und wohlgeformt sind."""
+    """Checks on save if all rules are known and well formed."""
     if len(rules) > MAX_RULES_CHARS:
         return [f"The rules may have at most {MAX_RULES_CHARS} characters."]
     found = []
@@ -86,7 +86,7 @@ def problems(rules: str) -> list[str]:
 
 
 def drop_unknown(rules: str) -> tuple[str, list[str]]:
-    """Für den Import: behält nur brauchbare Regeln und nennt die entfernten."""
+    """For the import: keeps only usable rules and lists the removed ones."""
     kept: list[str] = []
     dropped: list[str] = []
     for name, args, raw in parse(rules[: MAX_RULES_CHARS * 4]):
@@ -101,7 +101,7 @@ def drop_unknown(rules: str) -> tuple[str, list[str]]:
 
 
 def validate(value: str, rules: str) -> str | None:
-    """Gibt eine Fehlermeldung zurück oder None, wenn der Wert passt."""
+    """Returns an error message or None if the value fits."""
     parsed = [p for p in parse(rules) if _problem(p[0], p[1]) is None]
     names = {name for name, _args, _raw in parsed}
     if value == "":
@@ -119,7 +119,7 @@ def validate(value: str, rules: str) -> str | None:
         if name == "alpha_dash" and not _ALPHA_DASH.fullmatch(value):
             return "May only contain letters, digits, hyphens and underscores."
 
-    # Bei Zahlenregeln zählt der Wert, sonst die Länge.
+    # For number rules the value counts, otherwise the length.
     numeric = "integer" in names or "numeric" in names
     size = float(value) if numeric else float(len(value))
     unit = "" if numeric else " characters"

@@ -50,7 +50,7 @@ class CommandBroker:
             self._pending.pop(command_id, None)
 
     def resolve(self, node_id: uuid.UUID, result: protocol.CommandResult) -> bool:
-        """Nimmt ein Ergebnis nur von der Node an, an die der Befehl ging."""
+        """Accepts a result only from the node that got the command."""
         entry = self._pending.get(result.id)
         if entry is None or entry[0] != node_id:
             return False

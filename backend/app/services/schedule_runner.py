@@ -1,4 +1,4 @@
-"""Führt die Aufgaben eines Zeitplans nacheinander aus (Run Now und Scheduler)."""
+"""Runs the tasks of a schedule one after the other (Run Now and scheduler)."""
 
 import asyncio
 import logging
@@ -23,12 +23,12 @@ from app.services.schedules import POWER_ACTIONS
 log = logging.getLogger(__name__)
 
 ONLINE = {"running", "starting"}
-# Zeitpläne, die in diesem Prozess gerade laufen. Verhindert Doppelläufe.
+# Schedules that are running in this process right now. Stops double runs.
 _running: set[uuid.UUID] = set()
 
 
 class TaskError(Exception):
-    """Eine Aufgabe konnte nicht ausgeführt werden."""
+    """A task could not be run."""
 
 
 @dataclass
@@ -72,7 +72,7 @@ async def run_schedule(
     trigger: str = "manual",
     sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
 ) -> RunResult:
-    """trigger: 'manual' (Run Now) oder 'schedule'. Nur 'schedule' beachtet 'nur wenn online'."""
+    """trigger: 'manual' (Run Now) or 'schedule'. Only 'schedule' respects 'only if online'."""
     if schedule_id in _running:
         return RunResult("busy", "This schedule is already running.")
     _running.add(schedule_id)
@@ -147,7 +147,7 @@ async def _run(
 
 
 def run_in_background(schedule_id: uuid.UUID, trigger: str = "manual") -> None:
-    """Startet den Lauf als Hintergrundaufgabe mit eigener Datenbank-Sitzung."""
+    """Starts the run as a background task with its own database session."""
 
     async def job() -> None:
         try:

@@ -1,8 +1,8 @@
-"""Rechte auf einzelne Server.
+"""Permissions on single servers.
 
-Wer darf was auf einem Server?
+Who may do what on a server?
 - Global administrators (is_admin or the projects.manage permission): everything.
-- Der Besitzer (servers.owner_id): alle Serverrechte.
+- The owner (servers.owner_id): all server permissions.
 - Mitglieder (server_members): ihre gespeicherten Rechte, dazu immer server.view.
 - Everyone else: nothing. The server is invisible to them (404 instead of 403).
 """
@@ -55,7 +55,7 @@ class ServerPermission(StrEnum):
 
 ALL_SERVER_PERMISSIONS: frozenset[str] = frozenset(p.value for p in ServerPermission)
 
-# Ein API Key darf nie die Zugriffsverwaltung eines Servers anfassen.
+# An API key must never touch the access control of a server.
 KEY_DENIED = frozenset({ServerPermission.ACCESS_VIEW, ServerPermission.ACCESS_MANAGE})
 
 
