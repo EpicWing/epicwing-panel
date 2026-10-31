@@ -1,4 +1,4 @@
-"""Panel: öffentlicher, fester Name, nicht änderbar."""
+"""Panel: public, fixed name, cannot be changed."""
 
 from fastapi import APIRouter
 from pydantic import BaseModel

@@ -35,7 +35,7 @@ DbSession = Annotated[Session, Depends(get_db)]
 MAX_INPUTS = 10
 INPUT_WINDOW_SECONDS = 5.0
 MAX_FRAME_CHARS = 4096
-# So oft wird bei offener Verbindung geprüft, ob der Benutzer die Konsole noch sehen darf.
+# How often to check, while the connection is open, if the user may still see the console.
 ACCESS_RECHECK_SECONDS = 30.0
 
 
@@ -62,7 +62,7 @@ def _reason(exc: Exception) -> str:
 
 
 def _load(db: Session, server_id: uuid.UUID) -> tuple[uuid.UUID, str, str] | None:
-    # populate_existing: Die Session lebt lange, der Status ändert sich in anderen Requests.
+    # populate_existing: the session lives long, the status changes in other requests.
     server = db.scalar(
         select(Server).where(Server.id == server_id).execution_options(populate_existing=True)
     )
@@ -72,7 +72,7 @@ def _load(db: Session, server_id: uuid.UUID) -> tuple[uuid.UUID, str, str] | Non
 
 
 def _permissions(db: Session, user_id: uuid.UUID, server_id: uuid.UUID) -> set[str]:
-    """Aktuelle Rechte des Benutzers. Leer, wenn er den Server nicht mehr nutzen darf."""
+    """Current permissions of the user. Empty if they may no longer use the server."""
     user = db.scalar(
         select(User).where(User.id == user_id).execution_options(populate_existing=True)
     )
@@ -89,7 +89,7 @@ def _permissions(db: Session, user_id: uuid.UUID, server_id: uuid.UUID) -> set[s
 async def _watch_access(
     websocket: WebSocket, has: Callable[[ServerPermission], Awaitable[bool]], interval: float
 ) -> None:
-    """Schließt die Verbindung, sobald der Benutzer die Konsole nicht mehr sehen darf."""
+    """Closes the connection as soon as the user may no longer see the console."""
     while True:
         await asyncio.sleep(interval)
         if not await has(ServerPermission.CONSOLE_VIEW):
@@ -145,8 +145,8 @@ async def _input_loop(
 
 @router.websocket("/{server_id}/console")
 async def console_socket(websocket: WebSocket, server_id: uuid.UUID, db: DbSession) -> None:
-    # Die Anmeldung läuft über das Ticket, nicht über Cookies: Eine fremde Webseite
-    # kann es nicht beschaffen, weil dafür ein Request mit CSRF-Token nötig ist.
+    # Login works with the ticket, not with cookies: another website
+    # cannot get it, because that needs a request with a CSRF token.
     user_id = tickets.redeem(websocket.query_params.get("ticket", ""), server_id)
     found = await run_in_threadpool(_load, db, server_id) if user_id is not None else None
     if user_id is None or found is None:
@@ -187,7 +187,7 @@ async def console_socket(websocket: WebSocket, server_id: uuid.UUID, db: DbSessi
         lock = asyncio.Lock()
 
         async def has(permission: ServerPermission) -> bool:
-            # Die Session wird nie von zwei Threads gleichzeitig benutzt.
+            # The session is never used by two threads at the same time.
             async with lock:
                 granted = await run_in_threadpool(_permissions, db, user_id, server_id)
             return permission.value in granted

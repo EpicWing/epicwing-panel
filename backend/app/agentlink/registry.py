@@ -18,23 +18,23 @@ def _percent(used: int, total: int) -> float:
 
 
 class AgentRegistry:
-    """Hält die offenen Agent-Verbindungen. Lebt nur im Speicher dieses Prozesses."""
+    """Keeps the open agent connections. Lives only in the memory of this process."""
 
     def __init__(self) -> None:
         self._connections: dict[uuid.UUID, WebSocket] = {}
-        # Letzte Messwerte pro Node, werden später für die Serverkarten gebraucht.
+        # Latest measurements per node, needed later for the server cards.
         self.stats: dict[uuid.UUID, dict[str, Any]] = {}
         self.history: dict[uuid.UUID, deque[dict[str, float]]] = {}
         self.server_stats: dict[str, dict[str, Any]] = {}
-        # Welcher Node ein Server in server_stats gehört, damit das Trennen einer
-        # Node nur die eigenen Live-Werte löscht.
+        # Which node a server in server_stats belongs to, so that disconnecting a
+        # node only clears its own live values.
         self._stats_nodes: dict[uuid.UUID, set[str]] = {}
 
     async def register(self, node_id: uuid.UUID, websocket: WebSocket) -> None:
         previous = self._connections.get(node_id)
         self._connections[node_id] = websocket
         if previous is not None:
-            # Pro Node gibt es nur eine Verbindung, die neuere ersetzt die ältere.
+            # Only one connection per node: the newer one replaces the older one.
             with contextlib.suppress(RuntimeError, WebSocketDisconnect):
                 await previous.close(code=WS_REPLACED, reason=WS_REPLACED_REASON)
 
@@ -42,7 +42,7 @@ class AgentRegistry:
         self._stats_nodes.setdefault(node_id, set()).add(name)
 
     def unregister(self, node_id: uuid.UUID, websocket: WebSocket) -> bool:
-        """True, wenn es die aktuelle Verbindung war (nicht eine bereits ersetzte)."""
+        """True if it was the current connection (not one that was already replaced)."""
         if self._connections.get(node_id) is not websocket:
             return False
         del self._connections[node_id]
@@ -54,7 +54,7 @@ class AgentRegistry:
         return True
 
     async def disconnect(self, node_id: uuid.UUID) -> None:
-        """Schließt die Verbindung einer Node (Widerruf, Löschen)."""
+        """Closes the connection of a node (revoke, delete)."""
         websocket = self._connections.get(node_id)
         if websocket is not None:
             with contextlib.suppress(RuntimeError, WebSocketDisconnect):
@@ -67,7 +67,7 @@ class AgentRegistry:
         return self._connections.get(node_id)
 
     def record(self, node_id: uuid.UUID, sample: dict[str, Any]) -> None:
-        """Speichert den letzten Messwert und hängt ihn an den Verlauf an."""
+        """Saves the latest measurement and adds it to the history."""
         self.stats[node_id] = sample
         points = self.history.setdefault(node_id, deque(maxlen=HISTORY_POINTS))
         points.append(

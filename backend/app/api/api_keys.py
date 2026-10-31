@@ -1,4 +1,4 @@
-"""API Keys verwalten. Nur mit Cookie-Session, ein Key kann keine Keys anlegen."""
+"""Manage API keys. Cookie session only, a key cannot create keys."""
 
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -40,7 +40,7 @@ class KeyOut(BaseModel):
 
 
 class KeyCreated(KeyOut):
-    # Nur in der Antwort auf das Anlegen, danach nie wieder.
+    # Only in the response to the create call, never again.
     token: str
 
 
@@ -82,7 +82,7 @@ def create_key(body: KeyCreate, request: Request, auth: CurrentAuth, db: DbSessi
     db.add(key)
     db.commit()
     db.refresh(key)
-    # Das Token selbst gehört nie ins Audit-Log.
+    # The token itself never goes into the audit log.
     audit.record(
         db,
         "api_key.create",

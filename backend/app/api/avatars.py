@@ -16,10 +16,10 @@ MAX_BYTES = 1024 * 1024
 
 
 def _detect(data: bytes) -> str | None:
-    """Erkennt den Bildtyp am Dateikopf. Der Content-Type des Clients zählt nicht.
+    """Detects the image type from the file header. The Content-Type from the client does not count.
 
-    Das Bild wird nicht neu kodiert (keine Bildbibliothek installiert). Deshalb wird
-    es mit nosniff und einem restriktiven CSP ausgeliefert, SVG ist nicht erlaubt.
+    The image is not re-encoded (no image library installed). So it is
+    served with nosniff and a strict CSP, SVG is not allowed.
     """
     if data.startswith(b"\x89PNG\r\n\x1a\n"):
         return "image/png"

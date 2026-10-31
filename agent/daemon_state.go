@@ -2,7 +2,7 @@ package main
 
 import "strconv"
 
-// daemonStateMessage übersetzt einen Zustands-Frame in die Daemon-Zeile der Konsole.
+// daemonStateMessage turns a state frame into the daemon line for the console.
 func daemonStateMessage(frame map[string]any) (string, bool) {
 	switch frame["state"] {
 	case "running":

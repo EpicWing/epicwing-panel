@@ -39,7 +39,7 @@ BackupsDownload = Annotated[ServerAccess, Depends(server_access(ServerPermission
 MAX_LISTED = 200
 REFRESH_LIMIT = 5
 
-# Übersetzt die Fehlertexte des Agents in saubere Statuscodes.
+# Turns the error texts of the agent into clean status codes.
 BACKUP_ERRORS = (
     (
         "already running",
@@ -170,13 +170,13 @@ def _finish(backup: ServerBackup, state: str, error: str | None = None) -> None:
 
 
 async def _refresh(db: Session, server: Server, backup: ServerBackup) -> None:
-    """Fragt den Stand eines laufenden Backups beim Agent ab und schreibt ihn in die DB."""
+    """Asks the agent for the state of a running backup and writes it to the DB."""
     if backup.status != "running":
         return
     try:
         result = await _send(server, "backup.status", _params(server, backup, kind="create"))
     except HTTPException:
-        # Die Node ist nicht erreichbar. Der Stand bleibt, wie er war.
+        # The node is not reachable. The state stays as it was.
         return
     if not result.ok:
         if "not found" in (result.error or "").lower():
@@ -235,7 +235,7 @@ async def perform_backup(
     is_locked: bool,
     created_by: uuid.UUID | None,
 ) -> ServerBackup:
-    """Legt ein Backup an. Endpunkt und Zeitpläne nutzen dieselbe Logik."""
+    """Creates a backup. The endpoint and the schedules use the same logic."""
     _check_available(server)
     if server.backup_limit <= 0:
         raise _conflict("Backups are disabled for this server.")

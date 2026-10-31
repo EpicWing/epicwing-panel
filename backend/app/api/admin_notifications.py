@@ -1,4 +1,4 @@
-"""Admin: Benachrichtigungskanäle (Discord-Webhook, E-Mail) und Testversand."""
+"""Admin: notification channels (Discord webhook, e-mail) and test sending."""
 
 from email.utils import parseaddr
 from typing import Annotated, Literal

@@ -11,6 +11,6 @@ router = APIRouter(tags=["health"])
 
 @router.get("/health")
 def health(db: Annotated[Session, Depends(get_db)]) -> dict[str, str]:
-    # Prüfen, ob die Datenbank erreichbar ist.
+    # Check if the database is reachable.
     db.execute(text("SELECT 1"))
     return {"status": "ok"}

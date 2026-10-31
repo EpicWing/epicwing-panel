@@ -22,13 +22,13 @@ from app.services import audit
 router = APIRouter(prefix="/audit-logs", tags=["audit"])
 server_router = APIRouter(prefix="/servers", tags=["audit"])
 
-# Konsole-Öffnungen sind zu häufig und sagen nichts über Änderungen aus.
+# Console opens are too frequent and say nothing about changes.
 HIDDEN_ACTIONS = ("server.console_open",)
 EXPORT_LIMIT = 10_000
 CSV_HEADER = ["time", "user", "action", "ip", "details"]
 
 Group = Literal["power", "files", "backups", "ports", "server"]
-# Ein Eintrag mit Punkt am Ende ist ein Präfix, alle anderen sind exakte Aktionen.
+# An entry with a dot at the end is a prefix, all others are exact actions.
 GROUPS: dict[str, tuple[str, ...]] = {
     "power": ("server.power",),
     "files": ("server.file.",),
@@ -82,7 +82,7 @@ def _escape_like(text: str) -> str:
 
 
 def _csv_cell(value: str) -> str:
-    # Excel und Co. würden solche Zellen als Formel auswerten.
+    # Excel and similar tools would treat such cells as formulas.
     if value[:1] in ("=", "+", "-", "@", "\t", "\r"):
         return "'" + value
     return value
@@ -124,7 +124,7 @@ class ActivityFilter:
             out.append(AuditLog.created_at < end)
         if self.q:
             like = f"%{_escape_like(self.q)}%"
-            # Gesucht wird nur im Namensteil der E-Mail, nicht in der Domain.
+            # Only the name part of the e-mail is searched, not the domain.
             by_actor = select(User.id).where(
                 User.email.ilike(f"%{_escape_like(self.q)}%@%", escape="\\")
             )
@@ -154,7 +154,7 @@ def _emails(db: Session, rows: list[AuditLog]) -> dict[uuid.UUID, str]:
 
 
 def _show_ip(access: ServerAccess) -> bool:
-    # IP-Adressen anderer Nutzer sehen nur Besitzer und Administratoren.
+    # Only owners and administrators see the IP addresses of other users.
     return access.is_admin or access.server.owner_id == access.user.id
 
 

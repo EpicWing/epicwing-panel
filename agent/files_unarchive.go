@@ -13,7 +13,7 @@ import (
 	"strings"
 )
 
-// Grenzen sind Variablen, damit Tests sie senken können.
+// Limits are variables so tests can lower them.
 var (
 	unarchiveMaxEntries       = 20000
 	unarchiveMaxBytes   int64 = 2 << 30
@@ -41,8 +41,8 @@ func archiveKind(name string) string {
 	return ""
 }
 
-// safeEntryName liefert den bereinigten Namen. skip ist wahr für "." (Marker-Einträge).
-// Alles, was die Wurzel verlassen oder absolut sein würde, wird abgelehnt.
+// safeEntryName returns the cleaned name. skip is true for "." (marker entries).
+// Anything that would leave the root or be absolute is rejected.
 func safeEntryName(raw string) (name string, skip bool, err error) {
 	if strings.ContainsRune(raw, 0) {
 		return "", false, fmt.Errorf("unsafe path in archive: %q", raw)
@@ -207,8 +207,8 @@ func untarInto(root *os.Root, r io.Reader, dest string, st *unarchiveStats) erro
 	}
 }
 
-// fileDecompress entpackt ein Archiv im Server-Ordner. to ist der Zielordner,
-// leer heißt: der Ordner, in dem das Archiv liegt.
+// fileDecompress unpacks an archive in the server folder. to is the target folder,
+// empty means: the folder where the archive is.
 func fileDecompress(root *os.Root, archivePath, to string) (map[string]any, error) {
 	rel, err := cleanPath(archivePath)
 	if err != nil {

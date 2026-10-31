@@ -33,7 +33,7 @@ ManageNodes = Annotated[AuthContext, Depends(require(Permission.NODES_MANAGE))]
 
 def _node_out(node: Node) -> NodeOut:
     out = NodeOut.model_validate(node)
-    # Online gilt nur bei frischem Heartbeat, nicht nach dem gespeicherten Wert.
+    # Online only counts with a fresh heartbeat, not by the stored value.
     out.status = node_service.display_status(node)
     return out
 
@@ -74,7 +74,7 @@ def create_node(
         db.rollback()
         raise _name_taken() from None
 
-    # Der Token gehört nicht ins Audit-Log.
+    # The token does not go into the audit log.
     audit.record(
         db,
         "node.create",
@@ -131,7 +131,7 @@ def _detail(db: Session, node: Node) -> NodeDetail:
     return NodeDetail(
         **_node_out(node).model_dump(),
         connected=connected,
-        # Nur der Fingerprint, nie der Schlüssel selbst.
+        # Only the fingerprint, never the key itself.
         fingerprint=credential.fingerprint if credential else None,
         registered_at=credential.created_at if credential else None,
         cpu_percent=stats.get("cpu_percent"),
@@ -193,8 +193,8 @@ def _revoke(db: Session, node_id: uuid.UUID, actor_id: uuid.UUID, ip: str) -> No
     node = _get_node(db, node_id)
     if node.status == "pending":
         raise HTTPException(status.HTTP_409_CONFLICT, "This node has no registered agent.")
-    # Ohne Schlüssel kann sich der Agent nicht mehr anmelden. Die Node wartet wieder
-    # auf einen Agent und lässt sich mit einem neuen Token erneut einrichten.
+    # Without a key the agent can no longer log in. The node waits for an agent again
+    # and can be set up again with a new token.
     db.execute(delete(NodeCredential).where(NodeCredential.node_id == node.id))
     node.status = "pending"
     node.last_heartbeat_at = None
@@ -231,7 +231,7 @@ def _delete(db: Session, node_id: uuid.UUID, actor_id: uuid.UUID, ip: str) -> No
             status.HTTP_409_CONFLICT, "This node still has servers. Delete them first."
         )
     name = node.name
-    # Zugangsdaten und Token verschwinden über ON DELETE CASCADE.
+    # Credentials and tokens are removed by ON DELETE CASCADE.
     db.delete(node)
     db.commit()
     audit.record(
@@ -259,7 +259,7 @@ async def delete_node(
 def _audit_command(
     db: Session, actor_id: uuid.UUID, node: Node, body: CommandRequest, ip: str, outcome: str
 ) -> None:
-    # Nur Aktion und Containername, nie die Parameter (env kann Secrets enthalten).
+    # Only the action and the container name, never the parameters (env can contain secrets).
     audit.record(
         db,
         "node.command",

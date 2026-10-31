@@ -119,7 +119,7 @@ func parseBkRules(text string) []bkRule {
 	return rules
 }
 
-// bkIgnored: die letzte passende Regel gewinnt. Ein ignorierter Ordner wird ganz übersprungen.
+// bkIgnored: the last matching rule wins. An ignored folder is skipped completely.
 func bkIgnored(rules []bkRule, rel string, isDir bool) bool {
 	ignored := false
 	for _, r := range rules {
@@ -291,7 +291,7 @@ func bkMkdirAll(root *os.Root, dir string) error {
 	return nil
 }
 
-// bkRestore entpackt in einen Staging-Ordner und tauscht ihn erst danach gegen den Server-Ordner.
+// bkRestore unpacks into a staging folder and only then swaps it with the server folder.
 func bkRestore(archive, base string) error {
 	staging := base + ".restore-new"
 	old := base + ".restore-old"

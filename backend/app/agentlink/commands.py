@@ -1,4 +1,4 @@
-"""Befehle vom Panel an Node-Agents und die zugehörigen Ergebnisse."""
+"""Commands from the panel to node agents and their results."""
 
 import asyncio
 import json
@@ -13,11 +13,11 @@ from app.agentlink.registry import AgentRegistry, registry
 
 
 class AgentOffline(Exception):  # noqa: N818
-    """Die Node hat keine offene Verbindung (mehr)."""
+    """The node has no open connection (anymore)."""
 
 
 class CommandBroker:
-    """Schickt Befehle an Agents und wartet auf das Ergebnis mit derselben ID."""
+    """Sends commands to agents and waits for the result with the same ID."""
 
     def __init__(self, agents: AgentRegistry) -> None:
         self._agents = agents
@@ -59,7 +59,7 @@ class CommandBroker:
         return True
 
     def fail_pending(self, node_id: uuid.UUID) -> None:
-        """Lässt alle offenen Befehle dieser Node sofort scheitern."""
+        """Fails all open commands of this node right away."""
         for owner, future in list(self._pending.values()):
             if owner == node_id and not future.done():
                 future.set_exception(AgentOffline())
@@ -73,7 +73,7 @@ def fail_pending(node_id: uuid.UUID) -> None:
 
 
 def handle_result(node_id: uuid.UUID, raw: str) -> bool:
-    """True, wenn raw ein Ergebnis-Frame war (auch ein ungültiges oder unbekanntes)."""
+    """True if raw was a result frame (even an invalid or unknown one)."""
     try:
         data = json.loads(raw)
     except ValueError:
