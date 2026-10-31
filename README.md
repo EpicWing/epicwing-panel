@@ -42,13 +42,20 @@ See [Limitations](#limitations).
 ## Installation
 
 Tested on Debian 13 with systemd. You need Python 3.11 or newer (tested with 3.13), Node.js 20 or newer,
-PostgreSQL 16 and a reverse proxy (nginx) with a TLS certificate. Nodes need Docker.
+PostgreSQL 16 or newer and a reverse proxy (nginx) with a TLS certificate. Nodes need Docker.
 The paths below are examples, adjust them to your setup.
 
 ### 1. Database
 
-Create a PostgreSQL database and a user for the panel. For development,
-`deploy/docker-compose.dev.yml` starts one.
+Create a PostgreSQL database and a user for the panel (pick your own password):
+
+```bash
+sudo -u postgres psql -c "CREATE USER forge WITH PASSWORD 'CHANGE_ME';" -c "CREATE DATABASE forge OWNER forge;"
+```
+
+On a normal installation PostgreSQL listens on port 5432, so use
+`DATABASE_URL=postgresql+psycopg://forge:CHANGE_ME@localhost:5432/forge`.
+The port 5433 in `.env.example` belongs to `deploy/docker-compose.dev.yml`, which starts a database for development.
 
 ### 2. Backend
 
@@ -91,7 +98,14 @@ Copy the contents of `frontend/dist` to the directory nginx serves, e.g. `/var/w
 
 ### 4. Run the panel
 
-Run the backend as a systemd service under an unprivileged user. Use a single
+Create the unprivileged user and give it the code:
+
+```bash
+useradd --system --home-dir /opt/epicwing --shell /usr/sbin/nologin epicwing
+chown -R epicwing:epicwing /opt/epicwing/backend
+```
+
+Run the backend as a systemd service under that user. Use a single
 process, do not add workers.
 
 ```ini
@@ -120,6 +134,12 @@ agents use WebSockets, so the upgrade headers and the long timeouts are required
 map $http_upgrade $epicwing_upgrade {
     default upgrade;
     ''      close;
+}
+
+server {
+    listen 80;
+    server_name panel.example.com;
+    return 301 https://$host$request_uri;
 }
 
 server {
@@ -159,6 +179,9 @@ server {
 ### 6. Nodes
 
 Add a node in the admin area. `scripts/install-node.sh` installs the agent on the node.
+The agent binary (`epicwing-agent-linux-amd64`) and its checksum file `SHA256SUMS` are attached to each
+GitHub release. Install with `--url <release asset url> --sha256 <hash>`, or download the file
+yourself and pass it with `--binary`.
 
 ## Updating
 
