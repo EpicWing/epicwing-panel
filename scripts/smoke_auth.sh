@@ -30,17 +30,17 @@ payload() {
 }
 JSON='Content-Type: application/json'
 
-echo "1) /me ohne Login     (erwartet 401): $(code "$BASE/me")"
+echo "1) /me without login   (expect 401): $(code "$BASE/me")"
 echo "2) wrong password  (expect 401): $(code -X POST "$BASE/login" -H "$JSON" -d "$(payload 'wrong-wrong-wrong')")"
 
 RESPONSE="$(curl -s -c "$JAR" -X POST "$BASE/login" -H "$JSON" -d "$(payload "$PASSWORD")")"
 CSRF="$(printf '%s' "$RESPONSE" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("csrf_token", ""))')"
 if [ -z "$CSRF" ]; then
-  echo "3) Login fehlgeschlagen: $RESPONSE"
+  echo "3) Login failed: $RESPONSE"
   exit 1
 fi
-echo "3) Login              (erwartet 200): ok"
-echo "4) /me mit Cookie     (erwartet 200): $(code -b "$JAR" "$BASE/me")"
-echo "5) Logout ohne CSRF   (erwartet 403): $(code -b "$JAR" -X POST "$BASE/logout")"
-echo "6) Logout mit CSRF    (erwartet 204): $(code -b "$JAR" -X POST "$BASE/logout" -H "X-CSRF-Token: $CSRF")"
-echo "7) /me nach Logout    (erwartet 401): $(code -b "$JAR" "$BASE/me")"
+echo "3) Login              (expect 200): ok"
+echo "4) /me with cookie    (expect 200): $(code -b "$JAR" "$BASE/me")"
+echo "5) Logout without CSRF (expect 403): $(code -b "$JAR" -X POST "$BASE/logout")"
+echo "6) Logout with CSRF    (expect 204): $(code -b "$JAR" -X POST "$BASE/logout" -H "X-CSRF-Token: $CSRF")"
+echo "7) /me after logout   (expect 401): $(code -b "$JAR" "$BASE/me")"

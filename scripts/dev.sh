@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Startet und stoppt Backend (8010) und Frontend (5183) für die Entwicklung.
-# Aufruf: bash scripts/dev.sh start|stop|restart|status
+# Usage: bash scripts/dev.sh start|stop|restart|status
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -19,7 +19,7 @@ stop_port() {
   cwd="$(readlink "/proc/$pid/cwd" || true)"
   case "$cwd" in
     "$ROOT"/*) ;;
-    *) echo "!! Port $port gehört nicht zu EpicWing ($cwd), nichts beendet."; return 1 ;;
+    *) echo "!! Port $port does not belong to EpicWing ($cwd), nothing stopped."; return 1 ;;
   esac
   parent="$(ps -o ppid= -p "$pid" | tr -d ' ')"
   pcwd="$(readlink "/proc/$parent/cwd" || true)"
@@ -30,12 +30,12 @@ stop_port() {
   esac
   kill "$pid" 2>/dev/null || true
   sleep 1
-  echo "Port $port beendet."
+  echo "Port $port stopped."
 }
 
 wait_for() {
   local url="$1" i
-  for i in $(seq 1 25); do
+  for _ in $(seq 1 25); do
     curl -fsS "$url" >/dev/null 2>&1 && return 0
     sleep 1
   done
@@ -71,7 +71,7 @@ status() {
     && echo "Backend  :8010 ok" \
     || { echo "!! Backend is not responding, see $RUN/backend.log"; return 1; }
   wait_for http://127.0.0.1:5183/api/health \
-    && echo "Frontend :5183 ok (Proxy zum Backend funktioniert)" \
+    && echo "Frontend :5183 ok (proxy to the backend works)" \
     || { echo "!! Frontend or proxy is not responding, see $RUN/frontend.log"; return 1; }
 }
 
@@ -80,5 +80,5 @@ case "${1:-}" in
   stop) stop_port 8010; stop_port 5183 ;;
   restart) stop_port 8010; stop_port 5183; start ;;
   status) status ;;
-  *) echo "Aufruf: bash scripts/dev.sh start|stop|restart|status"; exit 1 ;;
+  *) echo "Usage: bash scripts/dev.sh start|stop|restart|status"; exit 1 ;;
 esac
