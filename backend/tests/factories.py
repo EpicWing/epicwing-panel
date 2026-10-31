@@ -28,7 +28,7 @@ def make_egg(client, headers, nest_id, name="Nginx", **changes):
     return response.json()["id"]
 
 
-def make_allocations(client, headers, node_id, first=25001, last=None, ip="45.142.104.41"):
+def make_allocations(client, headers, node_id, first=25001, last=None, ip="203.0.113.45"):
     body = {"ip": ip, "port_start": first, "port_end": last}
     response = client.post(f"/api/nodes/{node_id}/allocations", json=body, headers=headers)
     assert response.status_code == 201, response.text
