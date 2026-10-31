@@ -43,8 +43,8 @@ interface HelpLink {
 // Fest im Code, nicht im Panel einstellbar.
 const HELP_URLS = {
   discord: "https://discord.gg/tc7xtNPsmh",
-  docs: "",
-  github: "",
+  docs: "https://github.com/EpicWing/epicwing-panel#readme",
+  github: "https://github.com/EpicWing/epicwing-panel",
   support: "",
 };
 const links: HelpLink[] = [
@@ -52,7 +52,7 @@ const links: HelpLink[] = [
   { key: "docs", label: t("admin.linkDocs"), url: HELP_URLS.docs },
   { key: "github", label: t("admin.linkGithub"), url: HELP_URLS.github },
   { key: "support", label: t("admin.linkSupport"), url: HELP_URLS.support },
-];
+].filter((link) => link.url);
 const linkClass: Record<string, string> = {
   discord: "bg-amber-500 hover:bg-amber-400",
   docs: "bg-blue-600 hover:bg-blue-500",
