@@ -1,4 +1,19 @@
-# EpicWing
+<p align="center">
+  <img src="docs/assets/logo.svg" alt="EpicWing" width="72">
+</p>
+
+<h1 align="center">EpicWing</h1>
+
+<p align="center">
+  Self-hosted server management panel.<br>
+  Run game servers and other services in isolated Docker containers.
+</p>
+
+<p align="center">
+  <a href="https://github.com/EpicWing/epicwing-panel/actions/workflows/ci.yml"><img src="https://github.com/EpicWing/epicwing-panel/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/EpicWing/epicwing-panel" alt="MIT license"></a>
+  <a href="https://github.com/EpicWing/epicwing-panel/releases"><img src="https://img.shields.io/github/v/release/EpicWing/epicwing-panel?include_prereleases" alt="Release"></a>
+</p>
 
 EpicWing is a self-hosted server management panel. Game servers and other services
 each run in their own isolated Docker container on a node. The panel talks to a small Go agent on
@@ -6,6 +21,22 @@ each node.
 
 **Status: beta.** Fine for small setups, not ready for large or multi-tenant hosting.
 See [Limitations](#limitations).
+
+## Installation at a glance
+
+1. Create a PostgreSQL database and user.
+2. Install the backend and fill in `.env`.
+3. Build the frontend.
+4. Run the backend as a systemd service.
+5. Put nginx with TLS in front.
+6. Add a node and install the agent with `scripts/install-node.sh`.
+
+The details are in [Installation](#installation).
+
+## Bundled eggs
+
+Minecraft (Vanilla, Paper, Purpur, Fabric), Unturned, SCP: Secret Laboratory and a static
+website. Pterodactyl-format egg files can be imported for everything else.
 
 ## Components
 
