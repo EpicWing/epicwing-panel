@@ -284,11 +284,6 @@ async def run_command(
     auth: AdminAuth,
     db: Annotated[Session, Depends(get_db)],
 ) -> CommandOut:
-    # Raw container commands skip the server permissions, so only administrators may send them.
-    if not auth.user.is_admin:
-        raise HTTPException(
-            status.HTTP_403_FORBIDDEN, "Only administrators can send node commands."
-        )
     node = await run_in_threadpool(_get_node, db, node_id)
     outcome = "offline"
     result = None
