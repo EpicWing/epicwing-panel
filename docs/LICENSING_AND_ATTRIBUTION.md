@@ -41,4 +41,5 @@ A license does not make an install script, Docker image, mod or download safe to
 
 - The official egg repository is `https://github.com/pterodactyl/game-eggs`. The address we used before, `pterodactyl/eggs`, does not exist (HTTP 404).
 - The `LICENSE` in the downloaded archive of `pterodactyl/game-eggs` is MIT, "Copyright (c) 2024 Pterodactyl team and contributors". Single eggs can have different notices. We did not check them one by one.
-- The six eggs in `backend/fixtures/eggs/` come from our own database. Where each one came from is not written down per file yet.
+- The six eggs in `backend/fixtures/eggs/` are based on eggs from `pterodactyl/game-eggs` (MIT). Some also use the `ghcr.io/ptero-eggs` images and install scripts. We treat all six as third-party work. The notice is in `backend/fixtures/eggs/NOTICE.md`.
+- Eggs that we write ourselves will be marked as EpicWing eggs and listed separately.
