@@ -17,21 +17,21 @@ MIN_PASSWORD_LENGTH = 8
 def _normalize_email(email: str) -> str | None:
     email = email.strip().lower()
     if "@" not in email or len(email) > 320:
-        print("Ungültige E-Mail-Adresse.", file=sys.stderr)
+        print("Invalid e-mail address.", file=sys.stderr)
         return None
     return email
 
 
 def _ask_password() -> str | None:
-    password = getpass.getpass("Passwort: ")
+    password = getpass.getpass("Password: ")
     if len(password) < MIN_PASSWORD_LENGTH:
         print(
-            f"Das Passwort muss mindestens {MIN_PASSWORD_LENGTH} Zeichen lang sein.",
+            f"The password must be at least {MIN_PASSWORD_LENGTH} characters long.",
             file=sys.stderr,
         )
         return None
-    if password != getpass.getpass("Passwort wiederholen: "):
-        print("Die Passwörter stimmen nicht überein.", file=sys.stderr)
+    if password != getpass.getpass("Repeat password: "):
+        print("The passwords do not match.", file=sys.stderr)
         return None
     return password
 
@@ -46,12 +46,12 @@ def create_admin(email: str) -> int:
 
     with Session(get_engine()) as db:
         if db.scalar(select(User).where(User.email == email)):
-            print("Ein Benutzer mit dieser E-Mail existiert bereits.", file=sys.stderr)
+            print("A user with this e-mail address already exists.", file=sys.stderr)
             return 1
         db.add(User(email=email, password_hash=hash_password(password), is_admin=True))
         db.commit()
 
-    print(f"Admin {email} wurde angelegt.")
+    print(f"Administrator {email} created.")
     return 0
 
 
