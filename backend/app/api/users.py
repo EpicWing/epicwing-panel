@@ -56,7 +56,7 @@ class UserDetail(BaseModel):
 
 class UserCreate(BaseModel):
     email: str = Field(max_length=320)
-    password: str = Field(min_length=1, max_length=1024)
+    password: str = Field(min_length=8, max_length=1024)
     is_admin: bool = False
 
     _email = field_validator("email")(_normalize_email)
@@ -73,7 +73,7 @@ class UserUpdate(BaseModel):
 
 
 class PasswordReset(BaseModel):
-    new_password: str = Field(min_length=1, max_length=1024)
+    new_password: str = Field(min_length=8, max_length=1024)
 
 
 def _detail(user: User, servers: int) -> UserDetail:
