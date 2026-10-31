@@ -4,7 +4,7 @@ from argon2.exceptions import InvalidHashError, VerificationError
 _hasher = PasswordHasher()
 
 # Wird geprüft, wenn der Benutzer nicht existiert, damit die Antwortzeit gleich bleibt.
-_DUMMY_HASH = _hasher.hash("dummy-passwort-fuer-timing")
+_DUMMY_HASH = _hasher.hash("dummy-password-for-timing")
 
 
 def hash_password(password: str) -> str:
