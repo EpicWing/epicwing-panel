@@ -1,4 +1,4 @@
-"""Konsolen im Panel: Ausgabe der Agents an Browser verteilen, Eingaben als Befehl senden."""
+"""Consoles in the panel: send agent output to browsers, send input as commands."""
 
 import asyncio
 import contextlib
@@ -21,7 +21,7 @@ BACKLOG_FRAMES = 400
 
 
 class ConsoleError(Exception):
-    """Der Agent hat einen Konsolenbefehl abgelehnt."""
+    """The agent refused a console command."""
 
 
 class TicketStore:
@@ -59,7 +59,7 @@ INSTALL_BACKLOG_FRAMES = 1000
 
 
 class ConsoleHub:
-    """Verteilt die Ausgabe eines Containers an alle Browser, die ihn ansehen."""
+    """Sends the output of a container to all browsers that watch it."""
 
     def __init__(self, commands: CommandBroker) -> None:
         self._commands = commands
@@ -129,7 +129,7 @@ class ConsoleHub:
                 await self._command(node_id, "console.unwatch", name)
 
     async def publish(self, node_id: uuid.UUID, name: str, payload: dict[str, Any]) -> None:
-        # Nur die Node, auf der der Container liegt, darf in dessen Konsole schreiben.
+        # Only the node the container is on may write to its console.
         if self._nodes.get(name) != node_id:
             return
         if payload.get("type") == "output":
@@ -189,14 +189,14 @@ class ConsoleHub:
             await self._command(node_id, "console.watch", name)
 
     async def release(self, node_id: uuid.UUID, name: str) -> None:
-        """Beendet den Watch, wenn niemand die Konsole ansieht."""
+        """Ends the watch when nobody looks at the console."""
         if self._subs.get(name):
             return
         with contextlib.suppress(AgentOffline, TimeoutError, ConsoleError):
             await self._command(node_id, "console.unwatch", name)
 
     async def rewatch(self, node_id: uuid.UUID) -> None:
-        """Nach einer neuen Agent-Verbindung die beobachteten Container erneut anmelden."""
+        """After a new agent connection, register the watched containers again."""
         for name, owner in list(self._nodes.items()):
             if owner == node_id and self._subs.get(name):
                 with contextlib.suppress(AgentOffline, TimeoutError, ConsoleError):

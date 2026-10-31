@@ -22,7 +22,7 @@ log = logging.getLogger(__name__)
 INTERVAL_SECONDS = 5
 # An end so soon after an automatic start counts as a failed attempt.
 QUICK_EXIT_SECONDS = 300
-# So lange nach einer Stopp-Eingabe in der Konsole gilt das Ende als gewollt.
+# For this long after a stop input in the console, the end counts as wanted.
 STOP_INPUT_SECONDS = 60
 STOP_WORDS = frozenset({"stop", "shutdown", "exit", "quit"})
 # The start command is missing: a restart does not change that.

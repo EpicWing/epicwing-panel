@@ -1,4 +1,4 @@
-"""Meldung bei einem erkannten Angriff.
+"""Alert when an attack is detected.
 
 Runs in the background, so the WebSocket handler never waits for Discord or SMTP.
 """

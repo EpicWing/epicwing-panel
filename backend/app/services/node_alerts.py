@@ -1,4 +1,4 @@
-"""Meldungen bei Node-Ausfall und Rückkehr, mit Karenzzeit gegen kurze Verbindungsabbrüche."""
+"""Alerts when a node goes down and comes back, with a grace time for short drops."""
 
 import asyncio
 import logging
@@ -56,7 +56,7 @@ def schedule_offline_alert(node_id: uuid.UUID, delay: float = OFFLINE_GRACE_SECO
 
 
 async def on_node_online(node_id: uuid.UUID) -> None:
-    """Bricht eine wartende Offline-Meldung ab und meldet die Rückkehr, falls nötig."""
+    """Cancels a waiting offline alert and reports the return, if needed."""
     try:
         task = _pending.pop(node_id, None)
         if task is not None:

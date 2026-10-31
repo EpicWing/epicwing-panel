@@ -1,4 +1,4 @@
-"""Speichert den Verkehrsverlauf der Angriffserkennung, damit er einen Neustart übersteht."""
+"""Stores the traffic history of the attack detection, so it survives a restart."""
 
 import asyncio
 import logging
@@ -17,7 +17,7 @@ INTERVAL_SECONDS = 30
 
 
 def flush(db: Session, now_mono: float, now_wall: float, after: int) -> int:
-    """Schreibt neue, abgeschlossene Buckets und löscht alte. Gibt den neuesten Bucket zurück."""
+    """Writes new, finished buckets and deletes old ones. Returns the newest bucket."""
     newest = after
     for container, bucket, rx, tx in detector.export_buckets(now_mono, now_wall, after):
         db.merge(DdosSample(container=container, bucket=bucket, rx=rx, tx=tx))
@@ -28,7 +28,7 @@ def flush(db: Session, now_mono: float, now_wall: float, after: int) -> int:
 
 
 def load() -> int:
-    """Lädt die letzte Stunde in den Detector. Gibt den neuesten Bucket zurück (0 = keiner)."""
+    """Loads the last hour into the detector. Returns the newest bucket (0 = none)."""
     try:
         now_mono, now_wall = time.monotonic(), time.time()
         with open_session() as db:

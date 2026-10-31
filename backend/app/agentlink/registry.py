@@ -8,7 +8,7 @@ from starlette.websockets import WebSocket, WebSocketDisconnect
 from app.agentlink.protocol import WS_POLICY_VIOLATION, WS_REPLACED, WS_REPLACED_REASON
 from app.services.ddos_detect import detector
 
-HISTORY_POINTS = 60  # bei 10 s Abstand 10 Minuten
+HISTORY_POINTS = 60  # 10 minutes at 10 s steps
 
 
 def _percent(used: int, total: int) -> float:

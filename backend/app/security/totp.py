@@ -1,7 +1,7 @@
 """Two-factor logic (TOTP) and recovery codes.
 
-- Das Geheimnis liegt verschlüsselt (Fernet) in der Datenbank. Der Schlüssel wird per HKDF
-  aus EPICWING_ENCRYPTION_KEY abgeleitet.
+- The secret is stored encrypted (Fernet) in the database. The key is made with HKDF
+  from EPICWING_ENCRYPTION_KEY.
 - A code works only once: the last used time step is stored atomically.
 - Recovery codes exist only as a SHA-256 hash and can be used once.
 """
@@ -110,7 +110,7 @@ def _hash_recovery(code: str) -> str:
 
 
 def generate_recovery_codes(db: Session, user: User) -> list[str]:
-    """Ersetzt alle Wiederherstellungscodes. Die Klartext-Codes gibt es nur hier einmalig."""
+    """Replaces all recovery codes. The plain codes exist only here, once."""
     db.execute(delete(RecoveryCode).where(RecoveryCode.user_id == user.id))
     codes: list[str] = []
     for _ in range(RECOVERY_CODE_COUNT):

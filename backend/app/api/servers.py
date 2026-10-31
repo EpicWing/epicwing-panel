@@ -457,8 +457,8 @@ async def _transition(
         await work()
     except HTTPException as exc:
         if keep_on_offline and isinstance(exc, NodeOffline):
-            # Die Node war nicht erreichbar, der Zustand des Servers ist unverändert. Nach dem
-            # Verbindungsaufbau meldet der Agent den echten Zustand ohnehin.
+            # The node was not reachable, the state of the server is unchanged. After the
+            # connection is made, the agent reports the real state anyway.
             _set_status(db, server, previous, previous_error)
         elif timeout_status is not None and exc.status_code == status.HTTP_504_GATEWAY_TIMEOUT:
             # A running job (e.g. installation) may still be running on the node.
@@ -488,7 +488,7 @@ async def install_server(
 
     async def work() -> None:
         if egg and egg.install_script.strip():
-            # Die Konsole soll schon vor dem ersten Agent-Frame etwas anzeigen.
+            # The console should show something before the first agent frame.
             container = lifecycle.container_name(server.id)
             hub.start_install(container)
             await hub.publish_install(container, "[EpicWing] Preparing installation ...\n")
@@ -558,7 +558,7 @@ def _report_failure(
 
 
 async def _recreate_container(db: Session, server: Server) -> None:
-    """Erzeugt den Container aus dem aktuellen Stand neu (Variablen, Ports, Image).
+    """Creates the container again from the current state (variables, ports, image).
     The data folder stays, only the container is replaced."""
     out = _outs(db, [server])[0]
     node = db.get(Node, server.node_id)

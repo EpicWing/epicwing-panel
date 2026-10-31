@@ -1,4 +1,4 @@
-"""Import und Export von Eggs im Pterodactyl-Format (PTDL_v1 und PTDL_v2)."""
+"""Import and export of eggs in Pterodactyl format (PTDL_v1 and PTDL_v2)."""
 
 import json
 import re
@@ -9,7 +9,7 @@ from app.services import rules as rule_engine
 
 SUPPORTED = {"PTDL_v1", "PTDL_v2"}
 CONFIG_KEYS = ("files", "startup", "logs")
-# Features, die das Panel selbst umsetzt. eula: die Oberfläche erkennt die Meldung in der Konsole.
+# Features that the panel handles itself. eula: the UI detects the message in the console.
 SUPPORTED_FEATURES = frozenset({"eula"})
 MAX_CONFIG_CHARS = 65_535
 AUTHOR = "noreply@epicwing.invalid"
@@ -25,7 +25,7 @@ MAX_STARTUP_CHARS = 2048
 
 
 def _startup(value: Any) -> str:
-    """Startbefehl: Steuerzeichen werden zu Leerzeichen, sonst bleibt er unverändert.
+    """Start command: control characters become spaces, otherwise it stays as it is.
 
     Repeated spaces stay, because they can appear inside quotes.
     If the command is longer than the schema allows, the import refuses, it does not cut it.
@@ -37,7 +37,7 @@ def _startup(value: Any) -> str:
 
 
 def _line(value: Any, limit: int) -> str:
-    """Einzeiliger Text: Steuerzeichen werden zu Leerzeichen, Länge begrenzt."""
+    """Single-line text: control characters become spaces, length is limited."""
     text = "" if value is None else str(value)
     return _SPACES.sub(" ", _CONTROL.sub(" ", text)).strip()[:limit]
 
@@ -93,7 +93,7 @@ def _variable(raw: dict[str, Any], env: str, warnings: list[str]) -> dict[str, A
 
 
 def import_egg(data: dict[str, Any]) -> tuple[dict[str, Any], str, list[str]]:
-    """Gibt (Felder für EggCreate ohne nest_id, config als JSON-Text, Hinweise) zurück.
+    """Returns (fields for EggCreate without nest_id, config as JSON text, hints).
 
     Raises ValueError if the file is not a usable egg.
     """
@@ -163,7 +163,7 @@ def _text(value: Any) -> str:
 
 
 def export_egg(egg: Any, variables: list[Any]) -> dict[str, Any]:
-    """Baut das PTDL_v2-JSON aus einem Egg und seinen Variablen."""
+    """Builds the PTDL_v2 JSON from an egg and its variables."""
     try:
         stored = json.loads(egg.config or "{}")
     except ValueError:

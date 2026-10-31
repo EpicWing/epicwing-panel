@@ -12,7 +12,7 @@ from app.security.sessions import AuthContext, CurrentAuth
 
 
 class Permission(StrEnum):
-    # Globale Rechte. Projektbezogene Rechte kommen mit der projects-Tabelle.
+    # Global permissions. Project permissions come with the projects table.
     USERS_MANAGE = "users.manage"
     NODES_MANAGE = "nodes.manage"
     PROJECTS_MANAGE = "projects.manage"

@@ -1,4 +1,4 @@
-"""Cron-Ausdrücke für Zeitpläne prüfen und den nächsten Lauf berechnen (Zeitzone des Panels)."""
+"""Check cron expressions for schedules and compute the next run (time zone of the panel)."""
 
 import os
 import re
@@ -10,14 +10,14 @@ from croniter import croniter
 ACTIONS = ("power", "command", "backup")
 POWER_ACTIONS = ("start", "stop", "restart", "kill")
 
-# Nur Ziffern, *, /, Komma und Bindestrich. Keine Namen wie "mon", keine Leerzeichen.
+# Only digits, *, /, comma and dash. No names like "mon", no spaces.
 _ALLOWED = re.compile(r"^[0-9*/,-]{1,32}$")
 
 
 def build_expression(
     minute: str, hour: str, day_of_month: str, month: str, day_of_week: str
 ) -> str:
-    """Setzt die fünf Felder zusammen. Wirft ValueError bei ungültigen Werten."""
+    """Puts the five fields together. Raises ValueError for invalid values."""
     parts = [part.strip() for part in (minute, hour, day_of_month, month, day_of_week)]
     for part in parts:
         if not _ALLOWED.match(part):
@@ -29,8 +29,8 @@ def build_expression(
 
 
 def next_run(expression: str, after: datetime | None = None) -> datetime:
-    """Nächster Lauf nach dem Zeitpunkt after (Standard: jetzt). Die Cron-Felder gelten in der
-    Zeitzone des Panels, das Ergebnis kommt in UTC."""
+    """Next run after the time after (default: now). The cron fields apply in the
+    time zone of the panel, the result comes in UTC."""
     base = after or datetime.now(UTC)
     if base.tzinfo is None:
         base = base.replace(tzinfo=UTC)
@@ -39,7 +39,7 @@ def next_run(expression: str, after: datetime | None = None) -> datetime:
 
 
 def zone_name() -> str:
-    """Zeitzone des Panels. Standard Europe/Berlin, änderbar mit EPICWING_TIMEZONE."""
+    """Time zone of the panel. Default Europe/Berlin, can be changed with EPICWING_TIMEZONE."""
     name = os.environ.get("EPICWING_TIMEZONE", "Europe/Berlin")
     if name == "UTC":
         return name

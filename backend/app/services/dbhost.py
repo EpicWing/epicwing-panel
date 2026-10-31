@@ -1,6 +1,6 @@
 """Access to MariaDB/MySQL hosts for server databases.
 
-Alle Funktionen blockieren; aus async-Code per asyncio.to_thread aufrufen.
+All functions block; call them from async code with asyncio.to_thread.
 Names (database, user, host) are checked strictly. Values like the
 password go through the driver as parameters.
 """

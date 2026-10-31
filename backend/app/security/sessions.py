@@ -30,7 +30,7 @@ def _utcnow() -> datetime:
 
 
 def _aware(value: datetime) -> datetime:
-    # SQLite liefert naive Zeitstempel (nur in den Tests), Postgres liefert aware.
+    # SQLite returns naive timestamps (only in the tests), Postgres returns aware ones.
     return value if value.tzinfo else value.replace(tzinfo=UTC)
 
 
@@ -90,7 +90,7 @@ def get_auth(request: Request, db: Annotated[Session, Depends(get_db)]) -> AuthC
     ):
         raise _unauthorized()
 
-    # Schreibende Requests brauchen das CSRF-Token der Session.
+    # Requests that write need the CSRF token of the session.
     if request.method not in _SAFE_METHODS:
         sent = request.headers.get("X-CSRF-Token", "")
         if not hmac.compare_digest(sent.encode(), session.csrf_token.encode()):

@@ -1,4 +1,4 @@
-"""SFTP-Anmeldung: Gehört ein SSH-Schlüssel zu einem Konto, das auf den Server darf?"""
+"""SFTP login: does an SSH key belong to an account that may use the server?"""
 
 import uuid
 from dataclasses import dataclass

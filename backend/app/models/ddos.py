@@ -5,7 +5,7 @@ from app.db import Base
 
 
 class DdosSample(Base):
-    """Ein fertiger 10-Sekunden-Bucket des Verkehrs eines Servers (Maximum der Raten)."""
+    """A finished 10-second bucket of the traffic of a server (maximum of the rates)."""
 
     __tablename__ = "ddos_samples"
 

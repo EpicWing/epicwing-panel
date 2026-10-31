@@ -15,7 +15,7 @@ class ApiKey(Base):
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     name: Mapped[str] = mapped_column(String(64))
-    # Die ersten Zeichen des Keys, damit man ihn in der Liste wiedererkennt.
+    # The first characters of the key, so you can recognize it in the list.
     prefix: Mapped[str] = mapped_column(String(12))
     # Only the SHA-256 hash, the token itself is never stored.
     token_hash: Mapped[str] = mapped_column(String(64), unique=True)

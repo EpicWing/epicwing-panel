@@ -95,7 +95,7 @@ class SftpTarget(BaseModel):
 
 @router.get("/connections")
 def connections(auth: CurrentAuth, db: DbSession) -> list[SftpTarget]:
-    """Pro Server mit Dateizugriff: Was der Nutzer in sein SFTP-Programm eintragen muss."""
+    """Per server with file access: what the user has to enter in their SFTP program."""
     servers = list(db.scalars(visible_servers(db, auth.user).order_by(Server.name)))
     granted = effective_permissions(db, auth.user, servers)
     servers = [s for s in servers if ServerPermission.FILES_READ.value in granted[s.id]]

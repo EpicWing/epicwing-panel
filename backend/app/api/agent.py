@@ -49,7 +49,7 @@ def enroll(
             status.HTTP_409_CONFLICT, "This public key is already registered."
         ) from None
 
-    # Nur der Fingerprint, nie der Token.
+    # Only the fingerprint, never the token.
     audit.record(
         db,
         "node.enroll",

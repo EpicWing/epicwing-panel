@@ -72,7 +72,7 @@ class Heartbeat(BaseModel):
 
 
 def auth_message(node_id: uuid.UUID, nonce: bytes) -> bytes:
-    """Das signierte Byte-Muster: Kontext, Node-ID als Text, Zeilenumbruch, rohe Nonce."""
+    """The signed bytes: context, node ID as text, line break, raw nonce."""
     return AUTH_CONTEXT + str(node_id).encode() + b"\n" + nonce
 
 

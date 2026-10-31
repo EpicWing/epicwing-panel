@@ -1,4 +1,4 @@
-"""Datenbanken eines Servers: Namen, Zugangsdaten und Aufräumen beim Löschen."""
+"""Databases of a server: names, credentials and cleanup on delete."""
 
 import asyncio
 import uuid
@@ -27,7 +27,7 @@ def endpoint_for(host: DatabaseHost) -> dbhost.Endpoint:
 
 
 async def drop_all(db: Session, server_id: uuid.UUID) -> None:
-    """Entfernt alle Datenbanken des Servers vom Host, bevor der Server gelöscht wird.
+    """Removes all databases of the server from the host before the server is deleted.
 
     If a host fails, the server stays, so no orphaned
     databases are left on the host.
