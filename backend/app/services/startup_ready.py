@@ -1,4 +1,4 @@
-"""Bereitmeldung eines Servers: Erst wenn die Konsole den "done"-Text des Eggs zeigt, läuft er."""
+"""Ready message: a server is running only when the console shows the "done" text of the egg."""
 
 import json
 import time
@@ -10,13 +10,13 @@ from sqlalchemy.orm import Session
 from app.models import Server
 from app.models.egg import Egg
 
-# Ohne Bereitzeile (z. B. nach einem Neustart des Panels) gilt der Server danach als bereit.
+# Without a ready line (e.g. after a panel restart) the server counts as ready afterwards.
 FALLBACK_SECONDS = 300
 TAIL_CHARS = 256
 
 
 def done_texts(config_text: str | None) -> tuple[str, ...]:
-    """Liest startup.done aus der Egg-Config (Text oder Liste, auch als JSON-Text gespeichert)."""
+    """Reads startup.done from the egg config (text or list, also stored as JSON text)."""
     try:
         config = json.loads(config_text or "{}")
     except ValueError:
@@ -44,7 +44,7 @@ class _Watch:
 
 
 class ReadyWatcher:
-    """Merkt sich im Speicher, welche Container noch auf ihre Bereitmeldung warten."""
+    """Remembers in memory which containers still wait for their ready message."""
 
     def __init__(self) -> None:
         self._watches: dict[str, _Watch] = {}
@@ -60,7 +60,7 @@ class ReadyWatcher:
         self._watches.pop(name, None)
 
     def feed(self, name: str, data: str) -> bool:
-        """True, wenn die Ausgabe die Bereitmeldung enthält. Der Eintrag wird dann entfernt."""
+        """True if the output has the ready message. The entry is removed then."""
         watch = self._watches.get(name)
         if watch is None:
             return False
@@ -89,7 +89,7 @@ def _server(db: Session, node_id: uuid.UUID, name: str) -> Server | None:
 
 
 def register(db: Session, node_id: uuid.UUID, name: str, state: str) -> None:
-    """Nach einer Zustandsmeldung: auf die Bereitmeldung warten, solange der Server startet."""
+    """After a state message: wait for the ready message while the server starts."""
     if state != "running":
         watcher.forget(name)
         return
@@ -104,7 +104,7 @@ def register(db: Session, node_id: uuid.UUID, name: str, state: str) -> None:
 
 
 def mark_running(db: Session, node_id: uuid.UUID, name: str) -> bool:
-    """Setzt starting auf running. True, wenn sich der Status geändert hat."""
+    """Sets starting to running. True if the status changed."""
     watcher.forget(name)
     server = _server(db, node_id, name)
     if server is None:

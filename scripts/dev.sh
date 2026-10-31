@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Startet und stoppt Backend (8010) und Frontend (5183) für die Entwicklung.
+# Starts and stops backend (8010) and frontend (5183) for development.
 # Usage: bash scripts/dev.sh start|stop|restart|status
 set -euo pipefail
 
@@ -11,7 +11,7 @@ listener_pid() {
   ss -ltnp "sport = :$1" | grep -o 'pid=[0-9]*' | head -1 | cut -d= -f2 || true
 }
 
-# Beendet den Prozess auf dem Port, aber nur, wenn er zu diesem Projekt gehört.
+# Stops the process on the port, but only if it belongs to this project.
 stop_port() {
   local port="$1" pid parent cwd pcwd pcomm
   pid="$(listener_pid "$port")"
@@ -34,7 +34,7 @@ stop_port() {
 }
 
 wait_for() {
-  local url="$1" i
+  local url="$1"
   for _ in $(seq 1 25); do
     curl -fsS "$url" >/dev/null 2>&1 && return 0
     sleep 1

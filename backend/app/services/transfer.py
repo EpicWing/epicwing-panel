@@ -1,4 +1,4 @@
-"""Streamt Daten, die der Agent stückweise liefert, als Antwort an den Browser."""
+"""Streams data that the agent delivers in pieces as the response to the browser."""
 
 import asyncio
 from collections import deque
@@ -6,7 +6,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 
 
 class TransferError(Exception):
-    """Ein Stück fehlt oder hat die falsche Länge, der Download ist nicht mehr zu retten."""
+    """A chunk is missing or has the wrong length, the download cannot be saved."""
 
 
 async def stream(
@@ -16,7 +16,7 @@ async def stream(
     chunk: int,
     window: int = 3,
 ) -> AsyncIterator[bytes]:
-    """Gibt die Daten der Reihe nach aus, während die nächsten Stücke schon unterwegs sind.
+    """Yields the data in order while the next chunks are already on the way.
 
     fetch(offset) gets the chunk from offset, first is the first chunk that was already read.
     """

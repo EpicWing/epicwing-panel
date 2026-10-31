@@ -4,7 +4,7 @@ import time
 from collections import deque
 from typing import Any
 
-# Der Agent misst alle 2 s, die Graphen zeigen 60 Punkte (eine Rate braucht zwei Messungen).
+# The agent measures every 2 s, the graphs show 60 points (a rate needs two measurements).
 HISTORY_SAMPLES = 61
 KEYS = (
     "cpu_percent",

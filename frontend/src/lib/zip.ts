@@ -34,7 +34,7 @@ function dosStamp(seconds: number): { time: number; date: number } {
   };
 }
 
-// ZIP ohne Kompression (store), UTF-8-Namen, kein ZIP64: reicht für Archive unter 4 GiB und 65535 Einträgen.
+// ZIP without compression (store), UTF-8 names, no ZIP64: enough for archives under 4 GiB and 65535 entries.
 export function buildZip(items: ZipItem[]): Blob {
   const encoder = new TextEncoder();
   const records = items.map((item) => ({

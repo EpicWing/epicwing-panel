@@ -97,8 +97,8 @@ class ConsoleHub:
                 self._drop(name, websocket)
                 raise
         else:
-            # Ein weiterer Browser (z. B. nach einem Neuladen) bekommt die letzten
-            # Zeilen nachgeliefert.
+            # Another browser (e.g. after a reload) gets the latest
+            # lines sent again.
             for payload in list(self._backlog.get(name, ())):
                 try:
                     await websocket.send_json(payload)

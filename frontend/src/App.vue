@@ -11,7 +11,7 @@ function stop() {
   busy.value = false;
 }
 
-// Der Balken erscheint erst nach 120 ms, damit schnelle Wechsel nicht flackern.
+// The bar only shows after 120 ms, so quick changes do not flicker.
 const offStart = router.beforeEach(() => {
   window.clearTimeout(timer);
   timer = window.setTimeout(() => (busy.value = true), 120);

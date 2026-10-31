@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Rauchtest für den Login-Ablauf gegen die echte Dev-Datenbank (Port 8010).
+# Smoke test for the login flow against the real dev database (port 8010).
 set -euo pipefail
 
 EMAIL="${1:?Aufruf: bash scripts/smoke_auth.sh <admin-email>}"

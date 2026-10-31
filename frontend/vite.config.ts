@@ -8,7 +8,7 @@ export default defineConfig({
     host: "127.0.0.1",
     port: 5183,
     strictPort: true,
-    // Im Browser gibt es nur eine Origin, deshalb braucht die API kein CORS.
+    // The browser sees only one origin, so the API needs no CORS.
     proxy: {
       "/api": {
         target: "http://127.0.0.1:8010",

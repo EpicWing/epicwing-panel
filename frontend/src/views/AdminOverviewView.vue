@@ -40,7 +40,7 @@ interface HelpLink {
   url: string;
 }
 
-// Fest im Code, nicht im Panel einstellbar.
+// Fixed in the code, cannot be set in the panel.
 const HELP_URLS = {
   discord: "https://discord.gg/tc7xtNPsmh",
   docs: "https://github.com/EpicWing/epicwing-panel#readme",

@@ -71,7 +71,7 @@ const groups = [
   { title: "Admin", items: [["users", "Access"], ["settings", "Settings"]] },
 ] as const;
 
-// Linien-Icons (24x24) für die Seitenleiste, ohne zusätzliche Bibliothek.
+// Line icons (24x24) for the sidebar, without an extra library.
 const NAV_ICONS: Record<string, string> = {
   home: "M3 11l9-8 9 8 M5 10v10h14V10 M10 20v-6h4v6",
   activity: "M22 12h-4l-3 9L9 3l-3 9H2",
@@ -303,7 +303,7 @@ function networkPoints(key: "rx" | "tx"): string {
     .join(" ");
 }
 
-// Neuer Messpunkt: die Linien gleiten um einen Schritt nach links.
+// New point: the lines slide one step to the left.
 const chartTick = ref(0);
 watch(history, () => { chartTick.value++; }, { deep: true });
 

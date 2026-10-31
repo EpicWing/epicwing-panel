@@ -21,7 +21,7 @@ class SftpGrant:
 
 
 def _check(db: Session, node_id: uuid.UUID, fingerprint: str, server_ref: str) -> SftpGrant | None:
-    """None heißt abgelehnt, ohne Grund: Der Agent erfährt nicht, woran es lag."""
+    """None means refused, with no reason: the agent does not learn why."""
     ref = server_ref.strip().lower()
     if not 4 <= len(ref) <= 36 or not set(ref) <= _HEX:
         return None
@@ -37,7 +37,7 @@ def _check(db: Session, node_id: uuid.UUID, fingerprint: str, server_ref: str) -
         for s in db.scalars(select(Server).where(Server.node_id == node_id))
         if str(s.id).startswith(ref)
     ]
-    # Ein Kürzel muss eindeutig sein, sonst bekommt niemand Zugriff.
+    # A short ID must be unique, otherwise nobody gets access.
     if len(candidates) != 1:
         return None
     server = candidates[0]
@@ -51,7 +51,7 @@ def _check(db: Session, node_id: uuid.UUID, fingerprint: str, server_ref: str) -
 def authorize(
     db: Session, node_id: uuid.UUID, fingerprint: str, server_ref: str
 ) -> SftpGrant | None:
-    """None heißt abgelehnt, ohne Grund: Der Agent erfährt nicht, woran es lag."""
+    """None means refused, with no reason: the agent does not learn why."""
     grant = _check(db, node_id, fingerprint, server_ref)
     if grant is None:
         audit.record(
@@ -65,7 +65,7 @@ def authorize(
 
 
 def record_login(db: Session, node_id: uuid.UUID, fingerprint: str, server_id: str) -> None:
-    """Der Agent meldet eine fertige Anmeldung: Audit-Eintrag und zuletzt benutzt."""
+    """The agent reports a finished login: audit entry and last used time."""
     try:
         sid = uuid.UUID(server_id)
     except ValueError:

@@ -8,7 +8,7 @@ const props = defineProps<{
   points: number[];
 }>();
 
-// 60 Messpunkte im Fenster, bei 10 s Abstand sind das 10 Minuten.
+// 60 measuring points in the window, at 10 s steps that is 10 minutes.
 const MAX_POINTS = 60;
 const W = 100;
 const H = 40;
@@ -26,7 +26,7 @@ const coords = computed(() => {
   ]);
 });
 
-// Weiche Kurve: waagerechte Tangenten an den Messpunkten, dadurch kein Überschwingen.
+// Smooth curve: horizontal tangents at the points, so there is no overshoot.
 const line = computed(() =>
   coords.value
     .map(([x, y], i, all) => {
@@ -50,7 +50,7 @@ const area = computed(() => {
 
 const gradientId = `fill-${Math.random().toString(36).slice(2, 9)}`;
 
-// Bei einem neuen Messpunkt startet die Linie einen Schritt weiter rechts und gleitet zurück.
+// With a new point the line starts one step further right and slides back.
 const STEP = W / (MAX_POINTS - 1);
 const glide = ref<SVGGElement | null>(null);
 const shift = ref(0);
