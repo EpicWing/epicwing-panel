@@ -31,7 +31,7 @@ function apply(data: AuthResponse): void {
 export const auth = {
   state: readonly(state),
 
-  // Prüft einmalig beim Start, ob noch eine gültige Session besteht.
+  // Checks once at the start if a valid session still exists.
   async init(): Promise<void> {
     if (state.ready) {
       return;

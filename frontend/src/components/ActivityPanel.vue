@@ -201,7 +201,7 @@ async function exportAs(format: "csv" | "json"): Promise<void> {
         const data = await response.json();
         if (typeof data.detail === "string") text = data.detail;
       } catch {
-        // Keine JSON-Antwort, die allgemeine Meldung bleibt.
+        // Not a JSON response, the general message stays.
       }
       throw new ApiError(response.status, text);
     }

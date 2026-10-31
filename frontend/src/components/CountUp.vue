@@ -5,7 +5,7 @@ const props = defineProps<{ value: number | null | undefined }>();
 const shown = ref(props.value ?? 0);
 let frame = 0;
 
-// Zählt in 600 ms vom aktuellen zum neuen Wert, ohne Animation bei reduzierter Bewegung.
+// Counts from the current to the new value in 600 ms, no animation if reduced motion is on.
 watch(
   () => props.value,
   (to) => {

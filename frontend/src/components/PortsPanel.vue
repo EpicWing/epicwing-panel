@@ -55,7 +55,7 @@ async function load(): Promise<void> {
   }
 }
 
-// Führt eine Änderung aus, sperrt die Buttons dabei und zeigt Fehler im Panel an.
+// Runs a change, locks the buttons meanwhile and shows errors in the panel.
 async function run(action: () => Promise<void>): Promise<void> {
   busy.value = true;
   error.value = "";

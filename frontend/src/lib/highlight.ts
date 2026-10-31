@@ -129,7 +129,7 @@ function renderLine(line: string, lang: Lang): string {
   }
 }
 
-// Gibt HTML zurück; der letzte Zeilenumbruch hält die Höhe identisch zum Textfeld.
+// Returns HTML; the last line break keeps the height the same as the text field.
 export function highlight(text: string, lang: Lang): string {
   return (
     text

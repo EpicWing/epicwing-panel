@@ -32,7 +32,7 @@ const { t, te } = useI18n();
 
 const ORDER = ["console", "power", "files", "startup", "settings", "backups", "databases", "allocations", "schedules", "access"];
 
-// Einfache Linien-Icons (24x24), damit keine zusätzliche Bibliothek nötig ist.
+// Simple line icons (24x24), so no extra library is needed.
 const ICONS: Record<string, string> = {
   console: "M4 17l6-6-6-6 M12 19h8",
   power: "M18.36 6.64a9 9 0 1 1-12.73 0 M12 2v10",

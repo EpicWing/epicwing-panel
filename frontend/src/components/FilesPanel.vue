@@ -38,7 +38,7 @@ class LocalError extends Error {}
 const props = defineProps<{ serverId: string; status: string }>();
 
 const CHUNK = 8 * 1024;
-// Upload in großen Stücken: Agent, Backend und Frontend müssen dieselbe Größe tragen.
+// Upload in big chunks: agent, backend and frontend must use the same size.
 const UPLOAD_CHUNK = 512 * 1024;
 const MAX_EDIT = 1024 * 1024;
 const MAX_LOAD = 5000;
@@ -233,7 +233,7 @@ async function writeFile(
         truncate: offset === 0,
       },
     });
-  // Der erste Block legt die Datei an, die übrigen schreiben parallel an ihre Position.
+  // The first block creates the file, the others write to their position in parallel.
   report?.(0);
   await put(0);
   let cursor = UPLOAD_CHUNK;
@@ -661,7 +661,7 @@ async function submitDialog(): Promise<void> {
   await action(() => api(`${base()}/rename`, { method: "POST", body: { path: from, to } }));
 }
 
-// Löst eine Eingabe relativ zum aktuellen Ordner auf, ein führendes "/" meint die Wurzel.
+// Resolves an input relative to the current folder, a leading "/" means the root.
 function resolveTarget(input: string): string | null {
   const parts = input.startsWith("/") || !path.value ? [] : path.value.split("/");
   for (const part of input.split("/")) {
@@ -701,7 +701,7 @@ async function download(targets: Entry[]): Promise<void> {
       const link = document.createElement("a");
       link.href = direct ?? `/api${base()}/download?path=${encodeURIComponent(target)}`;
       if (direct) {
-        // Fehlerantworten der Node tragen kein Content-Disposition: nicht im Panel-Tab anzeigen.
+        // Error responses from the node have no Content-Disposition: do not show them in the panel tab.
         link.target = "_blank";
         link.rel = "noopener";
       }
@@ -780,7 +780,7 @@ interface TransferTicket {
   expires_in?: number;
 }
 
-// Holt ein Einmal-Ticket für den direkten Weg zur Node. Jeder Fehler bedeutet: alter Weg.
+// Gets a one-time ticket for the direct way to the node. Any error means: use the old way.
 async function ticketUrl(kind: "upload" | "download", target: string): Promise<string | null> {
   try {
     const ticket = (await api(`${base()}/files/${kind}-ticket`, {
@@ -793,7 +793,7 @@ async function ticketUrl(kind: "upload" | "download", target: string): Promise<s
   }
 }
 
-// Direkter PUT zur Node mit Fortschritt in MB/s. false = Node nicht erreichbar (Rückfall).
+// Direct PUT to the node with progress in MB/s. false = node not reachable (fallback).
 function putDirect(url: string, file: File, report: (text: string) => void): Promise<boolean> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -819,7 +819,7 @@ function putDirect(url: string, file: File, report: (text: string) => void): Pro
   });
 }
 
-// true = Datei ist angekommen, false = der Aufrufer nimmt den alten Weg.
+// true = file arrived, false = the caller uses the old way.
 async function uploadDirect(target: string, file: File, report: (text: string) => void): Promise<boolean> {
   if (file.size === 0) return false;
   const url = await ticketUrl("upload", target);
@@ -843,7 +843,7 @@ async function uploadItems(uploads: Upload[], dirs: string[]): Promise<void> {
       try {
         await api(`${base()}/folder`, { method: "POST", body: { path: join(path.value, dir) } });
       } catch {
-        // Existiert der Ordner schon, ist das in Ordnung. Echte Fehler zeigt der Upload danach.
+        // If the folder already exists, that is fine. The upload shows real errors afterwards.
       }
     }
     let number = 0;
@@ -936,7 +936,7 @@ async function onWindowDrop(event: DragEvent): Promise<void> {
   dragDepth = 0;
   dragging.value = false;
   if (blocked.value || editor.value) return;
-  // Die Einträge müssen synchron gelesen werden, nach dem ersten await sind sie ungültig.
+  // The entries must be read synchronously, after the first await they are invalid.
   const entries = Array.from(event.dataTransfer?.items ?? [])
     .filter((item) => item.kind === "file")
     .map((item) => item.webkitGetAsEntry?.() ?? null);

@@ -23,7 +23,7 @@ const POLL_MS = 3000;
 
 const WIDTH = 300;
 const HEIGHT = 72;
-const POINTS = 360; // 60 min bei 10 s
+const POINTS = 360; // 60 min at 10 s steps
 const RX_COLOR = "#49c58a";
 const TX_COLOR = "#f778ba";
 
@@ -112,7 +112,7 @@ const chartTx = computed(() => status.value?.history.tx ?? []);
 
 const latest = computed(() => props.rx[props.rx.length - 1] ?? rates.value.rx_bytes_per_s ?? 0);
 const latestTx = computed(() => props.tx[props.tx.length - 1] ?? rates.value.tx_bytes_per_s ?? 0);
-// Peak der letzten 2 Minuten = letzte 12 Buckets
+// Peak of the last 2 minutes = last 12 buckets
 const peakIn = computed(() => Math.max(...chartRx.value.slice(-12), latest.value, 0));
 const peak = computed(() => Math.max(...chartRx.value, ...chartTx.value, 1024));
 

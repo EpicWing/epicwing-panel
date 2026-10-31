@@ -1,11 +1,11 @@
-"""Platzhalter im Startbefehl, zum Beispiel {{SERVER_MEMORY}} oder {{MAX_PLAYERS}}."""
+"""Placeholders in the start command, for example {{SERVER_MEMORY}} or {{MAX_PLAYERS}}."""
 
 import re
 
 _PLACEHOLDER = re.compile(r"\{\{\s*([A-Za-z0-9_.]+)\s*\}\}")
 
 BUILTIN = {"SERVER_MEMORY", "SERVER_IP", "SERVER_PORT"}
-# Schreibweisen älterer Pterodactyl-Eggs.
+# Spellings used by older Pterodactyl eggs.
 ALIASES = {
     "server.build.memory": "SERVER_MEMORY",
     "server.build.default.ip": "SERVER_IP",
@@ -14,7 +14,7 @@ ALIASES = {
 
 
 def unknown(startup: str, env_names: list[str]) -> list[str]:
-    """Platzhalter, die weder eingebaut noch eine Variable des Eggs sind."""
+    """Placeholders that are neither built in nor a variable of the egg."""
     known = BUILTIN | set(ALIASES) | set(env_names) | {f"env.{n}" for n in env_names}
     return sorted({m.group(1) for m in _PLACEHOLDER.finditer(startup)} - known)
 
@@ -27,11 +27,11 @@ def render(
     port: int | None,
     host_memory_mb: int | None = None,
 ) -> str:
-    """Setzt die Werte ein. Nur eine Vorschau: Der Agent darf diesen Text nie ungeprüft
-    durch eine Shell schicken, denn die Werte stammen von Nutzern."""
+    """Fills in the values. Only a preview: the agent must never pass this text
+    to a shell unchecked, because the values come from users."""
     values = dict(variables)
     values.pop("SERVER_MEMORY", None)
-    # Bei 0 (unbegrenzt) gilt der RAM der Node, sonst bliebe -Xmx0M übrig.
+    # With 0 (unlimited) the RAM of the node is used, otherwise -Xmx0M would be left.
     if memory_mb > 0:
         values["SERVER_MEMORY"] = str(memory_mb)
     elif host_memory_mb:

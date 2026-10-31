@@ -1,5 +1,5 @@
 #!/bin/bash
-# Baut das Frontend und tauscht den ausgelieferten Stand in einem Schritt aus.
+# Builds the frontend and swaps the served version in one step.
 set -euo pipefail
 cd "$(dirname "$0")/../frontend"
 npm run build

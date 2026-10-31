@@ -13,7 +13,7 @@ interface AllocationItem {
   is_primary: boolean;
 }
 
-// rangeStart und rangeEnd werden nicht mehr gebraucht, jeder Port ist erlaubt.
+// rangeStart and rangeEnd are not needed anymore, every port is allowed.
 const props = defineProps<{ nodeId: string; rangeStart?: number; rangeEnd?: number }>();
 
 const { t } = useI18n();
