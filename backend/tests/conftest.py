@@ -56,7 +56,7 @@ def db_session():
         "sqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False}
     )
 
-    # SQLite setzt Fremdschlüssel (ON DELETE CASCADE) nur mit diesem Pragma durch.
+    # SQLite only enforces foreign keys (ON DELETE CASCADE) with this pragma.
     @event.listens_for(engine, "connect")
     def _enable_foreign_keys(dbapi_connection, _record):
         dbapi_connection.execute("PRAGMA foreign_keys=ON")

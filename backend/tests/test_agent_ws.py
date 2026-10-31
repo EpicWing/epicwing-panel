@@ -65,7 +65,7 @@ def _enroll_node(client, user, name="node-1"):
 
 def _auth_payload(node_id, private_key, challenge):
     # Das Byte-Muster steht absichtlich hier und nicht im Servercode importiert,
-    # damit eine Protokolländerung diesen Test sichtbar bricht.
+    # so a protocol change breaks this test visibly.
     nonce = base64.b64decode(challenge["nonce"])
     message = b"epicwing-agent-auth-v1\n" + node_id.encode() + b"\n" + nonce
     signature = base64.b64encode(private_key.sign(message)).decode()
@@ -219,7 +219,7 @@ def test_newer_connection_replaces_the_older_one(client, db_session, user):
 
 
 def test_websocket_routes_are_known():
-    # Der Auth-Test für HTTP-Routen überspringt WebSocket-Routen, weil diese sich per
+    # The auth test for HTTP routes skips WebSocket routes, because they
     # Signatur anmelden. Jede neue WebSocket-Route muss deshalb bewusst hier stehen.
     found = {r.path for r in collect_routes(app) if r.websocket}
     assert found == {"/api/agent/ws", "/api/servers/{server_id}/console"}
@@ -289,7 +289,7 @@ def test_stats_of_a_foreign_container_are_ignored(client, user, clean_stats):
         _login_agent(ws, node_id, key)
         ws.send_json(_stats_frame(str(uuid.uuid4())))
         ws.send_json(_stats_frame(server_id))
-        # Beim Trennen der Verbindung löscht unregister die Stats dieser Node.
+        # When the connection closes, unregister clears the stats of this node.
         assert _eventually(lambda: len(registry.server_stats) == 1)
         assert server_id in registry.server_stats
 
@@ -342,7 +342,7 @@ def test_stats_feed_the_ddos_detector(client, user, clean_stats):
 
 
 def test_large_result_frame_keeps_the_connection(client, user):
-    # Ein 512-KiB-Datei-Block ist als Base64 etwa 700 KB groß.
+    # A 512 KiB file block is about 700 KB as Base64.
     node_id, key = _enroll_node(client, user)
     with client.websocket_connect(WS_URL) as ws:
         _login_agent(ws, node_id, key)

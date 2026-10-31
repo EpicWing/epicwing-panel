@@ -74,7 +74,7 @@ def world(client, user, db_session, monkeypatch):
     )
 
 
-# Pfad, Methode und Body für jeden Endpunkt mit server_id, der ein Recht braucht.
+# Path, method and body for every endpoint with server_id that needs a permission.
 DENIED_FOR_VIEWERS = [
     ("PATCH", "", {"name": "x"}),
     ("POST", "/install", None),
@@ -139,7 +139,7 @@ DENIED_FOR_VIEWERS = [
 ]
 
 # Routen mit Server-ID, die absichtlich nicht in der Matrix stehen.
-# Die Konsole per WebSocket steht nicht im OpenAPI-Schema, ihre Rechte prüfen die Ticket-Tests.
+# The console over WebSocket is not in the OpenAPI schema, the ticket tests check its permissions.
 NOT_IN_MATRIX = {
     ("GET", "/"),  # Ansicht: server.view reicht
     ("GET", "/ddos"),  # Ansicht: server.view reicht, nur Lesen

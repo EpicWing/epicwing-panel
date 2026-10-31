@@ -6,7 +6,7 @@ from app.security import passwords
 def test_production_hasher_uses_default_parameters(
     production_password_hasher: PasswordHasher,
 ) -> None:
-    # Schützt davor, die Produktionsparameter versehentlich abzuschwächen.
+    # Protects against weakening the production parameters by mistake.
     defaults = PasswordHasher()
     assert production_password_hasher.time_cost == defaults.time_cost
     assert production_password_hasher.memory_cost == defaults.memory_cost

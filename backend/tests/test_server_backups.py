@@ -227,7 +227,7 @@ DOWNLOAD_NAME = re.compile(r'attachment; filename="(backup-[0-9a-f]{8}\.tar\.gz)
 
 
 class EmptyChunkBroker(BlobBroker):
-    """Meldet eine Größe, schickt aber keine Daten: der Probe-Block ist dann unvollständig."""
+    """Reports a size but sends no data: the probe block is then incomplete."""
 
     async def send(self, node_id, action, params, timeout=90):
         result = await super().send(node_id, action, params, timeout)
@@ -236,7 +236,7 @@ class EmptyChunkBroker(BlobBroker):
 
 
 def _serve(monkeypatch, content, cls=BlobBroker):
-    """Ersetzt den Broker überall, wo der Download ihn nutzt.
+    """Replaces the broker everywhere the download uses it.
 
     Der Fixture "ready" hat in manchen Modulen schon einen FileBroker eingesetzt,
     dazu kommt das Modul, in dem _send liegt.

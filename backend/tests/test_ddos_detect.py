@@ -5,7 +5,7 @@ FLOOD = {"lines": 1200, "window_lines": 1200, "sources": 900, "top": 2}
 
 
 class Feeder:
-    """Schickt Frames im Abstand von 2 s mit einer gewünschten Eingangsrate."""
+    """Sends frames 2 s apart with a wanted input rate."""
 
     def __init__(self, det=None, name="a"):
         self.det = det or Detector()
@@ -71,7 +71,7 @@ def test_counter_reset_is_not_an_attack():
     f = Feeder()
     for _ in range(20):
         f.step(100 * KIB)
-    f.rx = 0  # Container neu gestartet, Zähler beginnen von vorn
+    f.rx = 0  # container restarted, counters start from zero
     verdict = f.step(100 * KIB)
     assert verdict.level == "normal"
     assert not verdict.alert

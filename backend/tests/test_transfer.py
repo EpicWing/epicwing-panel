@@ -13,7 +13,7 @@ def test_stream_returns_the_chunks_in_order():
     content = bytes(range(100))
 
     async def fetch(offset):
-        # Spätere Stücke dürfen früher fertig sein, die Reihenfolge muss trotzdem stimmen.
+        # Later chunks may finish earlier, the order must still be right.
         await asyncio.sleep(0.01 * (3 - (offset // 10) % 3))
         return content[offset : offset + 10]
 

@@ -13,7 +13,7 @@ PASSWORD = "correct-horse-battery"
 ADMIN_EMAIL = "admin@example.test"
 USER_EMAIL = "user@example.test"
 
-# Routen, die ohne Anmeldung erreichbar sein dürfen.
+# Routes that may be reachable without login.
 PUBLIC_ROUTES = {
     ("/api/panel", "GET"),
     ("/api/health", "GET"),
@@ -55,7 +55,7 @@ def test_every_route_requires_auth():
     # Schutz gegen Leerlauf: Der Test muss die Routen wirklich sehen.
     assert len(routes) >= 11, f"Nur {len(routes)} HTTP-Routen gefunden"
     found = {(r.path, m) for r in routes for m in r.methods}
-    assert PUBLIC_ROUTES <= found, f"Öffentliche Routen nicht gefunden: {PUBLIC_ROUTES - found}"
+    assert PUBLIC_ROUTES <= found, f"Public routes not found: {PUBLIC_ROUTES - found}"
 
     unprotected = []
     for route in routes:
@@ -67,7 +67,7 @@ def test_every_route_requires_auth():
                 or _depends_on(route.dependant, get_server_auth)
             ):
                 unprotected.append(f"{method} {route.path}")
-    assert not unprotected, f"Routen ohne Auth-Prüfung: {unprotected}"
+    assert not unprotected, f"Routes without auth check: {unprotected}"
 
 
 def test_users_requires_login(client):
@@ -90,7 +90,7 @@ def test_users_allowed_with_role(client, db_session, user, plain_user):
     _grant(db_session, plain_user, Permission.USERS_MANAGE)
     _login(client, USER_EMAIL)
     assert client.get("/api/users").status_code == 200
-    # Das Recht gilt nur für das, was die Rolle erlaubt.
+    # The permission only covers what the role allows.
     assert client.get("/api/audit-logs").status_code == 403
 
 

@@ -3,7 +3,7 @@ from tests.helpers import collect_routes
 
 
 def test_collector_sees_every_documented_route():
-    """OpenAPI baut sich unabhängig vom Sammler auf und dient als Gegenprobe."""
+    """OpenAPI is built independently of the collector and serves as a cross-check."""
     documented = {
         (path, method.upper()) for path, item in app.openapi()["paths"].items() for method in item
     }
@@ -15,6 +15,6 @@ def test_collector_sees_every_documented_route():
     }
     assert documented, "OpenAPI liefert keine Pfade"
     assert collected == documented, (
-        f"Vom Sammler übersehen: {sorted(documented - collected)}; "
+        f"Missed by the collector: {sorted(documented - collected)}; "
         f"nicht in OpenAPI: {sorted(collected - documented)}"
     )

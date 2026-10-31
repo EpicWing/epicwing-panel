@@ -76,7 +76,7 @@ def _status(env):
 
 
 def _fail_next_create(broker):
-    """Das nächste container.create scheitert, danach klappt wieder alles."""
+    """The next container.create fails, after that everything works again."""
     original = broker.send
     state = {"armed": True}
 

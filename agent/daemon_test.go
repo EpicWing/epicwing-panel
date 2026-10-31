@@ -8,7 +8,7 @@ import (
 func TestDaemonLineFormat(t *testing.T) {
 	got := daemonLine("Server marked as starting...")
 	if !strings.HasPrefix(got, "\x1b[33m\x1b[1m[EpicWing Daemon]\x1b[0m ") {
-		t.Fatalf("Präfix falsch: %q", got)
+		t.Fatalf("wrong prefix: %q", got)
 	}
 	if !strings.HasSuffix(got, "Server marked as starting...\r\n") {
 		t.Fatalf("Text oder Zeilenende falsch: %q", got)
@@ -21,6 +21,6 @@ func TestDaemonFrameShape(t *testing.T) {
 		t.Fatalf("Frame falsch: %v", f)
 	}
 	if !strings.Contains(f["data"].(string), "[EpicWing Daemon]") {
-		t.Fatalf("Daten ohne Präfix: %v", f["data"])
+		t.Fatalf("data without prefix: %v", f["data"])
 	}
 }
