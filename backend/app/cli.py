@@ -66,20 +66,20 @@ def set_password(email: str) -> int:
     with Session(get_engine()) as db:
         user = db.scalar(select(User).where(User.email == email))
         if user is None:
-            print("Kein Benutzer mit dieser E-Mail gefunden.", file=sys.stderr)
+            print("No user with this e-mail address found.", file=sys.stderr)
             return 1
         user.password_hash = hash_password(password)
-        # Alle bestehenden Sessions des Benutzers beenden.
+        # End all existing sessions of the user.
         for session in user.sessions:
             db.delete(session)
         db.commit()
 
-    print("Passwort wurde geändert, alle Sessions wurden beendet.")
+    print("Password changed, all sessions ended.")
     return 0
 
 
 def disable_2fa(email: str) -> int:
-    """Notfall: schaltet die 2FA eines Benutzers ab und beendet alle Sessions."""
+    """Emergency: turns off 2FA for a user and ends all sessions."""
     email = _normalize_email(email)
     if email is None:
         return 1
@@ -87,10 +87,10 @@ def disable_2fa(email: str) -> int:
     with Session(get_engine()) as db:
         user = db.scalar(select(User).where(User.email == email))
         if user is None:
-            print("Kein Benutzer mit dieser E-Mail gefunden.", file=sys.stderr)
+            print("No user with this e-mail address found.", file=sys.stderr)
             return 1
         if user.totp_secret is None:
-            print("Für diesen Benutzer ist keine 2FA eingerichtet.")
+            print("This user has no 2FA set up.")
             return 0
         totp.disable(db, user)
         for session in user.sessions:
@@ -104,7 +104,7 @@ def disable_2fa(email: str) -> int:
         )
         db.commit()
 
-    print("2FA wurde abgeschaltet, alle Sessions wurden beendet.")
+    print("2FA turned off, all sessions ended.")
     return 0
 
 
@@ -115,10 +115,10 @@ def main(argv: list[str] | None = None) -> int:
     admin = sub.add_parser("create-admin", help="Ersten Administrator anlegen")
     admin.add_argument("--email", required=True)
 
-    password = sub.add_parser("set-password", help="Passwort eines Benutzers ändern")
+    password = sub.add_parser("set-password", help="Change the password of a user")
     password.add_argument("--email", required=True)
 
-    twofa = sub.add_parser("disable-2fa", help="2FA eines Benutzers abschalten (Notfall)")
+    twofa = sub.add_parser("disable-2fa", help="Turn off 2FA for a user (emergency)")
     twofa.add_argument("--email", required=True)
 
     sub.add_parser("seed-eggs", help="Mitgelieferte Eggs anlegen, die noch fehlen")
