@@ -75,14 +75,14 @@ def login(
         )
 
     user = db.scalar(select(User).where(User.email == email))
-    # Es wird immer ein Hash geprüft, auch wenn die E-Mail nicht existiert.
+    # A hash is always checked, even if the e-mail does not exist.
     valid = verify_password(user.password_hash if user else None, body.password)
 
     if user is None or not valid or user.disabled_at is not None:
         login_ip_limiter.add_failure(ip)
         login_email_limiter.add_failure(email)
         log.warning("Fehlgeschlagener Login von %s", ip)
-        # Die eingegebene E-Mail wird bewusst nicht gespeichert.
+        # The e-mail that was typed in is deliberately not stored.
         reason = "disabled" if user and valid else "invalid_credentials"
         audit.record(
             db,
@@ -101,7 +101,7 @@ def login(
         audit.record(db, "auth.login_2fa_required", actor_id=user.id, ip=ip)
         return TwoFactorChallenge(challenge=make_challenge(user))
 
-    # Eine vorhandene alte Session wird beendet, jeder Login bekommt ein neues Token.
+    # An existing old session is ended, every login gets a new token.
     old_token = request.cookies.get(SESSION_COOKIE)
     if old_token:
         revoke_token(db, old_token)
@@ -161,7 +161,7 @@ def change_password(
     revoke_other_sessions(db, auth.session)
     db.commit()
     password_change_limiter.reset(key)
-    # Das Passwort selbst gehört nie ins Audit-Log.
+    # The password itself never goes into the audit log.
     audit.record(db, "auth.password_change", actor_id=auth.user.id, ip=ip)
 
 

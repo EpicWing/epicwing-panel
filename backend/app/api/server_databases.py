@@ -1,4 +1,4 @@
-"""Datenbanken eines Servers: anlegen, Passwort erneuern, löschen."""
+"""Databases of a server: create, renew password, delete."""
 
 import uuid
 from typing import Annotated
@@ -23,7 +23,7 @@ DbSession = Annotated[Session, Depends(get_db)]
 DatabasesView = Annotated[ServerAccess, Depends(server_access(ServerPermission.DATABASES_VIEW))]
 DatabasesManage = Annotated[ServerAccess, Depends(server_access(ServerPermission.DATABASES_MANAGE))]
 
-# Fester Wert pro Server; ein einstellbares Limit folgt später.
+# Fixed value per server; a setting for the limit comes later.
 PER_SERVER_LIMIT = 10
 
 

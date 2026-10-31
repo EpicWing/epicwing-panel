@@ -8,7 +8,7 @@ func daemonLine(msg string) string {
 	return daemonPrefix + msg + "\r\n"
 }
 
-// daemonFrame ist der Konsolen-Frame, den das Panel wie normale Container-Ausgabe anzeigt.
+// daemonFrame is the console frame that the panel shows like normal container output.
 func daemonFrame(name, msg string) map[string]any {
 	return map[string]any{"type": "console", "name": name, "data": daemonLine(msg)}
 }

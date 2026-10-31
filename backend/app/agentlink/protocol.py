@@ -1,4 +1,4 @@
-"""Protokoll zwischen Panel und Node-Agent (Version 1), siehe docs/agent-protocol.md."""
+"""Protocol between panel and node agent (version 1), see docs/agent-protocol.md."""
 
 import base64
 import uuid
@@ -11,12 +11,12 @@ from pydantic import BaseModel, Field
 AUTH_CONTEXT = b"epicwing-agent-auth-v1\n"
 NONCE_BYTES = 32
 MAX_MESSAGE_CHARS = 16 * 1024
-# Frames vom Agent nach dem Login (Datei-Blöcke als Base64), passend zu maxMessageBytes im Agent.
+# Frames from the agent after login (file chunks in Base64), same size as maxMessageBytes.
 MAX_FRAME_CHARS = 1024 * 1024
 AUTH_TIMEOUT_SECONDS = 10
 IDLE_TIMEOUT_SECONDS = 30
 COMMAND_TIMEOUT_SECONDS = 90
-# Der Agent installiert bis zu 30 Minuten (agent/docker.go), das Panel wartet länger.
+# The agent installs for up to 30 minutes (agent/docker.go), the panel waits longer.
 INSTALL_COMMAND_TIMEOUT_SECONDS = 32 * 60
 COMMAND_ACTIONS = (
     "container.create",
@@ -50,7 +50,7 @@ WS_UNSUPPORTED = 1003
 WS_POLICY_VIOLATION = 1008
 WS_TOO_BIG = 1009
 WS_REPLACED = 1012
-# Der Agent wartet nur bei diesem Grund länger. Ein Reload von uvicorn sendet 1012 ohne Grund.
+# The agent waits longer only for this reason. A uvicorn reload sends 1012 without a reason.
 WS_REPLACED_REASON = "replaced"
 
 
@@ -97,12 +97,12 @@ class CommandResult(BaseModel):
     ok: bool
     data: dict[str, Any] | None = None
     error: str | None = Field(default=None, max_length=1024)
-    # Stabiler Fehlercode des Agents (z. B. PORT_IN_USE). Ältere Agents senden keinen.
+    # Stable error code from the agent (e.g. PORT_IN_USE). Older agents do not send one.
     code: str | None = Field(default=None, max_length=64)
 
 
 class ConsoleFrame(BaseModel):
-    """Ausgabe eines Containers, vom Agent in Stücken geschickt."""
+    """Output of a container, sent by the agent in chunks."""
 
     type: Literal["console"]
     name: str = Field(min_length=1, max_length=64)
@@ -110,7 +110,7 @@ class ConsoleFrame(BaseModel):
 
 
 class StateFrame(BaseModel):
-    """Zustandswechsel eines Containers (auch der Abgleich beim Verbinden)."""
+    """State change of a container (also the sync when connecting)."""
 
     type: Literal["state"]
     name: str = Field(min_length=1, max_length=64)

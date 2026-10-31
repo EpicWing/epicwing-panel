@@ -10,8 +10,8 @@ import (
 	"sync"
 )
 
-// chunkWriter gibt geschriebene Bytes in Stücken an emit weiter: bevorzugt bis zum
-// letzten Zeilenumbruch, nie über consoleChunkBytes, und ohne ein UTF-8-Zeichen zu teilen.
+// chunkWriter passes written bytes to emit in chunks: preferably up to the
+// last line break, never more than consoleChunkBytes, and without splitting a UTF-8 character.
 type chunkWriter struct {
 	emit    func(string)
 	mu      sync.Mutex

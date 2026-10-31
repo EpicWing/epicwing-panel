@@ -16,7 +16,7 @@ from app.agentlink.commands import AgentOffline, CommandBroker, broker
 
 TICKET_TTL_SECONDS = 30
 COMMAND_TIMEOUT_SECONDS = 15
-# So viele Ausgabeblöcke merkt sich der Hub je Container für Browser, die später dazukommen.
+# This many output blocks the hub keeps per container for browsers that join later.
 BACKLOG_FRAMES = 400
 
 
@@ -25,7 +25,7 @@ class ConsoleError(Exception):
 
 
 class TicketStore:
-    """Einmalige, kurzlebige Tickets für den WebSocket der Konsole. Nur im Speicher."""
+    """One-time, short-lived tickets for the console WebSocket. Memory only."""
 
     def __init__(self) -> None:
         self._items: dict[str, tuple[uuid.UUID, uuid.UUID, float]] = {}
@@ -47,7 +47,7 @@ class TicketStore:
         return token
 
     def redeem(self, token: str, server_id: uuid.UUID) -> uuid.UUID | None:
-        """Gibt die Benutzer-ID zurück. Das Ticket ist danach verbraucht."""
+        """Returns the user ID. The ticket is used up after that."""
         self._purge()
         entry = self._items.pop(self._key(token), None)
         if entry is None or entry[1] != server_id:
@@ -66,9 +66,9 @@ class ConsoleHub:
         self._subs: dict[str, set[WebSocket]] = {}
         self._nodes: dict[str, uuid.UUID] = {}
         self._backlog: dict[str, deque[dict[str, Any]]] = {}
-        # Ausgabe von Install und Reinstall, unabhängig davon, ob jemand die Konsole offen hat.
+        # Output of install and reinstall, whether or not someone has the console open.
         self._install: dict[str, deque[str]] = {}
-        # Letzte Eingabe je Container: Ein getippter Stopp soll nicht neu gestartet werden.
+        # Last input per container: a typed stop should not be restarted.
         self._last_input: dict[str, tuple[float, str]] = {}
 
     async def _command(
@@ -92,7 +92,7 @@ class ConsoleHub:
                 await self._command(node_id, "console.watch", name)
             except Exception:
                 if name in self._install:
-                    # Während der Installation kommt die Ausgabe über publish_install.
+                    # During the installation the output comes through publish_install.
                     return
                 self._drop(name, websocket)
                 raise
@@ -123,7 +123,7 @@ class ConsoleHub:
             from app.services.startup_ready import watcher
 
             if watcher.watching(name):
-                # Das Panel wartet noch auf die Bereitmeldung und braucht die Ausgabe weiter.
+                # The panel still waits for the ready message and keeps needing the output.
                 return
             with contextlib.suppress(AgentOffline, TimeoutError, ConsoleError):
                 await self._command(node_id, "console.unwatch", name)
@@ -173,7 +173,7 @@ class ConsoleHub:
                 self._drop(name, websocket)
 
     async def publish_clear(self, name: str) -> None:
-        """Leert die Puffer und weist alle offenen Konsolen an, ihre Anzeige zu leeren."""
+        """Clears the buffers and tells all open consoles to clear their display."""
         self._backlog.pop(name, None)
         self._install.pop(name, None)
         payload = {"type": "clear"}
@@ -184,7 +184,7 @@ class ConsoleHub:
                 self._drop(name, websocket)
 
     async def ensure_watch(self, node_id: uuid.UUID, name: str) -> None:
-        """Meldet die Konsole beim Agent an, auch ohne Browser (doppelte Watches sind harmlos)."""
+        """Registers the console with the agent, even without a browser (double watches are harmless)."""
         with contextlib.suppress(AgentOffline, TimeoutError, ConsoleError):
             await self._command(node_id, "console.watch", name)
 
@@ -210,7 +210,7 @@ _background: set[asyncio.Task[None]] = set()
 
 
 def spawn(coro: Coroutine[Any, Any, None]) -> None:
-    """Startet eine Hintergrundaufgabe und hält eine Referenz, bis sie fertig ist."""
+    """Starts a background task and keeps a reference until it is done."""
     task = asyncio.get_running_loop().create_task(coro)
     _background.add(task)
     task.add_done_callback(_background.discard)

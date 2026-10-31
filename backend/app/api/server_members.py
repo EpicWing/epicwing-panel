@@ -1,12 +1,12 @@
-"""Zugriffsverwaltung eines Servers: wer außer dem Besitzer darf was.
+"""Access control of a server: who besides the owner may do what.
 
-Regeln, die hier durchgesetzt werden:
-- access.view zum Ansehen, access.manage zum Ändern.
-- Administratoren und der Besitzer dürfen alles vergeben.
-- Alle anderen dürfen nur Rechte vergeben, die sie selbst haben, und nur Mitglieder ändern,
-  deren Rechte vollständig in den eigenen enthalten sind.
-- Niemand ändert die eigenen Rechte. Den eigenen Zugang zu entfernen ist erlaubt.
-- server.view ist für Mitglieder immer implizit und wird nicht gespeichert.
+Rules enforced here:
+- access.view is for viewing, access.manage is for changing.
+- Admins and the owner can give out any permission.
+- Everyone else can only give permissions they have themselves, and can only
+  change members whose permissions are fully included in their own.
+- Nobody changes their own permissions. Removing your own access is allowed.
+- server.view is always implied for members and is not stored.
 """
 
 import uuid
@@ -94,7 +94,7 @@ def _guard(
     current: set[str],
     allow_self: bool = False,
 ) -> None:
-    """Verhindert, dass sich jemand über diese Routen mehr Rechte verschafft."""
+    """Stops anyone from giving themselves more permissions through these routes."""
     if _unrestricted(access):
         return
     if target_user_id == access.user.id and not allow_self:
@@ -188,8 +188,8 @@ def add_member(
         is not None
     )
     if target is None or target.disabled_at is not None or target.id == server.owner_id or taken:
-        # Einheitliche Antwort, damit man nicht zwischen „existiert nicht“, „Eigentümer“
-        # und „schon Mitglied“ unterscheiden und damit E-Mail-Adressen enumerieren kann.
+        # Same answer in all cases, so nobody can tell "does not exist", "owner"
+        # and "already a member" apart and list e-mail addresses that way.
         raise HTTPException(
             status.HTTP_409_CONFLICT, "This user already has access or the user does not exist."
         )
@@ -255,7 +255,7 @@ def remove_member(
     member = _load(db, access.server.id, member_id)
     current = _stored(db, [member.id])[member.id]
     _guard(access, member.user_id, set(), current, allow_self=True)
-    # Explizit löschen: nicht jede Datenbank erzwingt ON DELETE CASCADE.
+    # Delete explicitly: not every database enforces ON DELETE CASCADE.
     db.execute(delete(ServerMemberPermission).where(ServerMemberPermission.member_id == member.id))
     db.delete(member)
     _record(
@@ -277,7 +277,7 @@ CANDIDATE_LIMIT = 50
 def list_candidates(
     server_id: uuid.UUID, access: AccessManage, db: DbSession, q: str = ""
 ) -> list[dict[str, str]]:
-    """Benutzer, die diesem Server noch hinzugefügt werden können (für das Dropdown)."""
+    """Users who can still be added to this server (for the dropdown)."""
     import sqlalchemy as sa
 
     from app import models as orm

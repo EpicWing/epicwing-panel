@@ -1,4 +1,4 @@
-"""Zeitpläne eines Servers: Liste, Anlegen, Aufgaben, Löschen und sofort ausführen."""
+"""Schedules of a server: list, create, tasks, delete and run now."""
 
 import uuid
 from datetime import datetime
@@ -297,8 +297,8 @@ def create_task(
     db: DbSession,
 ) -> ScheduleOut:
     row = _schedule(db, auth.server, schedule_id)
-    # Wer keine Power-Aktion, keinen Befehl oder kein Backup auslösen darf, darf auch
-    # keinen Zeitplan dafür anlegen.
+    # Whoever may not trigger a power action, a command or a backup may also not
+    # create a schedule for it.
     if body.action == "power":
         auth.require(POWER_PERMISSION[body.payload])
     elif body.action == "command":

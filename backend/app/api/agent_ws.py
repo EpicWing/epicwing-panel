@@ -27,8 +27,8 @@ log = logging.getLogger("epicwing.agent")
 router = APIRouter(prefix="/agent", tags=["agent"])
 
 
-# Die Datenbankzugriffe sind synchron und laufen im Threadpool. Jeder endet mit einem
-# Commit, damit die Verbindung zwischen zwei Heartbeats zurück in den Pool geht.
+# The database calls are synchronous and run in the thread pool. Each one ends with a
+# commit so the connection goes back to the pool between two heartbeats.
 def _load_public_key(db: Session, node_id: uuid.UUID) -> str | None:
     key = db.scalar(
         select(NodeCredential.public_key).where(
@@ -61,7 +61,7 @@ def _mark_offline(db: Session, node_id: uuid.UUID) -> None:
 
 
 async def _check_auth(db: Session, raw: str, nonce: bytes) -> tuple[uuid.UUID | None, str]:
-    """Gibt (node_id, "") bei Erfolg zurück, sonst (None, Grund)."""
+    """Returns (node_id, "") on success, otherwise (None, reason)."""
     if len(raw) > protocol.MAX_MESSAGE_CHARS:
         return None, "bad_message"
     try:
@@ -89,7 +89,7 @@ async def _authenticate(
     except TimeoutError:
         reason = "timeout"
     except KeyError:
-        # Binärer Frame statt Text.
+        # Binary frame instead of text.
         reason = "bad_message"
     else:
         node_id, reason = await _check_auth(db, raw, nonce)
@@ -140,8 +140,8 @@ async def _heartbeat_loop(websocket: WebSocket, db: Session, node_id: uuid.UUID)
 
 @router.websocket("/ws")
 async def agent_socket(websocket: WebSocket, db: Annotated[Session, Depends(get_db)]) -> None:
-    # Die Anmeldung läuft über eine Signatur, nicht über Cookies. Ein Origin-Header
-    # spielt deshalb keine Rolle: Ein Browser kann diese Signatur nicht erzeugen.
+    # Login works with a signature, not with cookies. An Origin header
+    # does not matter then: a browser cannot create this signature.
     ip = websocket.client.host if websocket.client else "unknown"
     if agent_auth_limiter.retry_after(ip):
         await websocket.close(code=protocol.WS_POLICY_VIOLATION)
@@ -158,7 +158,7 @@ async def agent_socket(websocket: WebSocket, db: Annotated[Session, Depends(get_
     await registry.register(node_id, websocket)
     fail_pending(node_id)
     try:
-        # Erst online setzen, dann auth_ok senden: Wer auth_ok bekommt, ist auch online.
+        # Set online first, then send auth_ok: whoever gets auth_ok is also online.
         await run_in_threadpool(_mark_online, db, node_id, None)
         await on_node_online(node_id)
         await websocket.send_json({"type": "auth_ok"})
@@ -168,7 +168,7 @@ async def agent_socket(websocket: WebSocket, db: Annotated[Session, Depends(get_
     except (WebSocketDisconnect, RuntimeError):
         pass
     finally:
-        # Nur die aktuelle Verbindung setzt die Node auf offline, nicht eine ersetzte.
+        # Only the current connection sets the node to offline, not a replaced one.
         if registry.unregister(node_id, websocket):
             fail_pending(node_id)
             await run_in_threadpool(_mark_offline, db, node_id)

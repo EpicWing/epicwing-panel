@@ -51,7 +51,7 @@ FilesRead = Annotated[ServerAccess, Depends(server_access(ServerPermission.FILES
 FilesWrite = Annotated[ServerAccess, Depends(server_access(ServerPermission.FILES_WRITE))]
 StartupView = Annotated[ServerAccess, Depends(server_access(ServerPermission.STARTUP_VIEW))]
 
-# Nur in diesen Zuständen läuft nichts auf der Node, das beim Löschen übrig bliebe.
+# Only in these states nothing runs on the node that would be left over on delete.
 DELETABLE = {"new", "offline", "error"}
 
 
@@ -60,7 +60,7 @@ def _conflict(message: str) -> HTTPException:
 
 
 def _not_possible(server: Server) -> HTTPException:
-    """409 für eine Aktion, die im aktuellen Zustand nicht geht, mit passender Erklärung."""
+    """409 for an action that is not possible in the current state, with a clear reason."""
     if server.status == "new":
         return _conflict("This server has not been installed yet. Install it first.")
     if server.status == "installing":

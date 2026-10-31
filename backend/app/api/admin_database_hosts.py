@@ -1,4 +1,4 @@
-"""Admin: Datenbank-Hosts (MariaDB/MySQL), auf denen Server-Datenbanken angelegt werden."""
+"""Admin: database hosts (MariaDB/MySQL) where server databases are created."""
 
 import re
 import uuid

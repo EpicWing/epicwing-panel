@@ -1,4 +1,4 @@
-"""Meldungen, die ein Agent von sich aus schickt: Konsolenausgabe und Zustandswechsel."""
+"""Messages an agent sends on its own: console output and state changes."""
 
 import contextlib
 import json
@@ -21,7 +21,7 @@ from app.services.server_state import apply_state
 
 
 def _owns_container(db: Session, node_id: uuid.UUID, name: str) -> bool:
-    """True, wenn der Containername zu einem Server dieser Node gehört."""
+    """True if the container name belongs to a server of this node."""
     try:
         server_id = uuid.UUID(name)
     except ValueError:
@@ -70,7 +70,7 @@ async def _sftp_login(db: Session, node_id: uuid.UUID, data: dict) -> None:
 
 
 async def handle_frame(db: Session, node_id: uuid.UUID, raw: str) -> bool:
-    """True, wenn raw eine Konsolen- oder Zustandsmeldung war (auch eine ungültige)."""
+    """True if raw was a console or state message (even an invalid one)."""
     try:
         data = json.loads(raw)
     except ValueError:
@@ -103,7 +103,7 @@ async def handle_frame(db: Session, node_id: uuid.UUID, raw: str) -> bool:
         if state.state != "running":
             stats_history.clear(state.name)
         if startup_ready.watcher.watching(state.name):
-            # Beim Neustart wurde der alte Container samt Watch entfernt: neu anmelden.
+            # After a restart the old container and its watch are gone: register again.
             spawn(hub.ensure_watch(node_id, state.name))
         return True
     if kind == "install":

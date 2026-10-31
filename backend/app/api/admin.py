@@ -1,4 +1,4 @@
-"""Admin-Übersicht und Standorte. Nur für globale Administratoren."""
+"""Admin overview and locations. Global administrators only."""
 
 import uuid
 from typing import Annotated
@@ -52,7 +52,7 @@ class NodeLoad(BaseModel):
     cpu_total: int | None
     ram_total_mb: int | None
     disk_total_mb: int | None
-    # Live-Werte gibt es nur, solange der Agent verbunden ist.
+    # Live values exist only while the agent is connected.
     cpu_percent: float | None = None
     ram_used_mb: float | None = None
     disk_used_mb: float | None = None

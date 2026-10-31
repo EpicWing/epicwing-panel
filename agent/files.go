@@ -37,8 +37,8 @@ type fileParams struct {
 }
 
 // cleanPath macht aus einem Panel-Pfad einen relativen Pfad im Server-Ordner.
-// Ein führendes "/" und ".." werden textuell an der Wurzel abgefangen,
-// Symlinks löst os.Root ausschließlich innerhalb der Wurzel auf.
+// A leading "/" and ".." are caught as plain text at the root,
+// symlinks are resolved by os.Root only inside the root.
 func cleanPath(p string) (string, error) {
 	if len(p) > maxPathBytes || strings.ContainsRune(p, 0) {
 		return "", errors.New("invalid path")

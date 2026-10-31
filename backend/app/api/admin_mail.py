@@ -1,4 +1,4 @@
-"""Admin: E-Mail-Einstellungen (Resend oder SMTP) und Test-Mail."""
+"""Admin: e-mail settings (Resend or SMTP) and test mail."""
 
 from email.utils import parseaddr
 from typing import Annotated, Literal
