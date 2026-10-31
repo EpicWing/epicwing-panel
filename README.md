@@ -1,7 +1,7 @@
 # EpicWing
 
-EpicWing is a game server management panel. Every server runs in its own
-isolated Docker container on a node. The panel talks to a small Go agent on
+EpicWing is a self-hosted server management panel. Game servers and other services
+each run in their own isolated Docker container on a node. The panel talks to a small Go agent on
 each node.
 
 **Status: beta.** Fine for small setups, not ready for large or multi-tenant hosting.
@@ -32,7 +32,8 @@ See [Limitations](#limitations).
 - The panel runs as a single process. Schedules, rate limits and action locks
   are kept in memory, so do not run several workers.
 - Backups are stored on the node. There is no S3 or cross-node storage yet.
-- No web hosting features (domains, vhosts, TLS).
+- No built-in web hosting features (domains, vhosts, TLS). A site or app can run as a
+  container if you have an egg for it, but you set up the reverse proxy and certificates yourself.
 - Only the Minecraft EULA is handled. When a server stops because it is not accepted,
   the console offers a dialog that links the EULA and sets `eula=true` after a click.
   The panel does not record who accepted.
