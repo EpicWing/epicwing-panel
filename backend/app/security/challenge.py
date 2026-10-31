@@ -1,8 +1,8 @@
-"""Kurzlebige Bestätigung zwischen Passwort und zweitem Faktor.
+"""Short-lived confirmation between password and second factor.
 
-Zustandslos und mit dem Server-Geheimnis signiert. Sie enthält nur Benutzer, Ablaufzeit und einen
-Teil des Passwort-Hashes. Ein Passwortwechsel macht offene Bestätigungen ungültig. Sie ersetzt
-keinen Code: ohne gültigen, einmaligen Code entsteht keine Sitzung.
+Stateless and signed with the server secret. It only holds the user, expiry time and a
+part of the password hash. After a password change, open ones are invalid. It does not replace
+a code: without a valid, one-time code no session is created.
 """
 
 import base64

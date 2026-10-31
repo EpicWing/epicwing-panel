@@ -12,7 +12,7 @@ class Role(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(64), unique=True)
-    # 'global' oder 'project'. Projektrollen kommen mit der projects-Tabelle.
+    # 'global' or 'project'. Project roles come with the projects table.
     scope: Mapped[str] = mapped_column(String(16), default="global")
     is_system: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

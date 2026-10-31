@@ -269,7 +269,7 @@ def remove_member(
     db.commit()
 
 
-CANDIDATE_MIN_QUERY = 0  # so viele Zeichen sind nötig, bevor Treffer kommen (0 = immer)
+CANDIDATE_MIN_QUERY = 0  # this many characters are needed before results come (0 = always)
 CANDIDATE_LIMIT = 50
 
 
@@ -283,7 +283,7 @@ def list_candidates(
     from app import models as orm
     from app.models.server import ServerMember as Member
 
-    del access  # nur für die Rechteprüfung
+    del access  # only for the permission check
     term = q.strip()[:100]
     if len(term) < CANDIDATE_MIN_QUERY:
         return []

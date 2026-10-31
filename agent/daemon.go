@@ -1,7 +1,7 @@
 package main
 
-// Meldungen des EpicWing-Daemons in der Server-Konsole: gelbes, fettes Präfix wie bei
-// Pterodactyl, danach der Text. CRLF, damit das Terminal im Panel sauber umbricht.
+// Messages from the EpicWing daemon in the server console: yellow, bold prefix like in
+// Pterodactyl, then the text. CRLF so the terminal in the panel wraps cleanly.
 const daemonPrefix = "\x1b[33m\x1b[1m[EpicWing Daemon]\x1b[0m "
 
 func daemonLine(msg string) string {

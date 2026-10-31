@@ -8,7 +8,7 @@ from app.db import Base
 
 
 class DatabaseHost(Base):
-    """MariaDB/MySQL-Instanz, auf der die Datenbanken der Server angelegt werden."""
+    """MariaDB/MySQL instance where the databases of the servers are created."""
 
     __tablename__ = "database_hosts"
 
@@ -17,7 +17,7 @@ class DatabaseHost(Base):
     host: Mapped[str] = mapped_column(String(255))
     port: Mapped[int] = mapped_column(Integer, default=3306)
     admin_user: Mapped[str] = mapped_column(String(64))
-    # Verschlüsselt über app.security.vault, nie im Klartext gespeichert.
+    # Encrypted through app.security.vault, never stored as plain text.
     admin_password: Mapped[str] = mapped_column(Text)
     max_databases: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -40,6 +40,6 @@ class ServerDatabase(Base):
     name: Mapped[str] = mapped_column(String(64))
     username: Mapped[str] = mapped_column(String(32))
     remote: Mapped[str] = mapped_column(String(255), default="%")
-    # Verschlüsselt, damit das Panel das Passwort wie bei Pyrodactyl anzeigen kann.
+    # Encrypted, so the panel can show the password like Pyrodactyl does.
     password: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

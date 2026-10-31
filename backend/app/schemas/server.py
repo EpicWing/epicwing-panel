@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from app.schemas.egg import CLEANERS, ENV_RE, CleanedFields, clean_text, reject_nulls
 
 MAX_PORTS_PER_REQUEST = 500
-# 0 heißt unbegrenzt, sonst gilt mindestens dieser Wert.
+# 0 means unlimited, otherwise this is the lowest value.
 MINIMUMS = {"memory_mb": 16, "cpus": 0.1, "disk_mb": 100}
 
 
@@ -30,7 +30,7 @@ def _zero_or_min(value: Any, field: str) -> Any:
 
 
 class AllocationCreate(BaseModel):
-    """Ein Port oder ein Bereich von port_start bis port_end auf einer IP."""
+    """One port or a range from port_start to port_end on an IP."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -101,7 +101,7 @@ class ServerCreate(CleanedFields):
     memory_mb: int = Field(default=1024, ge=0, le=65536)
     cpus: float = Field(default=1.0, ge=0, le=64)
     disk_mb: int = Field(default=5120, ge=0, le=10_000_000)
-    # Ohne Angabe gelten Image und Startbefehl des Eggs.
+    # Without a value, the image and start command of the egg apply.
     image: str | None = None
     startup: str | None = None
     variables: dict[str, str] = Field(default_factory=dict, max_length=64)

@@ -14,10 +14,10 @@ class Node(Base):
     name: Mapped[str] = mapped_column(String(64), unique=True)
     location: Mapped[str] = mapped_column(String(64), default="")
     fqdn: Mapped[str | None] = mapped_column(String(255))
-    # 'pending' bis sich ein Agent registriert hat.
+    # 'pending' until an agent has registered.
     status: Mapped[str] = mapped_column(String(16), default="pending")
     last_heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    # Hardwarewerte meldet später der Agent.
+    # The agent reports hardware values later.
     cpu_total: Mapped[int | None] = mapped_column(Integer)
     ram_total_mb: Mapped[int | None] = mapped_column(Integer)
     disk_total_mb: Mapped[int | None] = mapped_column(Integer)
@@ -53,7 +53,7 @@ class NodeCredential(Base):
     node_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("nodes.id", ondelete="CASCADE"), unique=True
     )
-    # Roher Ed25519-Public-Key als Base64. Der private Schlüssel bleibt auf dem Node.
+    # Raw Ed25519 public key as Base64. The private key stays on the node.
     public_key: Mapped[str] = mapped_column(String(64))
     fingerprint: Mapped[str] = mapped_column(String(64), unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

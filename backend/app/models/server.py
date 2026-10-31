@@ -20,7 +20,7 @@ from app.db import Base
 
 
 class Allocation(Base):
-    """IP und Port auf einer Node. Gehört zu höchstens einem Server."""
+    """IP and port on a node. Belongs to at most one server."""
 
     __tablename__ = "allocations"
     __table_args__ = (
@@ -43,7 +43,7 @@ class Allocation(Base):
 class Server(Base):
     __tablename__ = "servers"
 
-    # Die ID dient später auch als Name des Datenverzeichnisses auf der Node.
+    # The ID is later also used as the name of the data folder on the node.
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(64))
     description: Mapped[str] = mapped_column(String(255), default="")
@@ -56,15 +56,15 @@ class Server(Base):
     egg_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("eggs.id", ondelete="RESTRICT"), index=True
     )
-    # Werte aus dem Egg, pro Server überschreibbar.
+    # Values from the egg, can be overridden per server.
     image: Mapped[str] = mapped_column(String(255))
     startup: Mapped[str] = mapped_column(String(2048), default="")
     memory_mb: Mapped[int] = mapped_column(Integer)
     cpus: Mapped[float] = mapped_column(Float)
     disk_mb: Mapped[int] = mapped_column(Integer)
-    # 0 heißt unbegrenzt viele Backups.
+    # 0 means unlimited backups.
     backup_limit: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
-    # Neustart, wenn der Server von selbst endet: off, crash (nur Absturz) oder always.
+    # Restart when the server ends on its own: off, crash (only a crash) or always.
     auto_restart: Mapped[str] = mapped_column(String(8), default="always", server_default="always")
     auto_restart_delay: Mapped[int] = mapped_column(Integer, default=30, server_default="30")
     auto_restart_max_failures: Mapped[int] = mapped_column(Integer, default=5, server_default="5")
@@ -92,7 +92,7 @@ class ServerVariable(Base):
 
 
 class ServerMember(Base):
-    """Ein Benutzer mit eigenen Rechten auf einem Server. Der Besitzer steht nicht hier."""
+    """A user with their own permissions on a server. The owner is not listed here."""
 
     __tablename__ = "server_members"
     __table_args__ = (
@@ -131,7 +131,7 @@ class ServerBackup(Base):
         ForeignKey("users.id", ondelete="SET NULL")
     )
     name: Mapped[str] = mapped_column(String(128))
-    # running, ok oder failed
+    # running, ok or failed
     status: Mapped[str] = mapped_column(String(16), default="running")
     size_bytes: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0")
     sha256: Mapped[str | None] = mapped_column(String(64))

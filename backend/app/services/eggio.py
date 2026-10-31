@@ -27,8 +27,8 @@ MAX_STARTUP_CHARS = 2048
 def _startup(value: Any) -> str:
     """Startbefehl: Steuerzeichen werden zu Leerzeichen, sonst bleibt er unverändert.
 
-    Mehrfache Leerzeichen bleiben stehen, weil sie in Anführungszeichen vorkommen können.
-    Ist der Befehl länger als das Schema erlaubt, lehnt der Import ab, statt still zu kürzen.
+    Repeated spaces stay, because they can appear inside quotes.
+    If the command is longer than the schema allows, the import refuses, it does not cut it.
     """
     text = _CONTROL.sub(" ", "" if value is None else str(value)).strip()
     if len(text) > MAX_STARTUP_CHARS:
@@ -95,7 +95,7 @@ def _variable(raw: dict[str, Any], env: str, warnings: list[str]) -> dict[str, A
 def import_egg(data: dict[str, Any]) -> tuple[dict[str, Any], str, list[str]]:
     """Gibt (Felder für EggCreate ohne nest_id, config als JSON-Text, Hinweise) zurück.
 
-    Wirft ValueError, wenn die Datei kein brauchbares Egg ist.
+    Raises ValueError if the file is not a usable egg.
     """
     meta = data.get("meta")
     if not isinstance(meta, dict) or meta.get("version") not in SUPPORTED:

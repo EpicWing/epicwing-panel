@@ -1,9 +1,9 @@
-"""Zwei-Faktor-Logik (TOTP) und Wiederherstellungscodes.
+"""Two-factor logic (TOTP) and recovery codes.
 
 - Das Geheimnis liegt verschlüsselt (Fernet) in der Datenbank. Der Schlüssel wird per HKDF
   aus EPICWING_ENCRYPTION_KEY abgeleitet.
-- Ein Code gilt nur einmal: der zuletzt genutzte Zeitschritt wird atomar gespeichert.
-- Wiederherstellungscodes liegen nur als SHA-256-Hash vor und sind einmal nutzbar.
+- A code works only once: the last used time step is stored atomically.
+- Recovery codes exist only as a SHA-256 hash and can be used once.
 """
 
 import base64
@@ -61,7 +61,7 @@ def provisioning_uri(secret: str, email: str) -> str:
 
 
 def begin_enrollment(db: Session, user: User) -> str:
-    """Erzeugt ein neues Geheimnis. Aktiv wird die 2FA erst mit activate()."""
+    """Creates a new secret. 2FA only becomes active with activate()."""
     if is_enabled(user):
         raise ValueError("2FA is already enabled")
     secret = pyotp.random_base32()
@@ -73,7 +73,7 @@ def begin_enrollment(db: Session, user: User) -> str:
 
 
 def verify_code(db: Session, user: User, code: str, now: float | None = None) -> bool:
-    """Prüft einen 6-stelligen Code (±1 Zeitschritt) und verbraucht ihn."""
+    """Checks a 6-digit code (±1 time step) and uses it up."""
     candidate = code.replace(" ", "")
     if not _CODE.fullmatch(candidate) or not user.totp_secret:
         return False
@@ -90,7 +90,7 @@ def verify_code(db: Session, user: User, code: str, now: float | None = None) ->
     if matched is None:
         return False
 
-    # Atomar: nur ein neuerer Zeitschritt als der zuletzt genutzte wird akzeptiert.
+    # Atomic: only a newer time step than the last used one is accepted.
     result = db.execute(
         update(User)
         .where(
@@ -148,7 +148,7 @@ def remaining_recovery_codes(db: Session, user: User) -> int:
 
 
 def activate(db: Session, user: User) -> list[str]:
-    """Schaltet die 2FA scharf (nach bestätigtem Code) und liefert die Wiederherstellungscodes."""
+    """Turns 2FA on (after a confirmed code) and returns the recovery codes."""
     user.totp_enabled_at = datetime.now(UTC)
     db.commit()
     return generate_recovery_codes(db, user)

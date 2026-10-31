@@ -53,8 +53,8 @@ func (w *chunkWriter) Flush() {
 	}
 }
 
-// installWithConsole startet die Installation und streamt die Ausgabe als "install"-Frames
-// unter dem Namen des Server-Containers ans Panel.
+// installWithConsole starts the installation and streams the output as "install" frames
+// under the name of the server container to the panel.
 func installWithConsole(ctx context.Context, m *containerManager, c *consoleManager, spec InstallSpec) (string, error) {
 	var emit func(string)
 	if c != nil && c.send != nil {
@@ -67,7 +67,7 @@ func installWithConsole(ctx context.Context, m *containerManager, c *consoleMana
 	return m.installStream(ctx, spec, emit)
 }
 
-// installStream entspricht Install, leitet die Ausgabe aber zusätzlich live an emit.
+// installStream is like Install, but also sends the output live to emit.
 func (m *containerManager) installStream(ctx context.Context, spec InstallSpec, emit func(string)) (string, error) {
 	if err := m.validateInstall(spec); err != nil {
 		return "", err

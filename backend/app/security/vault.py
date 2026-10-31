@@ -1,4 +1,4 @@
-"""Verschlüsselung kleiner Geheimnisse (Fernet, Schlüssel per HKDF je Zweck)."""
+"""Encryption of small secrets (Fernet, key from HKDF per purpose)."""
 
 import base64
 

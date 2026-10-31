@@ -107,7 +107,7 @@ CurrentAuth = Annotated[AuthContext, Depends(get_auth)]
 
 
 def revoke_other_sessions(db: Session, keep: UserSession) -> None:
-    """Beendet alle Sessions des Benutzers außer der übergebenen."""
+    """Ends all sessions of the user except the one given."""
     db.execute(
         update(UserSession)
         .where(

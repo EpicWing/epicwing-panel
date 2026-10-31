@@ -1,8 +1,8 @@
-"""Zugriff auf MariaDB/MySQL-Hosts für Server-Datenbanken.
+"""Access to MariaDB/MySQL hosts for server databases.
 
 Alle Funktionen blockieren; aus async-Code per asyncio.to_thread aufrufen.
-Bezeichner (Datenbank, Benutzer, Host) werden streng geprüft. Werte wie das
-Passwort laufen als Parameter durch den Treiber.
+Names (database, user, host) are checked strictly. Values like the
+password go through the driver as parameters.
 """
 
 import contextlib
@@ -23,7 +23,7 @@ _PASSWORD_CHARS = string.ascii_letters + string.digits
 
 
 class HostError(Exception):
-    """Fehler beim Zugriff auf den Host. Der Text enthält keine Zugangsdaten."""
+    """Error when accessing the host. The text contains no credentials."""
 
 
 @dataclass(frozen=True)
@@ -94,7 +94,7 @@ def _check(name: str | None = None, user: str | None = None, remote: str | None 
 
 
 def ping(endpoint: Endpoint) -> str:
-    """Prüft Verbindung und Admin-Login, gibt die Serverversion zurück."""
+    """Checks the connection and admin login, returns the server version."""
     pymysql = _load()
     conn = _connect(endpoint)
     try:
@@ -110,8 +110,8 @@ def ping(endpoint: Endpoint) -> str:
 
 def create_database(endpoint: Endpoint, name: str, user: str, remote: str, password: str) -> None:
     _check(name, user, remote)
-    # Im GRANT sind _ und % Platzhalter für Datenbanknamen; ohne Escape würde der
-    # Benutzer auch auf ähnlich benannte fremde Datenbanken passen.
+    # In GRANT, _ and % are placeholders for database names; without escaping, the
+    # user would also match other databases with similar names.
     grant_name = name.replace("_", "\\_")
     try:
         _run(

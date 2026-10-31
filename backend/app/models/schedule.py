@@ -57,7 +57,7 @@ class ScheduleTask(Base):
         ForeignKey("schedules.id", ondelete="CASCADE"), index=True
     )
     sequence: Mapped[int] = mapped_column(Integer)
-    # power, command oder backup
+    # power, command or backup
     action: Mapped[str] = mapped_column(String(16))
     # Bei power: start, stop, restart, kill. Bei command: der Befehl. Bei backup: leer.
     payload: Mapped[str] = mapped_column(String(1024), default="")

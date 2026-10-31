@@ -84,7 +84,7 @@ def _seed_eggs_if_empty() -> None:
         with Session(get_engine()) as db:
             if db.scalar(select(func.count()).select_from(Egg)) == 0:
                 seed_eggs.seed(db)
-    except Exception:  # noqa: BLE001 - ein Seed-Fehler darf den Start nicht verhindern
+    except Exception:  # noqa: BLE001 - a seed error must not stop the start
         logging.getLogger(__name__).exception("egg seed failed")
 
 

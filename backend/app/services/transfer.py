@@ -18,7 +18,7 @@ async def stream(
 ) -> AsyncIterator[bytes]:
     """Gibt die Daten der Reihe nach aus, während die nächsten Stücke schon unterwegs sind.
 
-    fetch(offset) holt das Stück ab offset, first ist das bereits gelesene erste Stück.
+    fetch(offset) gets the chunk from offset, first is the first chunk that was already read.
     """
     if first:
         yield first

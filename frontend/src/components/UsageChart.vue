@@ -63,7 +63,7 @@ watch(
     gliding.value = false;
     shift.value = STEP;
     await nextTick();
-    glide.value?.getBoundingClientRect(); // Startzustand übernehmen, sonst entfällt die Transition
+    glide.value?.getBoundingClientRect(); // take over the start state, otherwise the transition is skipped
     gliding.value = true;
     shift.value = 0;
   },
