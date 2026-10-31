@@ -1,4 +1,4 @@
-"""Öffentliche SSH-Schlüssel prüfen und den Fingerabdruck berechnen."""
+"""Check public SSH keys and compute the fingerprint."""
 
 import base64
 import binascii
@@ -25,7 +25,7 @@ def _read_string(blob: bytes, pos: int) -> tuple[bytes, int]:
 
 
 def parse_public_key(text: str) -> tuple[str, str, str]:
-    """Gibt Typ, normalisierten Schlüssel (ohne Kommentar) und Fingerabdruck zurück."""
+    """Returns type, normalized key (without comment) and fingerprint."""
     lines = [line for line in text.strip().splitlines() if line.strip()]
     if len(lines) != 1:
         raise ValueError("Paste exactly one public key.")

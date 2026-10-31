@@ -1,7 +1,7 @@
-"""Erkennung von ungewöhnlichem Eingangsverkehr und Konsolen-Fluten je Server.
+"""Detection of unusual incoming traffic and console floods per server.
 
-Reine Logik ohne Datenbank und Netzwerk. Der Agent schickt alle paar Sekunden
-kumulative Zähler, daraus werden hier Raten und eine Stufe berechnet.
+Pure logic without database and network. The agent sends every few seconds
+cumulative counters, from which rates and a level are computed here.
 """
 
 from collections import deque
@@ -14,7 +14,7 @@ LEVELS = ("learning", "normal", "watch", "attack")
 HISTORY_POINTS = 300  # bei 2 s Abstand 10 Minuten
 RECENT_POINTS = 3
 MIN_SAMPLES = 15
-MIN_INTERVAL = 0.5  # kürzere Abstände liefern keine brauchbare Rate
+MIN_INTERVAL = 0.5  # shorter gaps do not give a usable rate
 STALE_SECONDS = 15.0
 HISTORY_SECONDS = 3600
 BUCKET_SECONDS = 10
@@ -27,7 +27,7 @@ PPS_WATCH, PPS_ATTACK = 1_000, 10_000  # Pakete pro Sekunde
 DROP_WATCH, DROP_ATTACK = 200, 2_000  # verworfene Pakete pro Sekunde
 LINES_WATCH, LINES_ATTACK = 100, 500  # Konsolenzeilen pro Sekunde
 SOURCES_WATCH, SOURCES_ATTACK = 30, 150  # verschiedene Quellen pro Sekunde
-SOURCES_MIN_LINES = 30  # Quellen zählen erst ab dieser Zeilenrate
+SOURCES_MIN_LINES = 30  # sources only count from this line rate
 
 # Zähler, die steigen, wenn Pakete abgelehnt oder verworfen werden.
 DROP_KEYS = (
@@ -48,7 +48,7 @@ DROP_KEYS = (
 class Verdict:
     level: str
     reasons: tuple[str, ...]
-    alert: bool  # True genau beim Wechsel auf "attack"
+    alert: bool  # True exactly when it switches to "attack"
 
 
 class _Series:

@@ -1,4 +1,4 @@
-"""Automatischer Neustart: Ein Server, der von selbst endet, wird wieder gestartet."""
+"""Automatic restart: a server that ends on its own is started again."""
 
 import asyncio
 import contextlib
@@ -20,12 +20,12 @@ from app.services import audit, lifecycle
 log = logging.getLogger(__name__)
 
 INTERVAL_SECONDS = 5
-# Ein Ende so kurz nach einem automatischen Start zählt als Fehlversuch.
+# An end so soon after an automatic start counts as a failed attempt.
 QUICK_EXIT_SECONDS = 300
 # So lange nach einer Stopp-Eingabe in der Konsole gilt das Ende als gewollt.
 STOP_INPUT_SECONDS = 60
 STOP_WORDS = frozenset({"stop", "shutdown", "exit", "quit"})
-# Der Startbefehl fehlt: Ein Neustart ändert daran nichts.
+# The start command is missing: a restart does not change that.
 NO_RESTART_EXIT_CODES = frozenset({126, 127})
 
 StartFn = Callable[[Session, Server], Awaitable[None]]
@@ -83,7 +83,7 @@ def plan(
     stop_command: str = "",
     now: datetime | None = None,
 ) -> None:
-    """Entscheidet nach dem Ende eines Containers, ob und wann neu gestartet wird."""
+    """Decides after a container ends if and when to restart."""
     now = now or datetime.now(UTC)
     server.restart_due_at = None
     mode = server.auto_restart
@@ -143,7 +143,7 @@ async def _say(server: Server, text: str) -> None:
 
 
 async def _perform_start(db: Session, server: Server) -> None:
-    # Spät importieren: app.api.servers hängt selbst vom Agent-Teil ab.
+    # Import late: app.api.servers itself depends on the agent part.
     from app.api.servers import perform_power
 
     await perform_power(db, server, "start")
@@ -152,7 +152,7 @@ async def _perform_start(db: Session, server: Server) -> None:
 async def run_due(
     db: Session, now: datetime | None = None, start: StartFn | None = None
 ) -> list[uuid.UUID]:
-    """Startet alle Server, deren Neustart fällig ist. Gibt ihre IDs zurück."""
+    """Starts all servers whose restart is due. Returns their IDs."""
     now = now or datetime.now(UTC)
     start = start or _perform_start
     rows = db.scalars(select(Server).where(Server.restart_due_at.is_not(None))).all()
@@ -162,7 +162,7 @@ async def run_due(
             continue
         db.refresh(server)
         if server.auto_restart == "off" or server.status not in ("offline", "error"):
-            # Jemand hat den Server inzwischen selbst gestartet oder die Funktion abgeschaltet.
+            # Someone started the server by hand meanwhile, or turned the feature off.
             server.restart_due_at = None
             db.commit()
             continue
@@ -173,7 +173,7 @@ async def run_due(
         try:
             await start(db, server)
         except HTTPException as exc:
-            # 409: Die Node ist nicht erreichbar. Das ist kein Fehlversuch des Servers.
+            # 409: The node is not reachable. That is not a failed attempt of the server.
             _retry(db, server, now, str(exc.detail), count=exc.status_code != 409)
         except Exception as exc:
             log.exception("automatic start of server %s failed", server.id)

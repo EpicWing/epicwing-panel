@@ -1,7 +1,7 @@
-"""Fehler, die ein Agent meldet, in Meldungen für Nutzer übersetzen.
+"""Turn errors that an agent reports into messages for users.
 
-Der Rohtext eines Agents (oft ein Docker-Fehler mit Container-IDs und Adressen) ist nur für
-Admins gedacht. Nutzer sehen eine kurze Meldung zum Fehlercode, der Rohtext steht im Log und im
+The raw text of an agent (often a Docker error with container IDs and addresses) is only for
+admins. Users see a short message for the error code, the raw text is in the log and in the
 Audit-Log.
 """
 
@@ -14,7 +14,7 @@ log = logging.getLogger(__name__)
 
 GENERIC_MESSAGE = "Something went wrong. Please try again or contact support."
 
-# Fehlercode des Agents -> Meldung für Nutzer. Unbekannte Codes bekommen GENERIC_MESSAGE.
+# Error code of the agent -> message for users. Unknown codes get GENERIC_MESSAGE.
 MESSAGES = {
     "PORT_IN_USE": (
         "The server could not be started because a network port is in use on this node. "
@@ -36,10 +36,10 @@ def user_message(code: str | None) -> str:
 
 
 class AgentFailure(HTTPException):
-    """Ein Agent-Befehl ist fehlgeschlagen. detail ist die Meldung für Nutzer.
+    """An agent command failed. detail is the message for users.
 
-    technical ist der Rohtext des Agents. Er wird nur ausgeliefert, wenn der Endpunkt
-    expose_technical für einen Admin setzt.
+    technical is the raw text of the agent. It is only returned if the endpoint
+    sets expose_technical for an admin.
     """
 
     def __init__(self, code: str | None, technical: str | None) -> None:

@@ -1,4 +1,4 @@
-"""Legt die mitgelieferten Eggs (backend/fixtures/eggs) an, die es noch nicht gibt.
+"""Creates the bundled eggs (backend/fixtures/eggs) that do not exist yet.
 
 Aufruf: python -m app.seed_eggs
 """
@@ -29,7 +29,7 @@ def _nest(db: Session, name: str) -> Nest:
 
 
 def seed(db: Session) -> list[str]:
-    """Gibt die Namen der neu angelegten Eggs zurück (Nest/Egg)."""
+    """Returns the names of the newly created eggs (nest/egg)."""
     index = json.loads((FIXTURES / "index.json").read_text())
     added: list[str] = []
     for entry in index:

@@ -12,7 +12,7 @@ from app.security.vault import decrypt_text
 from app.services import dbhost
 
 HOST_PURPOSE = "dbhost"
-PASSWORD_PURPOSE = "serverdb"  # noqa: S105 (Schlüssel-Zweck, kein Passwort)
+PASSWORD_PURPOSE = "serverdb"  # noqa: S105 (key purpose, not a password)
 
 
 def database_name(server_id: uuid.UUID, name: str) -> str:
@@ -29,8 +29,8 @@ def endpoint_for(host: DatabaseHost) -> dbhost.Endpoint:
 async def drop_all(db: Session, server_id: uuid.UUID) -> None:
     """Entfernt alle Datenbanken des Servers vom Host, bevor der Server gelöscht wird.
 
-    Schlägt ein Host fehl, bleibt der Server bestehen, damit keine verwaisten
-    Datenbanken auf dem Host zurückbleiben.
+    If a host fails, the server stays, so no orphaned
+    databases are left on the host.
     """
     rows = list(db.scalars(select(ServerDatabase).where(ServerDatabase.server_id == server_id)))
     for row in rows:

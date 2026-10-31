@@ -36,7 +36,7 @@ def has_permission(db: Session, user: User, permission: Permission) -> bool:
 
 
 def require(permission: Permission) -> Callable[..., AuthContext]:
-    """Dependency: Benutzer muss angemeldet sein und das Recht besitzen."""
+    """Dependency: the user must be logged in and have the permission."""
 
     def dependency(auth: CurrentAuth, db: Annotated[Session, Depends(get_db)]) -> AuthContext:
         if not has_permission(db, auth.user, permission):
@@ -47,7 +47,7 @@ def require(permission: Permission) -> Callable[..., AuthContext]:
 
 
 def require_admin(auth: CurrentAuth) -> AuthContext:
-    """Dependency: nur globale Administratoren, kein übertragbares Recht."""
+    """Dependency: global administrators only, not a permission you can hand out."""
     if not auth.user.is_admin:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Administrator rights required.")
     return auth

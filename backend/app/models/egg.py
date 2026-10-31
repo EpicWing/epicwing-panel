@@ -17,7 +17,7 @@ from app.db import Base
 
 
 class Nest(Base):
-    """Kategorie für Eggs, zum Beispiel Games oder Web."""
+    """Category for eggs, for example Games or Web."""
 
     __tablename__ = "nests"
 
@@ -28,7 +28,7 @@ class Nest(Base):
 
 
 class Egg(Base):
-    """Beschreibt, was auf einem Server läuft: Image, Startbefehl, Variablen, Installation."""
+    """Describes what runs on a server: image, start command, variables, installation."""
 
     __tablename__ = "eggs"
     __table_args__ = (UniqueConstraint("nest_id", "name", name="uq_eggs_nest_name"),)
@@ -40,12 +40,12 @@ class Egg(Base):
     name: Mapped[str] = mapped_column(String(64))
     description: Mapped[str] = mapped_column(String(255), default="")
     docker_image: Mapped[str] = mapped_column(String(255))
-    # Startbefehl mit {{VARIABLE}}-Platzhaltern. Leer heißt: Standardbefehl des Images.
+    # Start command with {{VARIABLE}} placeholders. Empty means: default command of the image.
     startup: Mapped[str] = mapped_column(String(2048), default="")
-    # Leer heißt: SIGTERM.
+    # Empty means: SIGTERM.
     stop_command: Mapped[str] = mapped_column(String(255), default="")
     install_script: Mapped[str] = mapped_column(Text, default="")
-    # Rest des Pterodactyl-Formats als JSON-Text, für Import und Export.
+    # The rest of the Pterodactyl format as JSON text, for import and export.
     config: Mapped[str] = mapped_column(Text, default="{}", server_default="{}")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(

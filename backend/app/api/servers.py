@@ -73,14 +73,14 @@ def _not_found(message: str) -> HTTPException:
 
 
 class NodeOffline(HTTPException):
-    """Die Node hat keine Verbindung. Auf der Node wurde nichts ausgeführt."""
+    """The node has no connection. Nothing ran on the node."""
 
     def __init__(self) -> None:
         super().__init__(status.HTTP_409_CONFLICT, "The node is offline.")
 
 
-# Pro Server läuft immer nur eine Aktion. Gilt für einen Prozess; bei mehreren Workern
-# braucht es später eine Sperre in der Datenbank.
+# Only one action runs per server at a time. Works for one process; with several workers
+# we need a lock in the database later.
 _locks: dict[uuid.UUID, asyncio.Lock] = {}
 
 
@@ -116,8 +116,8 @@ def _outs(db: Session, servers: list[Server], viewer: User | None = None) -> lis
     for v in db.scalars(select(ServerVariable).where(ServerVariable.server_id.in_(ids))):
         values[v.server_id][v.env_variable] = v.value
     host_ram = {n.id: getattr(n, "ram_total_mb", None) for n in db.scalars(select(Node))}
-    # Mit viewer werden die eigenen Rechte eingetragen. Für Nicht-Admins fehlen dann die
-    # Variablen, die der Egg-Autor als nicht sichtbar markiert hat.
+    # With viewer, the own permissions are filled in. Then non-admins do not get the
+    # variables that the egg author marked as not visible.
     permissions: dict[uuid.UUID, set[str]] = {}
     hidden: set[tuple[uuid.UUID, str]] = set()
     if viewer is not None:
@@ -167,7 +167,7 @@ def _egg_variables(db: Session, egg_id: uuid.UUID) -> list[EggVariable]:
 def _check_values(
     variables: list[EggVariable], given: dict[str, str], fill_defaults: bool = False
 ) -> None:
-    """Unbekannte Variablen und Werte, die gegen die Regeln des Eggs verstoßen."""
+    """Unknown variables and values that break the rules of the egg."""
     by_env = {v.env_variable: v for v in variables}
     unknown = sorted(set(given) - set(by_env))
     if unknown:
@@ -233,7 +233,7 @@ def create_server(
     db.add(server)
     db.flush()
     for index, allocation_id in enumerate(wanted):
-        # Bedingtes Update, damit zwei gleichzeitige Anfragen nicht dieselbe Allocation belegen.
+        # Conditional update, so two requests at once cannot take the same allocation.
         claimed = db.execute(
             update(Allocation)
             .where(Allocation.id == allocation_id, Allocation.server_id.is_(None))
@@ -251,7 +251,7 @@ def create_server(
         db.rollback()
         raise _conflict("An allocation is already in use.") from None
     db.expire_all()
-    # Variablen stehen nicht im Audit-Log, sie können Secrets enthalten.
+    # Variables are not in the audit log, they can contain secrets.
     audit.record(
         db,
         "server.create",
@@ -264,8 +264,8 @@ def create_server(
     return _outs(db, [server], auth.user)[0]
 
 
-# Wer darf welches Feld ändern? Felder ohne Eintrag (Image, Startbefehl, Ressourcen) darf
-# nur ein Administrator ändern, denn sie bestimmen, was auf der Node läuft.
+# Who may change which field? Only an administrator may change fields without an entry
+# (image, start command, resources), because they decide what runs on the node.
 UPDATE_RIGHTS = {
     "name": ServerPermission.SETTINGS_UPDATE,
     "description": ServerPermission.SETTINGS_UPDATE,
@@ -303,7 +303,7 @@ def update_server(
             for v in db.scalars(select(ServerVariable).where(ServerVariable.server_id == server.id))
         }
         if not auth.is_admin:
-            # Gesperrte und nicht sichtbare Variablen dürfen nur Administratoren ändern.
+            # Only administrators may change locked and hidden variables.
             locked = {
                 v.env_variable: v
                 for v in _egg_variables(db, server.egg_id)
@@ -376,7 +376,7 @@ class PowerRequest(BaseModel):
     action: Literal["start", "restart", "stop", "kill"]
 
 
-# Aus welchem Zustand welche Aktion erlaubt ist, und wohin sie führt.
+# Which action is allowed in which state, and where it leads.
 POWER_FROM = {
     "start": {"offline", "error"},
     "restart": {"running", "starting"},
@@ -384,7 +384,7 @@ POWER_FROM = {
     "kill": {"running", "starting", "stopping", "error"},
 }
 POWER_BUSY = {"start": "starting", "restart": "stopping", "stop": "stopping", "kill": "stopping"}
-# Nach dem Start meldet der Agent selbst "running", sobald der Container wirklich läuft.
+# After the start the agent reports "running" itself, once the container really runs.
 POWER_DONE = {"start": None, "restart": None, "stop": "offline", "kill": "offline"}
 INSTALL_FROM = {"new", "offline", "error"}
 POWER_PERMISSION = {
@@ -431,7 +431,7 @@ async def _agent(
 
 
 async def _remove_container(server: Server, skip_offline: bool = False) -> None:
-    """Entfernt den Container. Einen schon fehlenden Container zählt es als Erfolg."""
+    """Removes the container. A container that is already missing counts as success."""
     try:
         result = await _send(server, "container.remove")
     except HTTPException as exc:
@@ -461,7 +461,7 @@ async def _transition(
             # Verbindungsaufbau meldet der Agent den echten Zustand ohnehin.
             _set_status(db, server, previous, previous_error)
         elif timeout_status is not None and exc.status_code == status.HTTP_504_GATEWAY_TIMEOUT:
-            # Ein laufender Vorgang (z. B. installation) läuft auf der Node möglicherweise weiter.
+            # A running job (e.g. installation) may still be running on the node.
             _set_status(db, server, timeout_status)
         else:
             _set_status(db, server, "error", str(exc.detail))
@@ -474,7 +474,7 @@ async def _transition(
 async def install_server(
     server_id: uuid.UUID, request: Request, auth: ServerReinstall, db: DbSession
 ) -> ServerOut:
-    """Legt Datenverzeichnis und Container an. Das Install-Script läuft noch nicht."""
+    """Creates the data folder and the container. The install script does not run yet."""
     server = _get(db, server_id)
     if server.status not in INSTALL_FROM:
         raise _conflict(f"Not possible while the server is {server.status}.")
@@ -544,7 +544,7 @@ def _report_failure(
     exc: AgentFailure,
     **details: Any,
 ) -> None:
-    """Rohtext des Agents ins Audit-Log. Admins sehen ihn zusätzlich in der Antwort."""
+    """Raw text from the agent for the audit log. Admins also see it in the response."""
     exc.expose_technical = is_server_admin(db, auth.user)
     audit.record(
         db,
@@ -559,7 +559,7 @@ def _report_failure(
 
 async def _recreate_container(db: Session, server: Server) -> None:
     """Erzeugt den Container aus dem aktuellen Stand neu (Variablen, Ports, Image).
-    Das Datenverzeichnis bleibt, nur der Container wird ersetzt."""
+    The data folder stays, only the container is replaced."""
     out = _outs(db, [server])[0]
     node = db.get(Node, server.node_id)
     spec = lifecycle.build_spec(
@@ -570,16 +570,16 @@ async def _recreate_container(db: Session, server: Server) -> None:
 
 
 async def perform_power(db: Session, server: Server, action: str) -> None:
-    """Führt eine Power-Aktion aus. Endpunkt und Zeitpläne nutzen dieselbe Logik."""
-    # Kill ist der Notausgang und darf auch laufen, während ein Stop noch wartet.
+    """Runs a power action. The endpoint and the schedules use the same logic."""
+    # Kill is the emergency exit and may also run while a stop is still waiting.
     guard = contextlib.nullcontext() if action == "kill" else _exclusive(server.id)
     async with guard:
         db.refresh(server)
         if server.status not in POWER_FROM[action]:
             raise _not_possible(server)
 
-        # Mit stop_command im Egg stoppt der Agent über die Konsole und fällt sonst auf
-        # docker stop zurück. Pterodactyl-Signale (^C) stehen leer in der DB.
+        # With stop_command in the egg the agent stops through the console, otherwise it falls
+        # back to docker stop. Pterodactyl signals (^C) are empty in the DB.
         stop_params = None
         if action in ("stop", "restart"):
             egg = db.get(Egg, server.egg_id)
@@ -643,15 +643,15 @@ async def power_server(
 
 # --- Dateien im Datenverzeichnis des Servers ---------------------------------------------------
 
-# Vorher gibt es kein Datenverzeichnis, oder die Installation schreibt gerade hinein.
+# Before that there is no data folder, or the installation is writing into it right now.
 FILES_BLOCKED = {"new", "installing"}
-# 512 KiB Rohdaten sind als base64 rund 700 Tausend Zeichen und bleiben unter dem 1-MiB-Rahmen.
+# 512 KiB raw is about 700,000 characters in base64, under the 1 MiB frame.
 FILE_CHUNK_B64 = 700_000
 FILE_MAX_OFFSET = 1 << 30
 FILE_READ_CHUNK = 512 * 1024
-FILE_DOWNLOAD_WINDOW = 3  # Stücke, die gleichzeitig beim Agent angefragt sind
+FILE_DOWNLOAD_WINDOW = 3  # chunks that are requested from the agent at the same time
 FILE_DOWNLOAD_RETRIES = 4
-# Ein großes Archiv braucht länger als ein normaler Dateibefehl.
+# A big archive takes longer than a normal file command.
 DECOMPRESS_TIMEOUT_SECONDS = 600
 
 
@@ -691,7 +691,7 @@ class FileDecompress(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     path: FilePath
-    # Leer heißt: der Ordner, in dem das Archiv liegt.
+    # Empty means: the folder where the archive is.
     to: FilePath = ""
 
 
@@ -702,7 +702,7 @@ class FileDelete(BaseModel):
     recursive: bool = False
 
 
-# Übersetzt die Fehlertexte des Agents in saubere Statuscodes.
+# Turns the error texts of the agent into clean status codes.
 FILE_ERRORS = (
     ("no such file", status.HTTP_404_NOT_FOUND, "File not found."),
     ("file exists", status.HTTP_409_CONFLICT, "A file with this name already exists."),
@@ -798,7 +798,7 @@ class FileTransferRequest(BaseModel):
     path: str = Field(min_length=1, max_length=1024)
 
 
-# Bei diesen Antworten geht es auf dieser Node nicht, das Frontend nimmt den alten Weg.
+# With these answers it does not work on this node, the frontend takes the old way.
 TRANSFER_UNAVAILABLE = ("not enabled", "unknown action")
 TRANSFER_TOKEN_RE = re.compile(r"[A-Za-z0-9_-]{43}")
 TRANSFER_HOST_RE = re.compile(r"[A-Za-z0-9.-]{1,253}")
@@ -918,7 +918,7 @@ async def download_file(
         ) from None
     if len(head) != min(FILE_READ_CHUNK, size):
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, "The node sent an incomplete chunk.")
-    # Ab hier nur noch einfache Werte: der Stream darf die Datenbank nicht mehr anfassen.
+    # From here on only simple values: the stream must not touch the database anymore.
     node_id = server.node_id
     params = {"name": lifecycle.container_name(server.id), "path": path}
     filename = path.rstrip("/").rsplit("/", 1)[-1]
@@ -1076,9 +1076,9 @@ def get_startup(server_id: uuid.UUID, auth: StartupView, db: DbSession) -> Start
 
 # --- Allocations eines Servers ------------------------------------------------------------------
 
-# Der Agent veröffentlicht höchstens 32 Ports, jede Allocation belegt TCP und UDP.
+# The agent publishes at most 32 ports, each allocation uses TCP and UDP.
 MAX_ALLOCATIONS = 16
-# Nur hier läuft nichts im Container. Die neuen Ports gelten durch ein neues Erzeugen.
+# Only here nothing runs in the container. The new ports apply by creating it again.
 ALLOCATIONS_EDIT_FROM = {"new", "offline", "error"}
 
 AllocationsView = Annotated[ServerAccess, Depends(server_access(ServerPermission.ALLOCATIONS_VIEW))]
@@ -1107,11 +1107,11 @@ def _spec_for(db: Session, server: Server) -> dict[str, Any]:
 
 
 async def _change_allocations(db: Session, server: Server, mutate: Callable[[], bool]) -> None:
-    """Ändert die Allocations und erzeugt den Container mit den neuen Ports neu.
+    """Changes the allocations and creates the container again with the new ports.
 
-    Das Datenverzeichnis bleibt, das Install-Script läuft nicht. Scheitert etwas, bleibt die
-    Datenbank unverändert und der alte Container wird wiederhergestellt. mutate gibt zurück,
-    ob sich etwas geändert hat."""
+    The data folder stays, the install script does not run. If something fails, the
+    database stays as it was and the old container is restored. mutate returns
+    whether something changed."""
     async with _exclusive(server.id):
         db.refresh(server)
         if server.status not in ALLOCATIONS_EDIT_FROM:
@@ -1188,7 +1188,7 @@ async def add_allocation(
         allocation = db.get(Allocation, body.allocation_id)
         if allocation is None or allocation.node_id != server.node_id:
             raise HTTPException(422, "The allocation does not exist on this node.")
-        # Bedingtes Update, damit zwei gleichzeitige Anfragen nicht dieselbe Allocation belegen.
+        # Conditional update, so two requests at once cannot take the same allocation.
         claimed = db.execute(
             update(Allocation)
             .where(Allocation.id == allocation.id, Allocation.server_id.is_(None))

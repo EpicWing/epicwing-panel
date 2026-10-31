@@ -60,7 +60,7 @@ def clean_script(value: str) -> str:
     return value.replace("\r\n", "\n")
 
 
-# Welches Feld wie geprüft wird, bestimmt der Feldname.
+# The field name decides how a field is checked.
 CLEANERS: dict[str, Callable[[str], str]] = {
     "name": clean_name,
     "description": lambda v: clean_text(v, 255),
@@ -76,7 +76,7 @@ CLEANERS: dict[str, Callable[[str], str]] = {
 
 
 class CleanedFields(BaseModel):
-    """Basisklasse: prüft und bereinigt Textfelder anhand ihres Namens."""
+    """Base class: checks and cleans text fields by their name."""
 
     cleaners: ClassVar[dict[str, Callable[[str], str]]] = CLEANERS
 
@@ -90,7 +90,7 @@ class CleanedFields(BaseModel):
 
 
 def reject_nulls(model: BaseModel, fields: tuple[str, ...]) -> None:
-    """Bei Teiländerungen darf ein mitgeschicktes Feld nicht null sein."""
+    """In partial updates a field that is sent must not be null."""
     for field in fields:
         if field in model.model_fields_set and getattr(model, field) is None:
             raise ValueError(f"{field} must not be null.")
@@ -190,7 +190,7 @@ class EggCreate(CleanedFields):
 
 
 class EggUpdate(CleanedFields):
-    """Teilweise Änderung. Wird variables mitgeschickt, ersetzt es die ganze Liste."""
+    """Partial update. If variables is sent, it replaces the whole list."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -227,7 +227,7 @@ class EggOut(BaseModel):
 
 
 class EggImport(BaseModel):
-    """Ein Egg im Pterodactyl-Format (PTDL_v1 oder PTDL_v2) und das Nest dafür."""
+    """An egg in Pterodactyl format (PTDL_v1 or PTDL_v2) and the nest for it."""
 
     model_config = ConfigDict(extra="forbid")
 

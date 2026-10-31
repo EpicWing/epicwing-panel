@@ -7,7 +7,7 @@ from app.db import Base
 
 
 class PanelSetting(Base):
-    """Eine Einstellung des Panels als Schlüssel-Wert-Paar."""
+    """One setting of the panel as a key-value pair."""
 
     __tablename__ = "panel_settings"
 

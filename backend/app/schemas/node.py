@@ -17,7 +17,7 @@ class NodeCreate(BaseModel):
     name: str
     location: str = ""
     fqdn: str | None = None
-    # Standardbereich, falls beim Anlegen nichts angegeben wird.
+    # Default range, if nothing is given when creating.
     port_range_start: int = Field(default=1024, ge=1024, le=65535)
     port_range_end: int = Field(default=65535, ge=1024, le=65535)
 
@@ -114,7 +114,7 @@ def _validate_fqdn(value: str) -> str | None:
 
 
 class NodeUpdate(BaseModel):
-    """Teilweise Änderung. Nur mitgeschickte Felder werden geändert."""
+    """Partial update. Only fields that are sent are changed."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -167,7 +167,7 @@ MAX_PARAMS_CHARS = 12_000
 
 
 class CommandRequest(BaseModel):
-    """Befehl an den Agent einer Node. Der Agent prüft die Parameter zusätzlich selbst."""
+    """Command for the agent of a node. The agent also checks the parameters itself."""
 
     model_config = ConfigDict(extra="forbid")
 

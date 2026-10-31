@@ -17,7 +17,7 @@ class ApiKey(Base):
     name: Mapped[str] = mapped_column(String(64))
     # Die ersten Zeichen des Keys, damit man ihn in der Liste wiedererkennt.
     prefix: Mapped[str] = mapped_column(String(12))
-    # Nur der SHA-256-Hash, das Token selbst wird nie gespeichert.
+    # Only the SHA-256 hash, the token itself is never stored.
     token_hash: Mapped[str] = mapped_column(String(64), unique=True)
     read_only: Mapped[bool] = mapped_column(Boolean, default=False)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

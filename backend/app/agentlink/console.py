@@ -184,7 +184,7 @@ class ConsoleHub:
                 self._drop(name, websocket)
 
     async def ensure_watch(self, node_id: uuid.UUID, name: str) -> None:
-        """Registers the console with the agent, even without a browser (double watches are harmless)."""
+        """Registers the console with the agent. Double watches are harmless."""
         with contextlib.suppress(AgentOffline, TimeoutError, ConsoleError):
             await self._command(node_id, "console.watch", name)
 

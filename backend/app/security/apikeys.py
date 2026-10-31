@@ -30,7 +30,7 @@ class KeyContext:
 
 
 def new_key() -> tuple[str, str, str]:
-    """Token, Kennung für die Liste und Hash für die Datenbank."""
+    """Token, identifier for the list and hash for the database."""
     token = KEY_PREFIX + secrets.token_urlsafe(32)
     return token, token[:12], hash_token(token)
 
@@ -54,11 +54,11 @@ def _invalid() -> HTTPException:
 def get_server_auth(
     request: Request, db: Annotated[Session, Depends(get_db)]
 ) -> AuthContext | KeyContext:
-    # Der Vermerk gilt nur für diesen Request (die Session wird im Test mehrfach benutzt).
+    # The note is only for this request (the session is used several times in the test).
     db.info.pop("api_key", None)
     token = _bearer_key(request)
     if token is None:
-        # Ohne Key gilt wie bisher die Cookie-Session samt CSRF-Prüfung.
+        # Without a key the cookie session with the CSRF check applies, as before.
         return get_auth(request, db)
 
     key = db.scalar(select(ApiKey).where(ApiKey.token_hash == hash_token(token)))
@@ -68,14 +68,14 @@ def get_server_auth(
     user = db.get(User, key.user_id)
     if user is None or user.disabled_at is not None:
         raise _invalid()
-    # Kein Browser-Cookie im Spiel, deshalb braucht ein Key kein CSRF-Token.
+    # No browser cookie involved, so a key needs no CSRF token.
     if key.read_only and request.method not in _SAFE_METHODS:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "This API key is read-only.")
 
     if key.last_used_at is None or now - _aware(key.last_used_at) > _LAST_USED_INTERVAL:
         key.last_used_at = now
         db.commit()
-    # audit.record liest das und vermerkt, dass die Aktion per Key kam.
+    # audit.record reads this and notes that the action came by key.
     db.info["api_key"] = {"id": str(key.id), "name": key.name}
     return KeyContext(user=user, session=None, key=key)
 

@@ -1,13 +1,13 @@
 """Globale Benutzerverwaltung (Admin-Bereich "Users").
 
 Schutzregeln:
-- Nur Administratoren (is_admin) legen Administratoren an, ändern oder deaktivieren sie und
-  setzen Passwörter zurück. Verwalter mit users.manage betreuen nur normale Konten.
-- Das eigene Konto kann man hier weder deaktivieren noch löschen noch zum Nicht-Admin machen.
-  Dadurch bleibt immer mindestens ein aktiver Administrator übrig.
-- Deaktivieren und Passwort zurücksetzen beenden alle Sitzungen des Kontos.
-- Wer noch Server besitzt oder Verlauf im Audit-Log hat, wird nicht gelöscht.
-- Passwörter und E-Mail-Adressen gehören nicht ins Audit-Log, nur die ID des Betroffenen.
+- Only administrators (is_admin) create, change or disable administrators and
+  reset passwords. Managers with users.manage only look after normal accounts.
+- You cannot disable, delete or demote your own account here.
+  So there is always at least one active administrator left.
+- Disabling and resetting the password end all sessions of the account.
+- Whoever still owns servers or has history in the audit log is not deleted.
+- Passwords and e-mail addresses do not go into the audit log, only the ID of the person.
 """
 
 import re

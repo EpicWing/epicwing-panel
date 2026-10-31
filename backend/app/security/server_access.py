@@ -1,10 +1,10 @@
 """Rechte auf einzelne Server.
 
 Wer darf was auf einem Server?
-- Globale Administratoren (is_admin oder das Recht projects.manage): alles.
+- Global administrators (is_admin or the projects.manage permission): everything.
 - Der Besitzer (servers.owner_id): alle Serverrechte.
 - Mitglieder (server_members): ihre gespeicherten Rechte, dazu immer server.view.
-- Alle anderen: nichts. Für sie ist der Server unsichtbar (404 statt 403).
+- Everyone else: nothing. The server is invisible to them (404 instead of 403).
 """
 
 import uuid
@@ -66,7 +66,7 @@ def is_server_admin(db: Session, user: User) -> bool:
 def member_permissions(
     db: Session, user_id: uuid.UUID, server_ids: Iterable[uuid.UUID]
 ) -> dict[uuid.UUID, set[str]]:
-    """Rechte als Mitglied, pro Server. Unbekannte gespeicherte Werte gewähren nichts."""
+    """Permissions as a member, per server. Unknown stored values grant nothing."""
     ids = list(server_ids)
     result: dict[uuid.UUID, set[str]] = {}
     if not ids:
@@ -94,7 +94,7 @@ def member_permissions(
 def effective_permissions(
     db: Session, user: User, servers: list[Server], admin: bool | None = None
 ) -> dict[uuid.UUID, set[str]]:
-    """Was der Benutzer auf jedem der Server darf. Leer heißt: kein Zugriff."""
+    """What the user may do on each of the servers. Empty means: no access."""
     if admin is None:
         admin = is_server_admin(db, user)
     if admin:
@@ -110,7 +110,7 @@ def effective_permissions(
 
 
 def visible_servers(db: Session, user: User) -> Select[tuple[Server]]:
-    """Alle Server, die der Benutzer sehen darf."""
+    """All servers the user may see."""
     query = select(Server)
     if is_server_admin(db, user):
         return query
@@ -136,7 +136,7 @@ class ServerAccess:
 
 
 def server_access(permission: ServerPermission | None = None) -> Callable[..., ServerAccess]:
-    """Dependency für Endpunkte mit server_id: Zugriff auf den Server, optional ein Recht."""
+    """Dependency for endpoints with server_id: access to the server, optionally a permission."""
 
     def dependency(
         server_id: uuid.UUID,

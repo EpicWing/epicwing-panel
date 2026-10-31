@@ -584,8 +584,8 @@ func (d *commandDispatcher) executeBackup(action string, raw json.RawMessage) (m
 
 var _ = time.Second
 
-// bkCopy kopiert ein fertiges Archiv und prüft dabei die Prüfsumme. Die Zieldatei
-// erscheint erst, wenn alles stimmt.
+// bkCopy copies a finished archive and checks the checksum while doing so. The target file
+// only appears when everything is right.
 func bkCopy(src, dest, want string) (int64, string, error) {
 	in, err := os.Open(src)
 	if err != nil {

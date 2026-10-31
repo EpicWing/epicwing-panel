@@ -14,7 +14,7 @@ class AuditLog(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True
     )
-    # Bleibt erhalten, auch wenn der Benutzer später gelöscht wird.
+    # Stays, even if the user is deleted later.
     actor_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), index=True
     )

@@ -4,7 +4,7 @@ from threading import Lock
 
 
 class FailureLimiter:
-    """Zählt Fehlversuche pro Schlüssel in einem gleitenden Zeitfenster (nur im Speicher)."""
+    """Counts failed attempts per key in a sliding time window (memory only)."""
 
     def __init__(self, max_failures: int, window_seconds: int) -> None:
         self.max_failures = max_failures
@@ -13,7 +13,7 @@ class FailureLimiter:
         self._lock = Lock()
 
     def retry_after(self, key: str) -> int:
-        """Sekunden bis zum nächsten erlaubten Versuch, 0 wenn erlaubt."""
+        """Seconds until the next allowed attempt, 0 if allowed."""
         now = time.monotonic()
         with self._lock:
             attempts = self._failures.get(key)

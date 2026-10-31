@@ -1,6 +1,6 @@
 """Meldung bei einem erkannten Angriff.
 
-Läuft im Hintergrund, damit der WebSocket-Handler nie auf Discord oder SMTP wartet.
+Runs in the background, so the WebSocket handler never waits for Discord or SMTP.
 """
 
 import asyncio
@@ -42,7 +42,7 @@ async def _run(name: str, reasons: Sequence[str]) -> None:
 
 
 def schedule(name: str, reasons: Sequence[str], now: float | None = None) -> bool:
-    """Startet die Meldung, außer für diesen Server lief kürzlich schon eine."""
+    """Starts the alert, unless one already ran for this server recently."""
     now = time.monotonic() if now is None else now
     last = _last_alert.get(name)
     if last is not None and now - last < COOLDOWN_SECONDS:

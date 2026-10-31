@@ -1,4 +1,4 @@
-"""Öffentliche SSH-Schlüssel verwalten. Nur mit Cookie-Session."""
+"""Manage public SSH keys. Cookie session only."""
 
 import uuid
 from datetime import datetime

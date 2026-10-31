@@ -17,7 +17,7 @@ class SshKey(Base):
     name: Mapped[str] = mapped_column(String(64))
     key_type: Mapped[str] = mapped_column(String(32))
     public_key: Mapped[str] = mapped_column(Text)
-    # Ein Schlüssel gehört genau einem Konto, daran erkennt der Agent später den Nutzer.
+    # A key belongs to exactly one account, so the agent can tell the user later.
     fingerprint: Mapped[str] = mapped_column(String(64), unique=True)
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
