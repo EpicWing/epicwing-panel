@@ -1,4 +1,4 @@
-"""Hilfen zum Anlegen von Testdaten über die API."""
+"""Helpers to create test data through the API."""
 
 
 def make_nest(client, headers, name="Games"):

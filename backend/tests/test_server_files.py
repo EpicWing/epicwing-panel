@@ -233,7 +233,7 @@ def test_failed_operations_are_not_audited(client, db_session, ready, broker):
 
 
 class BlobBroker(FileBroker):
-    """Liefert eine Datei stückweise aus dem Speicher, so wie der Agent es tut."""
+    """Delivers a file in chunks from memory, like the agent does."""
 
     def __init__(self, content):
         super().__init__()

@@ -1,4 +1,4 @@
-"""Hilfen für Tests, die alle Routen der App prüfen."""
+"""Helpers for tests that check all routes of the app."""
 
 from dataclasses import dataclass
 from typing import Any
@@ -19,8 +19,8 @@ def _from_context(ctx: Any) -> RouteInfo | None:
     """Liest eine Route aus einem _EffectiveRouteContext (eingebundene Router)."""
     original = ctx.original_route
     if isinstance(original, APIRoute):
-        # Pfad, Methoden und Abhängigkeiten stehen am Kontext, mit Präfix und
-        # den Abhängigkeiten des Includes. starlette_route ist hier None.
+        # Path, methods and dependencies are on the context, with prefix and
+        # the dependencies of the include. starlette_route is None here.
         return RouteInfo(ctx.path, frozenset(ctx.methods), False, ctx.dependant)
     route = ctx.starlette_route
     if isinstance(route, APIWebSocketRoute):
@@ -40,8 +40,8 @@ def _from_route(route: object) -> RouteInfo | None:
 def collect_routes(app: FastAPI) -> list[RouteInfo]:
     """Alle HTTP- und WebSocket-Routen mit vollem Pfad, auch aus eingebundenen Routern.
 
-    Der Sammler läuft nie still leer: Er bricht ab, wenn er nichts findet oder ein
-    Pfad nicht mit /api beginnt. Docs-Routen von FastAPI gehören nicht dazu.
+    The collector never runs empty quietly: it stops if it finds nothing or if a
+    path does not start with /api. FastAPI docs routes do not count.
     """
     found: list[RouteInfo] = []
     for top in app.routes:
@@ -56,7 +56,7 @@ def collect_routes(app: FastAPI) -> list[RouteInfo]:
         raise AssertionError("Routen-Sammler findet nichts")
     bad = [r.path for r in found if not r.path.startswith("/api")]
     if bad:
-        raise AssertionError(f"Pfade ohne /api-Präfix, Sammler liest falsch: {bad}")
+        raise AssertionError(f"Paths without /api prefix, collector reads wrong: {bad}")
     if any(r.dependant is None for r in found):
-        raise AssertionError("Eine Route hat kein dependant, Auth-Prüfung nicht möglich")
+        raise AssertionError("A route has no dependant, auth check not possible")
     return found

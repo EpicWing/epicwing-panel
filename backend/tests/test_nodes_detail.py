@@ -33,7 +33,7 @@ def _create(client, headers, name="node-1", **fields):
 
 
 def _count(db_session, model):
-    # Zählt direkt in der Datenbank und umgeht den Cache der Test-Session.
+    # Counts directly in the database and skips the cache of the test session.
     db_session.expire_all()
     return db_session.scalar(select(func.count()).select_from(model))
 
@@ -154,7 +154,7 @@ def test_revoke_resets_node_and_closes_connection(client, db_session, user):
     db_session.expire_all()
     assert db_session.scalars(select(Node)).one().status == "pending"
 
-    # Mit dem alten Schlüssel kommt der Agent nicht mehr hinein, ein neuer Token geht.
+    # With the old key the agent cannot get in anymore, a new token works.
     with client.websocket_connect(WS_URL) as ws:
         challenge = ws.receive_json()
         ws.send_json(_auth_payload(node_id, key, challenge))
