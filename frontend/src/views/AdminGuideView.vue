@@ -2,6 +2,7 @@
 import { computed, ref } from "vue";
 
 import AppLayout from "../components/AppLayout.vue";
+import GuideIcon from "../components/GuideIcon.vue";
 import { guide } from "../lib/adminGuide";
 
 const query = ref("");
@@ -57,17 +58,16 @@ async function copy(id: string, text: string) {
       <nav class="hidden lg:block" aria-label="Guide sections">
         <div class="sticky top-4 max-h-[calc(100vh-2rem)] space-y-7 overflow-y-auto pr-2 text-sm">
           <div v-for="group in groups" :key="group.id">
-            <p class="mb-2 px-2 text-xs font-medium uppercase tracking-wide text-ink-400">
-              <span aria-hidden="true">{{ group.icon }}</span> {{ group.title }}
-            </p>
+            <p class="mb-2 px-2 text-xs font-medium uppercase tracking-wide text-ink-400">{{ group.title }}</p>
             <ul class="space-y-0.5">
               <li v-for="section in group.sections" :key="section.id">
                 <button
                   type="button"
-                  class="block w-full rounded-md px-2 py-1.5 text-left text-ink-300 hover:bg-ink-800"
+                  class="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-ink-300 hover:bg-ink-800"
                   @click="jump(section.id)"
                 >
-                  {{ section.title }}
+                  <GuideIcon :name="section.icon" class="h-4 w-4 shrink-0 text-ink-400" />
+                  <span>{{ section.title }}</span>
                 </button>
               </li>
             </ul>
@@ -86,7 +86,7 @@ async function copy(id: string, text: string) {
         <p v-if="groups.length === 0" class="text-sm text-ink-400">Nothing found.</p>
 
         <section v-for="group in groups" :key="group.id" class="space-y-6">
-          <h2 class="text-xl font-semibold"><span aria-hidden="true">{{ group.icon }}</span> {{ group.title }}</h2>
+          <h2 class="text-xl font-semibold">{{ group.title }}</h2>
           <article
             v-for="section in group.sections"
             :id="section.id"
@@ -94,11 +94,7 @@ async function copy(id: string, text: string) {
             class="scroll-mt-4 rounded-xl border border-ink-700 bg-ink-900 p-6"
           >
             <div class="flex items-center gap-3">
-              <span
-                class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-ink-700 bg-ink-800 text-lg"
-                aria-hidden="true"
-                >{{ section.icon }}</span
-              >
+              <GuideIcon :name="section.icon" class="accent h-5 w-5 shrink-0" />
               <h3 class="text-base font-semibold">{{ section.title }}</h3>
             </div>
 
@@ -125,21 +121,22 @@ async function copy(id: string, text: string) {
             </div>
 
             <div v-for="tip in section.tips ?? []" :key="tip" class="note note-tip mt-4">
-              <span aria-hidden="true">💡</span>
+              <GuideIcon name="info" class="mt-0.5 h-4 w-4 shrink-0" />
               <p>{{ tip }}</p>
             </div>
             <div v-for="warning in section.warnings ?? []" :key="warning" class="note note-warn mt-4">
-              <span aria-hidden="true">⚠️</span>
+              <GuideIcon name="alert" class="mt-0.5 h-4 w-4 shrink-0" />
               <p>{{ warning }}</p>
             </div>
 
             <button
               v-if="section.next && titles.has(section.next)"
               type="button"
-              class="mt-5 text-sm text-ink-300 hover:underline"
+              class="mt-5 flex items-center gap-1.5 text-sm text-ink-300 hover:underline"
               @click="jump(section.next ?? '')"
             >
-              Next: {{ titles.get(section.next) }} →
+              <span>Next: {{ titles.get(section.next) }}</span>
+              <GuideIcon name="arrow-right" class="h-4 w-4" />
             </button>
           </article>
         </section>
@@ -149,6 +146,9 @@ async function copy(id: string, text: string) {
 </template>
 
 <style scoped>
+.accent {
+  color: #fbbf24;
+}
 .steps {
   list-style: none;
   padding: 0;
