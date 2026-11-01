@@ -124,6 +124,14 @@ See `scripts/dev.sh` for local work. Checks that CI runs:
 
 Bug reports and pull requests are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Contact
+
+- Support: [support@epicwing.de](mailto:support@epicwing.de)
+- Abuse reports: [abuse@epicwing.de](mailto:abuse@epicwing.de)
+- General questions and other inquiries: [info@epicwing.de](mailto:info@epicwing.de)
+
+Bugs and feature requests belong in the [issue tracker](https://github.com/EpicWing/epicwing-panel/issues).
+
 ## Security
 
 See [SECURITY.md](SECURITY.md) to report a vulnerability.
