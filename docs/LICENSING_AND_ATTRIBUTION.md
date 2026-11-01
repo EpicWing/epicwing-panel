@@ -8,7 +8,7 @@ The panel (Python, Vue) and the node agent (Go) are written for EpicWing. Depend
 
 ## Bundled eggs
 
-The six eggs in `backend/fixtures/eggs/` (Minecraft, Unturned and a static website) are based on eggs from [pterodactyl/game-eggs](https://github.com/pterodactyl/game-eggs). That repository is licensed under MIT, Copyright (c) 2024 Pterodactyl team and contributors. Some eggs also use `ghcr.io/ptero-eggs` images and install scripts. We treat all six as third-party work and keep the notice in [`backend/fixtures/eggs/NOTICE.md`](../backend/fixtures/eggs/NOTICE.md). Individual eggs can carry their own notices.
+The six eggs in `backend/fixtures/eggs/` (Minecraft, Unturned and a static website) are based on eggs from [pterodactyl/game-eggs](https://github.com/pterodactyl/game-eggs). That repository is licensed under MIT, Copyright (c) 2024 Pterodactyl team and contributors. Some eggs also use `ghcr.io/ptero-eggs` images and install scripts. We treat all six as third-party work and keep the notice in [`backend/fixtures/eggs/NOTICE.md`](../backend/fixtures/eggs/NOTICE.md). Individual eggs can carry their own notices. The node installer also pulls container images from ghcr.io (`pterodactyl/installers`, `pyrodactyl-oss/images`). Those images have their own terms.
 
 ## Egg files
 
