@@ -5,6 +5,14 @@ import AppLayout from "../components/AppLayout.vue";
 import { guide } from "../lib/adminGuide";
 
 const query = ref("");
+const copiedId = ref("");
+
+const titles = new Map<string, string>();
+for (const g of guide) {
+  for (const s of g.sections) {
+    titles.set(s.id, s.title);
+  }
+}
 
 const groups = computed(() => {
   const q = query.value.trim().toLowerCase();
@@ -15,7 +23,10 @@ const groups = computed(() => {
     .map((group) => ({
       ...group,
       sections: group.sections.filter((s) =>
-        [s.title, s.summary, s.code ?? "", ...(s.steps ?? []), ...(s.tips ?? [])].join(" ").toLowerCase().includes(q),
+        [s.title, s.summary, s.code ?? "", ...(s.steps ?? []), ...(s.tips ?? []), ...(s.warnings ?? [])]
+          .join(" ")
+          .toLowerCase()
+          .includes(q),
       ),
     }))
     .filter((group) => group.sections.length > 0);
@@ -24,18 +35,38 @@ const groups = computed(() => {
 function jump(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
+
+async function copy(id: string, text: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+    copiedId.value = id;
+    setTimeout(() => {
+      if (copiedId.value === id) {
+        copiedId.value = "";
+      }
+    }, 2000);
+  } catch {
+    copiedId.value = "";
+  }
+}
 </script>
 
 <template>
   <AppLayout area="admin" title="Guide" subtitle="How each part of EpicWing works.">
-    <div class="grid gap-8 lg:grid-cols-[14rem_minmax(0,1fr)]">
+    <div class="grid gap-10 lg:grid-cols-[15rem_minmax(0,1fr)]">
       <nav class="hidden lg:block" aria-label="Guide sections">
-        <div class="sticky top-4 space-y-5 text-sm">
+        <div class="sticky top-4 max-h-[calc(100vh-2rem)] space-y-7 overflow-y-auto pr-2 text-sm">
           <div v-for="group in groups" :key="group.id">
-            <p class="mb-1.5 text-xs font-medium uppercase tracking-wide text-ink-400">{{ group.title }}</p>
-            <ul class="space-y-1">
+            <p class="mb-2 px-2 text-xs font-medium uppercase tracking-wide text-ink-400">
+              <span aria-hidden="true">{{ group.icon }}</span> {{ group.title }}
+            </p>
+            <ul class="space-y-0.5">
               <li v-for="section in group.sections" :key="section.id">
-                <button type="button" class="text-left text-ink-300 hover:underline" @click="jump(section.id)">
+                <button
+                  type="button"
+                  class="block w-full rounded-md px-2 py-1.5 text-left text-ink-300 hover:bg-ink-800"
+                  @click="jump(section.id)"
+                >
                   {{ section.title }}
                 </button>
               </li>
@@ -44,7 +75,7 @@ function jump(id: string) {
         </div>
       </nav>
 
-      <div class="min-w-0 space-y-10">
+      <div class="min-w-0 space-y-12">
         <input
           v-model="query"
           type="search"
@@ -54,26 +85,111 @@ function jump(id: string) {
         />
         <p v-if="groups.length === 0" class="text-sm text-ink-400">Nothing found.</p>
 
-        <section v-for="group in groups" :key="group.id" class="space-y-4">
-          <h2 class="text-lg font-semibold">{{ group.title }}</h2>
+        <section v-for="group in groups" :key="group.id" class="space-y-6">
+          <h2 class="text-xl font-semibold"><span aria-hidden="true">{{ group.icon }}</span> {{ group.title }}</h2>
           <article
             v-for="section in group.sections"
             :id="section.id"
             :key="section.id"
-            class="scroll-mt-4 rounded-xl border border-ink-700 bg-ink-900 p-5"
+            class="scroll-mt-4 rounded-xl border border-ink-700 bg-ink-900 p-6"
           >
-            <h3 class="font-semibold">{{ section.title }}</h3>
-            <p class="mt-2 text-sm text-ink-300">{{ section.summary }}</p>
-            <ol v-if="section.steps?.length" class="mt-3 list-decimal space-y-1 pl-5 text-sm text-ink-300">
-              <li v-for="step in section.steps" :key="step">{{ step }}</li>
+            <div class="flex items-center gap-3">
+              <span
+                class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-ink-700 bg-ink-800 text-lg"
+                aria-hidden="true"
+                >{{ section.icon }}</span
+              >
+              <h3 class="text-base font-semibold">{{ section.title }}</h3>
+            </div>
+
+            <p class="mt-4 text-sm leading-relaxed text-ink-300">{{ section.summary }}</p>
+
+            <ol v-if="section.steps?.length" class="steps mt-5 space-y-3 text-sm leading-relaxed text-ink-300">
+              <li v-for="step in section.steps" :key="step">
+                <span>{{ step }}</span>
+              </li>
             </ol>
-            <pre v-if="section.code" class="mt-3 overflow-x-auto rounded-md border border-ink-700 bg-ink-800 p-3 font-mono text-xs text-ink-300">{{ section.code }}</pre>
-            <ul v-if="section.tips?.length" class="mt-3 list-disc space-y-1 pl-5 text-sm text-ink-400">
-              <li v-for="tip in section.tips" :key="tip">{{ tip }}</li>
-            </ul>
+
+            <div v-if="section.code" class="relative mt-5">
+              <pre
+                class="overflow-x-auto rounded-md border border-ink-700 bg-ink-800 p-3 pr-20 font-mono text-xs text-ink-300"
+                >{{ section.code }}</pre
+              >
+              <button
+                type="button"
+                class="absolute right-2 top-2 rounded-md border border-ink-700 bg-ink-900 px-2 py-1 text-xs text-ink-300 hover:bg-ink-800"
+                @click="copy(section.id, section.code ?? '')"
+              >
+                {{ copiedId === section.id ? "Copied" : "Copy" }}
+              </button>
+            </div>
+
+            <div v-for="tip in section.tips ?? []" :key="tip" class="note note-tip mt-4">
+              <span aria-hidden="true">💡</span>
+              <p>{{ tip }}</p>
+            </div>
+            <div v-for="warning in section.warnings ?? []" :key="warning" class="note note-warn mt-4">
+              <span aria-hidden="true">⚠️</span>
+              <p>{{ warning }}</p>
+            </div>
+
+            <button
+              v-if="section.next && titles.has(section.next)"
+              type="button"
+              class="mt-5 text-sm text-ink-300 hover:underline"
+              @click="jump(section.next ?? '')"
+            >
+              Next: {{ titles.get(section.next) }} →
+            </button>
           </article>
         </section>
       </div>
     </div>
   </AppLayout>
 </template>
+
+<style scoped>
+.steps {
+  list-style: none;
+  padding: 0;
+  counter-reset: step;
+}
+.steps li {
+  display: flex;
+  gap: 0.75rem;
+  counter-increment: step;
+}
+.steps li::before {
+  content: counter(step);
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 9999px;
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.note {
+  display: flex;
+  gap: 0.6rem;
+  border: 1px solid;
+  border-radius: 0.5rem;
+  padding: 0.65rem 0.8rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.note-tip {
+  border-color: rgba(56, 189, 248, 0.3);
+  background: rgba(56, 189, 248, 0.07);
+  color: #bae6fd;
+}
+.note-warn {
+  border-color: rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.08);
+  color: #fde68a;
+}
+</style>
