@@ -6,7 +6,9 @@ cd "$(dirname "$0")/../agent"
 go test ./...
 tmp="$(mktemp)"
 trap 'rm -f "$tmp"' EXIT
-CGO_ENABLED=0 go build -trimpath -o "$tmp" .
+version="$(git describe --tags --always 2>/dev/null || echo dev)"
+version="${version#v}"
+CGO_ENABLED=0 go build -trimpath -ldflags "-X main.version=$version" -o "$tmp" .
 
 install -d -m 0755 /opt/epicwing
 install -m 0755 -o root -g root "$tmp" /opt/epicwing/epicwing-agent
