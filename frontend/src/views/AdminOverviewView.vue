@@ -110,6 +110,11 @@ function size(mb: number): string {
   return mb >= 1024 ? `${+(mb / 1024).toFixed(1)} GiB` : `${Math.round(mb)} MiB`;
 }
 
+// A node total of 0 means that no server on the node has a limit.
+function allocatedSize(mb: number): string {
+  return mb > 0 ? size(mb) : t("admin.unlimited");
+}
+
 function percent(used: number | null, total: number | null): number | null {
   if (used === null || !total) return null;
   return Math.min(100, Math.round((used / total) * 100));
@@ -206,7 +211,7 @@ onUnmounted(() => window.clearInterval(timer));
     </div>
 
     <h2 class="mt-10 text-xl font-semibold">{{ t("admin.systemTitle") }}</h2>
-    <section v-if="statusEntries.length" class="mt-8">
+    <section v-if="statusEntries.length" class="mt-4">
       <h2 class="mb-3 text-lg font-semibold">{{ t("admin.statusTitle") }}</h2>
       <ul class="flex flex-wrap gap-2">
         <li
@@ -237,8 +242,8 @@ onUnmounted(() => window.clearInterval(timer));
               {{
                 t("admin.allocated", {
                   count: n.servers,
-                  ram: size(n.ram_allocated_mb),
-                  disk: size(n.disk_allocated_mb),
+                  ram: allocatedSize(n.ram_allocated_mb),
+                  disk: allocatedSize(n.disk_allocated_mb),
                 })
               }}
             </p>
