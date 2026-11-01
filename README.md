@@ -13,6 +13,16 @@
   <a href="https://github.com/EpicWing/epicwing-panel/actions/workflows/ci.yml"><img src="https://github.com/EpicWing/epicwing-panel/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/EpicWing/epicwing-panel" alt="MIT license"></a>
   <a href="https://github.com/EpicWing/epicwing-panel/releases"><img src="https://img.shields.io/github/v/release/EpicWing/epicwing-panel?include_prereleases" alt="Release"></a>
+  <img src="https://img.shields.io/badge/Debian-13-A81D33?logo=debian&logoColor=white" alt="Debian 13">
+  <img src="https://img.shields.io/badge/status-beta-orange" alt="Beta">
+</p>
+
+<p align="center">
+  <a href="#installation">Installation</a> ·
+  <a href="#features">Features</a> ·
+  <a href="#documentation">Documentation</a> ·
+  <a href="#limitations">Limitations</a> ·
+  <a href="CHANGELOG.md">Changelog</a>
 </p>
 
 EpicWing is a self-hosted server management panel. Game servers and other services
@@ -21,6 +31,21 @@ each node.
 
 **Status: beta.** Fine for small setups, not ready for large or multi-tenant hosting.
 See [Limitations](#limitations).
+
+<!--
+## Screenshots
+
+Add images to docs/assets/ and remove this comment, for example:
+
+![Server console](docs/assets/screenshot-console.png)
+![Admin overview](docs/assets/screenshot-overview.png)
+-->
+
+## Requirements
+
+- **Panel:** a fresh Debian 13 (x86_64) server with a domain or an IP, ports 80 and 443 open
+- **Node:** Debian 13 (x86_64) with Docker already installed, and the enrollment token from the admin area
+- Everything else (PostgreSQL, nginx, TLS, the agent) is set up by the installer
 
 ## Installation
 
@@ -62,6 +87,16 @@ Minecraft (Vanilla, Paper, Purpur, Fabric), Unturned and a static website. Ptero
 - Local backups, schedules, databases per server
 - Notifications through Discord and email
 - Traffic guard: detection of unusual incoming traffic and console floods with alerts
+- In-panel guide for administrators
+
+## Documentation
+
+- [Installation, updating and troubleshooting](docs/INSTALL.md)
+- [Architecture](docs/architecture.md)
+- [Agent protocol](docs/agent-protocol.md)
+- [Installer security](docs/installer-security.md)
+- [Changelog](CHANGELOG.md)
+- [Contributing](CONTRIBUTING.md)
 
 ## Limitations
 
@@ -86,6 +121,8 @@ See `scripts/dev.sh` for local work. Checks that CI runs:
 - Backend: `ruff check .`, `ruff format --check .`, `python -m pytest -q`
 - Agent: `go vet ./...`, `go test ./...`
 - Frontend: `npx vue-tsc --noEmit`, `npm run build`
+
+Bug reports and pull requests are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Security
 
