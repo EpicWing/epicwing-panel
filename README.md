@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://github.com/EpicWing/epicwing-panel/actions/workflows/ci.yml"><img src="https://github.com/EpicWing/epicwing-panel/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/EpicWing/epicwing-panel" alt="MIT license"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/EpicWing/epicwing-panel?v=2" alt="MIT license"></a>
   <a href="https://github.com/EpicWing/epicwing-panel/releases"><img src="https://img.shields.io/github/v/release/EpicWing/epicwing-panel?include_prereleases" alt="Release"></a>
   <img src="https://img.shields.io/badge/Debian-13-A81D33?logo=debian&logoColor=white" alt="Debian 13">
   <img src="https://img.shields.io/badge/status-beta-orange" alt="Beta">
