@@ -263,6 +263,7 @@ export default {
     loadEmpty: "Add a node to see its load.",
     noLive: "No live data, the node is not connected.",
     systemTitle: "System resources",
+    unlimited: "unlimited",
     linkDiscord: "Get help (via Discord)",
     linkDocs: "Documentation",
     linkGithub: "GitHub",
