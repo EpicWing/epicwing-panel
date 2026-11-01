@@ -15,6 +15,7 @@ const NodesView = () => import("../views/NodesView.vue");
 const SettingsView = () => import("../views/SettingsView.vue");
 const ServerDetailView = () => import("../views/ServerDetailView.vue");
 const AdminDatabasesView = () => import("../views/AdminDatabasesView.vue");
+const AdminGuideView = () => import("../views/AdminGuideView.vue");
 
 const ApiKeysView = () => import("../views/ApiKeysView.vue");
 const SshKeysView = () => import("../views/SshKeysView.vue");
@@ -79,6 +80,12 @@ const router = createRouter({
       path: "/admin/databases",
       name: "admin-databases",
       component: AdminDatabasesView,
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
+    {
+      path: "/admin/guide",
+      name: "admin-guide",
+      component: AdminGuideView,
       meta: { requiresAuth: true, requiresAdmin: true },
     },
     { path: "/nodes", redirect: "/admin/nodes" },

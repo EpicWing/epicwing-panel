@@ -59,6 +59,7 @@ export default {
     databaseHosts: "Database Hosts",
     adminPanel: "Admin panel",
     adminBadge: "Admin",
+    guide: "Guide",
     backToPanel: "Back to panel",
   },
   login: {
