@@ -151,7 +151,7 @@ onUnmounted(() => window.clearInterval(timer));
     </p>
 
     <section class="mb-6">
-      <div class="flex flex-wrap justify-center gap-4">
+      <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <component
           :is="link.url ? 'a' : 'span'"
           v-for="link in links"
@@ -159,7 +159,7 @@ onUnmounted(() => window.clearInterval(timer));
           :href="link.url || undefined"
           :target="link.url ? '_blank' : undefined"
           rel="noopener noreferrer"
-          class="flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition sm:w-60"
+          class="flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition"
           :class="link.url ? linkClass[link.key] : 'cursor-not-allowed bg-ink-800 opacity-50'"
         >
           <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
