@@ -15,6 +15,7 @@
   <a href="https://github.com/EpicWing/epicwing-panel/releases"><img src="https://img.shields.io/github/v/release/EpicWing/epicwing-panel?include_prereleases" alt="Release"></a>
   <img src="https://img.shields.io/badge/Debian-13-A81D33?logo=debian&logoColor=white" alt="Debian 13">
   <img src="https://img.shields.io/badge/status-beta-orange" alt="Beta">
+  <a href="https://discord.gg/tc7xtNPsmh"><img src="https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
 </p>
 
 <p align="center">
@@ -129,6 +130,7 @@ Bug reports and pull requests are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md
 - Support: [support@epicwing.de](mailto:support@epicwing.de)
 - Abuse reports: [abuse@epicwing.de](mailto:abuse@epicwing.de)
 - General questions and other inquiries: [info@epicwing.de](mailto:info@epicwing.de)
+- Community: [Discord server](https://discord.gg/tc7xtNPsmh)
 
 Bugs and feature requests belong in the [issue tracker](https://github.com/EpicWing/epicwing-panel/issues).
 
