@@ -14,7 +14,7 @@ let pinned = true;
 
 const empty = computed(() => props.lines.length === 1 && props.lines[0].segments.length === 0);
 
-// "Prefix: message" is shown with a coloured prefix, like the container prompt in Pyrodactyl.
+// "Prefix: message" is shown with a coloured prefix, like a container prompt.
 const offlineParts = computed(() => {
   const text = props.offlineText ?? "";
   const index = text.indexOf(": ");

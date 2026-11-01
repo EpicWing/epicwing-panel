@@ -40,6 +40,6 @@ class ServerDatabase(Base):
     name: Mapped[str] = mapped_column(String(64))
     username: Mapped[str] = mapped_column(String(32))
     remote: Mapped[str] = mapped_column(String(255), default="%")
-    # Encrypted, so the panel can show the password like Pyrodactyl does.
+    # Encrypted, so the panel can show the password again later.
     password: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
