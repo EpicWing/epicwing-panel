@@ -1,4 +1,4 @@
-"""egg rules und config
+"""egg rules and config
 
 Revision ID: 0007
 Revises: 0006

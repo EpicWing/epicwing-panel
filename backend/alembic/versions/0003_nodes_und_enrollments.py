@@ -1,4 +1,4 @@
-"""nodes und enrollments
+"""nodes and enrollments
 
 Revision ID: 0003
 Revises: 0002

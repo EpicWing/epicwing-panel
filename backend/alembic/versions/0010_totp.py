@@ -1,4 +1,4 @@
-"""2FA: totp-Felder am Benutzer und Wiederherstellungscodes"""
+"""2FA: totp fields on the user and recovery codes"""
 import sqlalchemy as sa
 from alembic import op
 

@@ -1,4 +1,4 @@
-"""server members und rechte
+"""server members and permissions
 
 Revision ID: 0008
 Revises: 0007

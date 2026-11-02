@@ -1,4 +1,4 @@
-"""servers, eggs und allocations
+"""servers, eggs and allocations
 
 Revision ID: 0006
 Revises: 0005

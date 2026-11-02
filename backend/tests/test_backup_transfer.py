@@ -28,7 +28,7 @@ def _row(db_session, server_id):
 
 @pytest.fixture
 def pair(client, db_session, user, server):
-    """Zwei installierte Server auf derselben Node, beide mit Backup-Limit."""
+    """Two installed servers on the same node, both with a backup limit."""
     source = _row(db_session, server.id)
     allocations = make_allocations(client, server.headers, str(source.node_id), 25002, 25002)
     body = {

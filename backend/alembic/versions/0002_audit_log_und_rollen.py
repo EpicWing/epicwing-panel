@@ -1,4 +1,4 @@
-"""audit log und rollen
+"""audit log and roles
 
 Revision ID: 0002
 Revises: 0001

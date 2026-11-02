@@ -29,7 +29,7 @@ def _bearer(token: str) -> dict[str, str]:
 
 
 def _probe(db_session) -> TestClient:
-    """Mini-App mit ServerAuth, damit die Anmeldung ohne echte Server-Routen testbar ist."""
+    """Mini app with ServerAuth, so login can be tested without real server routes."""
     probe = FastAPI()
 
     @probe.get("/probe")

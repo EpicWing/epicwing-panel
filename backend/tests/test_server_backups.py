@@ -238,8 +238,8 @@ class EmptyChunkBroker(BlobBroker):
 def _serve(monkeypatch, content, cls=BlobBroker):
     """Replaces the broker everywhere the download uses it.
 
-    Der Fixture "ready" hat in manchen Modulen schon einen FileBroker eingesetzt,
-    dazu kommt das Modul, in dem _send liegt.
+    The fixture "ready" has already set a FileBroker in some modules,
+    and there is the module where _send lives.
     """
     from app.agentlink.commands import broker as real
 

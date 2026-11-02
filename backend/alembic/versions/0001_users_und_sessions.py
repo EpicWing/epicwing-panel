@@ -1,4 +1,4 @@
-"""users und sessions
+"""users and sessions
 
 Revision ID: 0001
 Revises: 
