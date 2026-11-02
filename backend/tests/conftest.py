@@ -51,7 +51,7 @@ def production_password_hasher() -> PasswordHasher:
 
 @pytest.fixture
 def db_session():
-    # SQLite im Speicher: schnell und ohne laufende Datenbank.
+    # SQLite in memory: fast, and no running database needed.
     engine = create_engine(
         "sqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False}
     )

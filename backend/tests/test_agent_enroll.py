@@ -32,7 +32,7 @@ def _create_node(client, headers, name="node-1"):
 
 
 def _enroll(token, public_key=None):
-    # Der Agent hat keine Session und nutzt deshalb einen eigenen Client ohne Cookies.
+    # The agent has no session, so it uses its own client without cookies.
     payload = {
         "token": token,
         "public_key": public_key or _public_key(),

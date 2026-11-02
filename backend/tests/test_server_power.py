@@ -124,7 +124,7 @@ def test_agent_error_sets_the_error_state(client, server, broker):
     broker.errors["container.create"] = "boom"
     response = _post(client, server, "/install")
     assert response.status_code == 502
-    # Rohtexte des Agents gehen nicht an Nutzer, sondern ins Log und Audit-Log.
+    # Raw agent texts do not go to users, only to the log and the audit log.
     assert response.json()["detail"] == "Something went wrong. Please try again or contact support."
     body = client.get(server.url).json()
     assert (body["status"], body["last_error"]) == (

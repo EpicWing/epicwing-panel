@@ -93,7 +93,6 @@ Minecraft (Vanilla, Paper, Purpur, Fabric), Unturned and a static website. Ptero
 ## Documentation
 
 - [Installation, updating and troubleshooting](docs/INSTALL.md)
-- [Architecture](docs/architecture.md)
 - [Agent protocol](docs/agent-protocol.md)
 - [Installer security](docs/installer-security.md)
 - [Changelog](CHANGELOG.md)
@@ -103,7 +102,7 @@ Minecraft (Vanilla, Paper, Purpur, Fabric), Unturned and a static website. Ptero
 
 - **DDoS:** EpicWing only detects and reports unusual traffic. It blocks nothing, so use
   your provider's protection or a firewall for that.
-- Tested on Debian 13 (x86_64) with systemd and Docker only.
+- Tested on Debian 13 (x86_64) with systemd and Docker only. The installer also accepts Ubuntu 24.04 or newer, but that is not tested.
 - The panel runs as a single process. Schedules, rate limits and action locks
   are kept in memory, so do not run several workers.
 - Backups are stored on the node. There is no S3 or cross-node storage yet.
