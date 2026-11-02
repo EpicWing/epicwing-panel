@@ -5,7 +5,6 @@ import { ApiError, api } from "../api/client";
 
 interface SessionRow {
   id: string;
-  ip: string | null;
   user_agent: string | null;
   created_at: string;
   last_seen_at: string;
@@ -111,7 +110,7 @@ onMounted(load);
             </span>
           </p>
           <p class="mt-0.5 text-xs text-ink-400">
-            {{ row.ip ?? "unknown IP" }} · active {{ ago(row.last_seen_at) }}
+            Active {{ ago(row.last_seen_at) }}
           </p>
         </div>
         <button

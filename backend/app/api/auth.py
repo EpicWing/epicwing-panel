@@ -221,7 +221,6 @@ def login_second_factor(
 
 class SessionOut(BaseModel):
     id: uuid.UUID
-    ip: str | None
     user_agent: str | None
     created_at: datetime
     last_seen_at: datetime
@@ -250,7 +249,6 @@ def list_sessions(auth: CurrentAuth, db: Annotated[Session, Depends(get_db)]) ->
     return [
         SessionOut(
             id=s.id,
-            ip=s.ip,
             user_agent=s.user_agent,
             created_at=s.created_at,
             last_seen_at=s.last_seen_at,
