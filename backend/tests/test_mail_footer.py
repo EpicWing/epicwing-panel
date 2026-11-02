@@ -1,4 +1,4 @@
-"""Der Footer steckt immer in der Mail, der Antwort-Hinweis nur mit Reply-To."""
+"""The footer is always in the mail, the reply note only with Reply-To."""
 
 from app.services.mail import MailConfig, render, render_for
 
