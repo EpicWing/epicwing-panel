@@ -71,6 +71,32 @@ const groups = [
   { title: "Admin", items: [["users", "Access"], ["settings", "Settings"]] },
 ] as const;
 
+// Which permission a tab needs. Tabs that are not listed are always shown.
+const TAB_PERMISSION: Record<string, string> = {
+  files: "files.read",
+  startup: "startup.view",
+  networking: "allocations.view",
+  schedules: "schedules.view",
+  databases: "databases.view",
+  backups: "backups.view",
+  users: "access.view",
+  settings: "settings.view",
+};
+
+const visibleGroups = computed(() => {
+  // Without a permission list every tab stays visible. The backend checks anyway.
+  if (permissions.value.length === 0) return groups;
+  return groups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter(([key]) => {
+        const needed = TAB_PERMISSION[key];
+        return !needed || permissions.value.includes(needed);
+      }),
+    }))
+    .filter((group) => group.items.length > 0);
+});
+
 // Line icons (24x24) for the sidebar, without an extra library.
 const NAV_ICONS: Record<string, string> = {
   home: "M3 11l9-8 9 8 M5 10v10h14V10 M10 20v-6h4v6",
@@ -543,7 +569,7 @@ onMounted(async () => {
         <span aria-hidden="true">←</span>
         Back to servers
       </button>
-      <div v-for="group in groups" :key="group.title" class="mb-5 last:mb-0">
+      <div v-for="group in visibleGroups" :key="group.title" class="mb-5 last:mb-0">
         <p class="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-wider text-ink-500">{{ group.title }}</p>
         <button
           v-for="item in group.items"

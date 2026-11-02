@@ -46,6 +46,51 @@ const ICONS: Record<string, string> = {
   access: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z",
 };
 
+// Starting points for the form. Only permissions that the user may give are applied.
+const PRESETS = [
+  {
+    key: "viewer",
+    label: "Viewer",
+    hint: "Watch the console and see backups",
+    permissions: ["console.view", "backups.view"],
+  },
+  {
+    key: "operator",
+    label: "Operator",
+    hint: "Viewer, and send commands, start, stop and restart",
+    permissions: [
+      "console.view",
+      "backups.view",
+      "console.command",
+      "power.start",
+      "power.stop",
+      "power.restart",
+    ],
+  },
+  {
+    key: "manager",
+    label: "Manager",
+    hint: "Operator, and files, backups, schedules",
+    permissions: [
+      "console.view",
+      "backups.view",
+      "console.command",
+      "power.start",
+      "power.stop",
+      "power.restart",
+      "files.read",
+      "files.write",
+      "backups.create",
+      "backups.download",
+      "backups.restore",
+      "schedules.view",
+      "schedules.manage",
+      "startup.view",
+      "settings.view",
+    ],
+  },
+];
+
 const data = ref<AccessData | null>(null);
 const loading = ref(true);
 const error = ref("");
@@ -175,6 +220,10 @@ function closeDialog(): void {
   dialog.value = null;
 }
 
+function applyPreset(perms: string[]): void {
+  selected.value = perms.filter(isAvailable);
+}
+
 function setGroup(items: string[], on: boolean): void {
   const rest = selected.value.filter((p) => !items.includes(p));
   selected.value = on ? [...rest, ...items.filter(isAvailable)] : rest;
@@ -273,6 +322,32 @@ const linkButton = "rounded px-2 py-1 text-xs text-ink-300 transition hover:bg-i
                 : t("access.selectUserHint")
           }}
         </p>
+      </div>
+
+      <div class="rounded-xl border border-ink-700 bg-ink-900 p-5">
+        <p class="text-sm font-medium">Presets</p>
+        <p class="mt-1 text-xs text-ink-400">Pick a starting point, then change single permissions below.</p>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <button
+            v-for="preset in PRESETS"
+            :key="preset.key"
+            type="button"
+            :disabled="busy"
+            class="rounded-md border border-ink-700 px-3 py-1.5 text-left transition hover:border-ink-600 hover:bg-ink-800"
+            @click="applyPreset(preset.permissions)"
+          >
+            <span class="block text-sm font-medium">{{ preset.label }}</span>
+            <span class="block text-xs text-ink-400">{{ preset.hint }}</span>
+          </button>
+          <button
+            type="button"
+            :disabled="busy"
+            class="rounded-md border border-ink-700 px-3 py-1.5 text-sm text-ink-300 transition hover:border-ink-600 hover:bg-ink-800"
+            @click="applyPreset([])"
+          >
+            Clear all
+          </button>
+        </div>
       </div>
 
       <fieldset class="space-y-4">
