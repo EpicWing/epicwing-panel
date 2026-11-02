@@ -1,13 +1,16 @@
 import logging
+import uuid
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import get_db
-from app.models import User
+from app.models import User, UserSession
 from app.schemas.auth import (
     AuthResponse,
     LoginRequest,
@@ -27,6 +30,7 @@ from app.security.ratelimit import (
 )
 from app.security.sessions import (
     SESSION_COOKIE,
+    SESSION_IDLE_TIMEOUT,
     SESSION_MAX_AGE,
     CurrentAuth,
     create_session,
@@ -213,3 +217,66 @@ def login_second_factor(
     audit.record(db, "auth.login", actor_id=user.id, ip=ip, details={"second_factor": True})
     _set_session_cookie(response, token)
     return AuthResponse(user=UserOut.model_validate(user), csrf_token=session.csrf_token)
+
+
+class SessionOut(BaseModel):
+    id: uuid.UUID
+    ip: str | None
+    user_agent: str | None
+    created_at: datetime
+    last_seen_at: datetime
+    current: bool
+
+
+def _utc(value: datetime) -> datetime:
+    return value if value.tzinfo else value.replace(tzinfo=UTC)
+
+
+@router.get("/sessions")
+def list_sessions(auth: CurrentAuth, db: Annotated[Session, Depends(get_db)]) -> list[SessionOut]:
+    """Devices the user is signed in on, most recently active first."""
+    now = datetime.now(UTC)
+    rows = db.scalars(
+        select(UserSession).where(
+            UserSession.user_id == auth.user.id, UserSession.revoked_at.is_(None)
+        )
+    )
+    live = [
+        s
+        for s in rows
+        if _utc(s.expires_at) > now and now - _utc(s.last_seen_at) <= SESSION_IDLE_TIMEOUT
+    ]
+    live.sort(key=lambda s: _utc(s.last_seen_at), reverse=True)
+    return [
+        SessionOut(
+            id=s.id,
+            ip=s.ip,
+            user_agent=s.user_agent,
+            created_at=s.created_at,
+            last_seen_at=s.last_seen_at,
+            current=s.id == auth.session.id,
+        )
+        for s in live
+    ]
+
+
+@router.delete("/sessions/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+def end_session(
+    session_id: uuid.UUID,
+    request: Request,
+    auth: CurrentAuth,
+    db: Annotated[Session, Depends(get_db)],
+) -> None:
+    target = db.get(UserSession, session_id)
+    if target is None or target.user_id != auth.user.id or target.revoked_at is not None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Session not found.")
+    if target.id == auth.session.id:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Use sign out to end this device.")
+    revoke_session(db, target)
+    audit.record(
+        db,
+        "session.revoke",
+        actor_id=auth.user.id,
+        ip=_client_ip(request),
+        details={"session_id": str(target.id)},
+    )

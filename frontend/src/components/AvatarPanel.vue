@@ -66,7 +66,7 @@ async function remove() {
 </script>
 
 <template>
-  <section class="space-y-4 rounded-xl border border-ink-700 bg-ink-900 p-5">
+  <section class="space-y-4 rounded-xl border border-ink-700 bg-ink-900 p-6">
     <div>
       <h2 class="text-lg font-semibold">Profile picture</h2>
       <p class="mt-1 text-sm text-ink-400">{{ auth.state.user?.email }}</p>
