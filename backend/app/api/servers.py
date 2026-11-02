@@ -641,7 +641,7 @@ async def power_server(
     return _outs(db, [server], auth.user)[0]
 
 
-# --- Dateien im Datenverzeichnis des Servers ---------------------------------------------------
+# --- Files in the data folder of the server ----------------------------------------------------
 
 # Before that there is no data folder, or the installation is writing into it right now.
 FILES_BLOCKED = {"new", "installing"}
@@ -1074,7 +1074,7 @@ def get_startup(server_id: uuid.UUID, auth: StartupView, db: DbSession) -> Start
     )
 
 
-# --- Allocations eines Servers ------------------------------------------------------------------
+# --- Allocations of a server --------------------------------------------------------------------
 
 # The agent publishes at most 32 ports, each allocation uses TCP and UDP.
 MAX_ALLOCATIONS = 16
