@@ -144,7 +144,7 @@ onMounted(load);
 </script>
 
 <template>
-  <section class="max-w-lg rounded-xl border border-ink-700 bg-ink-900 p-6">
+  <section class="rounded-xl border border-ink-700 bg-ink-900 p-6">
     <h2 class="text-lg font-semibold">{{ t("twoFactor.title") }}</h2>
     <p class="mt-1 text-sm text-ink-400">{{ t("twoFactor.body") }}</p>
 
