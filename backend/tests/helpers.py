@@ -16,7 +16,7 @@ class RouteInfo:
 
 
 def _from_context(ctx: Any) -> RouteInfo | None:
-    """Liest eine Route aus einem _EffectiveRouteContext (eingebundene Router)."""
+    """Reads a route from an _EffectiveRouteContext (included routers)."""
     original = ctx.original_route
     if isinstance(original, APIRoute):
         # Path, methods and dependencies are on the context, with prefix and
@@ -29,7 +29,7 @@ def _from_context(ctx: Any) -> RouteInfo | None:
 
 
 def _from_route(route: object) -> RouteInfo | None:
-    """Liest eine Route, die direkt in app.routes liegt."""
+    """Reads a route that sits directly in app.routes."""
     if isinstance(route, APIRoute):
         return RouteInfo(route.path, frozenset(route.methods), False, route.dependant)
     if isinstance(route, APIWebSocketRoute):
@@ -38,7 +38,7 @@ def _from_route(route: object) -> RouteInfo | None:
 
 
 def collect_routes(app: FastAPI) -> list[RouteInfo]:
-    """Alle HTTP- und WebSocket-Routen mit vollem Pfad, auch aus eingebundenen Routern.
+    """All HTTP and WebSocket routes with the full path, also from included routers.
 
     The collector never runs empty quietly: it stops if it finds nothing or if a
     path does not start with /api. FastAPI docs routes do not count.

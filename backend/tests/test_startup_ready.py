@@ -1,4 +1,4 @@
-"""Ein Server mit "done"-Text im Egg gilt erst als laufend, wenn die Konsole ihn zeigt."""
+"""A "done" text in the egg: the server runs only when the console shows it."""
 
 import json
 

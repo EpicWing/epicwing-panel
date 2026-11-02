@@ -7,7 +7,7 @@ from app.agentlink.console import ConsoleHub
 
 
 class _FailingCommands:
-    """Die Node meldet, dass der Container nicht existiert."""
+    """The node reports that the container does not exist."""
 
     async def send(self, node_id, action, params, timeout=None):
         return type("Result", (), {"ok": False, "error": "no such object", "code": None})()

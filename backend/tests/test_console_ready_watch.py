@@ -1,4 +1,4 @@
-"""Der Konsolen-Watch bleibt, solange das Panel auf die Bereitmeldung wartet."""
+"""The console watch stays while the panel waits for the ready message."""
 
 import asyncio
 import uuid
