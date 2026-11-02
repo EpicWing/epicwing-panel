@@ -460,7 +460,7 @@ export default {
     passwordHint: "Security tip: a long, unique password is safer. The length is up to you.",
     newPassword: "New password",
     administrator: "Administrator",
-    administratorHint: "Full access to every server and to this admin area.",
+    administratorHint: "Full access to every server and every node. Only for people you trust.",
     role: "Role",
     status: "Status",
     twoFactor: "2FA",
