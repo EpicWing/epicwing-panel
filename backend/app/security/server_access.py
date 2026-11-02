@@ -3,7 +3,7 @@
 Who may do what on a server?
 - Global administrators (is_admin or the projects.manage permission): everything.
 - The owner (servers.owner_id): all server permissions.
-- Mitglieder (server_members): ihre gespeicherten Rechte, dazu immer server.view.
+- Members (server_members): their stored permissions, plus server.view at all times.
 - Everyone else: nothing. The server is invisible to them (404 instead of 403).
 """
 

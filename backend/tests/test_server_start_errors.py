@@ -1,4 +1,4 @@
-"""Fehler beim Start und der Installation: Nutzer sehen nie den Rohtext des Agents."""
+"""Errors on start and install: users never see the raw agent text."""
 
 import importlib
 
@@ -23,7 +23,7 @@ RAW = (
 
 
 class CodedBroker:
-    """Wie FakeBroker, aber der Fehler kann einen Code mitbringen."""
+    """Like FakeBroker, but the error can carry a code."""
 
     def __init__(self):
         self.calls = []

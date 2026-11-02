@@ -166,7 +166,7 @@ def test_every_server_route_is_in_the_permission_matrix():
                 found.add((method.upper(), _shape(match.group(1))))
     covered = {(m, _shape(p)) for m, p, _ in DENIED_FOR_VIEWERS} | NOT_IN_MATRIX
     missing = sorted(found - covered)
-    assert not missing, f"Routen ohne Rechte-Test: {missing}"
+    assert not missing, f"Routes without a permission test: {missing}"
 
 
 def test_stranger_cannot_see_or_touch_the_server(client, world):
