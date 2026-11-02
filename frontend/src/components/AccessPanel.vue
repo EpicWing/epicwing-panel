@@ -70,7 +70,7 @@ const PRESETS = [
   {
     key: "manager",
     label: "Manager",
-    hint: "Operator, and files, backups, schedules",
+    hint: "Operator, and files, backups, schedules, and view startup and settings",
     permissions: [
       "console.view",
       "backups.view",
