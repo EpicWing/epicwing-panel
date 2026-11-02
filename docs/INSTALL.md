@@ -190,13 +190,13 @@ The agent binary (`epicwing-agent-linux-amd64`) and its checksum file `SHA256SUM
 GitHub release. Install with `--url <release asset url> --sha256 <hash>`, or download the file
 yourself and pass it with `--binary`.
 
-Example for release v0.1.5-beta (run as root on the node, it asks for the enrollment token
+Example for release v0.1.6-beta (run as root on the node, it asks for the enrollment token
 shown in the admin area):
 
 ```bash
 sudo bash scripts/install-node.sh --panel https://panel.example.com \
-  --url https://github.com/EpicWing/epicwing-panel/releases/download/v0.1.5-beta/epicwing-agent-linux-amd64 \
-  --sha256 3e2478faf9204cb49e28eb149d058d5c45f1959afcdb2b7667978d737b631b48
+  --url https://github.com/EpicWing/epicwing-panel/releases/download/v0.1.6-beta/epicwing-agent-linux-amd64 \
+  --sha256 dcb6f413ab8d27c214ff763eb108bedc144c7c7121a6c5824c718e8256c54b66
 ```
 
 Docker must already be installed on the node.
