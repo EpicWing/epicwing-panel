@@ -187,12 +187,10 @@ func (m *containerManager) Install(ctx context.Context, spec InstallSpec) (strin
 	return strings.TrimSpace(out.String()), nil
 }
 
-// installWrapper runs the egg install script and then hands the installed
-// files to the runtime user. Positional parameters: $0 is the configured
-// shell, $1 the script path, $2 the owner (uid:gid), $3 the target directory.
-// The script's exit status is preserved; a failing chown turns an otherwise
-// successful install into a failure, so the server never starts with files
-// the runtime user cannot write.
+// installWrapper runs the egg install script, then gives the installed files to the
+// runtime user. $0 is the shell, $1 the script path, $2 the owner (uid:gid) and $3
+// the target directory. The exit status of the script is kept. If chown fails, the
+// install counts as failed, so the server never starts with files it cannot write.
 const installWrapper = `cat > /tmp/epicwing-install.sh || exit 1; "$0" "$1"; rc=$?; chown -R "$2" "$3" || { [ "$rc" -eq 0 ] && rc=1; }; exit "$rc"`
 
 func (m *containerManager) installArgs(spec InstallSpec) []string {
@@ -202,9 +200,8 @@ func (m *containerManager) installArgs(spec InstallSpec) []string {
 		"--cap-add", "CHOWN", "--cap-add", "DAC_OVERRIDE", "--cap-add", "FOWNER",
 		"--pids-limit", "512", "--interactive",
 		"--mount", "type=bind,src=" + m.dataPath(spec.Name) + ",dst=" + containerHome,
-		// Pterodactyl installation eggs conventionally write to /mnt/server,
-		// while EpicWing runtime containers use /home/container. Mount the same
-		// controlled server directory at both paths for installer compatibility.
+		// Eggs from Pterodactyl write to /mnt/server, EpicWing uses /home/container.
+		// Mount the same server directory at both paths.
 		"--mount", "type=bind,src=" + m.dataPath(spec.Name) + ",dst=" + installerRoot,
 		"--workdir", containerHome,
 		"--entrypoint", spec.InstallerEntrypoint,
@@ -223,9 +220,8 @@ func (m *containerManager) installArgs(spec InstallSpec) []string {
 	for _, k := range keys {
 		args = append(args, "--env", k+"="+spec.Env[k])
 	}
-	// Run the script with the same shell selected for the installer image.
-	// Imported Pterodactyl eggs commonly contain Bash syntax and must not be
-	// forced through /bin/sh (which is dash in the Debian installer image).
+	// Use the shell of the installer image. Imported eggs often use Bash syntax,
+	// and /bin/sh is dash in the Debian image.
 	args = append(args,
 		m.pinned(spec.InstallerImage),
 		"-c", installWrapper,
