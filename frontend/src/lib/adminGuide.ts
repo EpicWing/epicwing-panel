@@ -276,6 +276,9 @@ export const guide: GuideGroup[] = [
         title: "Access",
         summary:
           "Give other users access to this server and choose what they may do. The owner and admins always have full access.",
+        tips: [
+          "Start with a preset (Viewer, Operator or Manager) and change single permissions after that. Tabs that a user may not use are hidden for that user.",
+        ],
       },
       {
         id: "server-settings",
