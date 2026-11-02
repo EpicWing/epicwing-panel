@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class LoginRequest(BaseModel):
     email: str = Field(max_length=320)
-    # Obergrenze, damit niemand riesige Eingaben durch Argon2 schicken kann.
+    # Upper limit, so nobody can send huge inputs through Argon2.
     password: str = Field(max_length=1024)
 
 

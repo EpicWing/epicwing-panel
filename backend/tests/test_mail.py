@@ -31,7 +31,7 @@ def test_render_has_layout_and_text_part():
 
 def test_render_without_button():
     html, text = mail.render("Hi", ["Body"])
-    assert html.count("<a ") == 2  # nur die Footer-Links, kein Button
+    assert html.count("<a ") == 2  # only the footer links, no button
     assert "Open" not in text
 
 

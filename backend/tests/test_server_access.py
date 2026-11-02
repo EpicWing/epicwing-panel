@@ -138,12 +138,12 @@ DENIED_FOR_VIEWERS = [
     ("DELETE", "/databases/00000000-0000-4000-8000-000000000007", None),
 ]
 
-# Routen mit Server-ID, die absichtlich nicht in der Matrix stehen.
+# Routes with a server ID that are left out of the matrix on purpose.
 # The console over WebSocket is not in the OpenAPI schema, the ticket tests check its permissions.
 NOT_IN_MATRIX = {
     ("GET", "/"),  # Ansicht: server.view reicht
-    ("GET", "/ddos"),  # Ansicht: server.view reicht, nur Lesen
-    ("DELETE", "/"),  # nur Admin, siehe test_owner_cannot_create_or_delete_servers
+    ("GET", "/ddos"),  # view: server.view is enough, read only
+    ("DELETE", "/"),  # admin only, see test_owner_cannot_create_or_delete_servers
 }
 UUID_RE = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 
@@ -269,8 +269,8 @@ def test_install_needs_the_reinstall_right(client, db_session, world):
 
 
 def _reached_the_endpoint(client, method, url, **kwargs):
-    # Der Fake-Agent liefert keine Dateidaten. Ein Fehler nach der Rechteprüfung zählt als
-    # "durchgelassen", entscheidend ist hier nur, dass es weder 403 noch 404 gab.
+    # The fake agent returns no file data. An error after the permission check counts as
+    # "let through". All that matters here is that there was neither a 403 nor a 404.
     try:
         return client.request(method, url, **kwargs).status_code not in (403, 404)
     except Exception:
@@ -410,7 +410,7 @@ def test_allocation_rights_split_view_and_manage(client, db_session, world):
     assert client.post(world.url + "/allocations", json=unknown, headers=headers).status_code == 403
     _add(db_session, member, P.ALLOCATIONS_MANAGE)
     assert client.get(world.url + "/allocations/free", headers=headers).status_code == 200
-    # 422 statt 403: Das Recht greift, die Allocation gibt es nur nicht.
+    # 422 instead of 403: the permission works, the allocation just does not exist.
     assert client.post(world.url + "/allocations", json=unknown, headers=headers).status_code == 422
 
 

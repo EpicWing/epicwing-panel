@@ -311,7 +311,7 @@ body:has(.server-detail-shell) {
   .tab-in { animation: none; }
 }
 
-/* Kleiner Spinner in Knöpfen */
+/* Small spinner inside buttons */
 @keyframes spinner-turn {
   to { transform: rotate(360deg); }
 }

@@ -19,7 +19,7 @@ PUBLIC_ROUTES = {
     ("/api/health", "GET"),
     ("/api/auth/login", "POST"),
     ("/api/auth/login/2fa", "POST"),
-    # Der Agent hat noch kein Konto und weist sich mit einem einmaligen Token aus.
+    # The agent has no account yet and identifies itself with a one-time token.
     ("/api/agent/enroll", "POST"),
 }
 

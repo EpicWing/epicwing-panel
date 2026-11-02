@@ -11,7 +11,7 @@ from app.services import lifecycle
 from tests import test_server_power as base
 from tests.factories import make_allocations
 
-# Der Fixture "server" legt einen Server mit Node, Egg und Allocation an.
+# The fixture "server" creates a server with a node, an egg and an allocation.
 server = base.server
 
 

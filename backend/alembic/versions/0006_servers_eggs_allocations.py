@@ -103,7 +103,7 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['server_id'], ['servers.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('server_id', 'env_variable')
     )
-    # Die einfache Container-Tabelle aus 0005 wird durch servers ersetzt.
+    # The simple container table from 0005 is replaced by servers.
     op.drop_index(op.f('ix_containers_node_id'), table_name='containers')
     op.drop_table('containers')
 

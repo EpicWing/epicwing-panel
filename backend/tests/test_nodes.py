@@ -54,7 +54,7 @@ def test_create_node_returns_token_once(client, db_session, user):
     assert body["node"]["status"] == "pending"
     assert token.startswith("epicwing_enroll_")
 
-    # In der Datenbank steht nur der Hash.
+    # The database only stores the hash.
     enrollment = db_session.scalars(select(NodeEnrollment)).one()
     assert enrollment.token_hash == hash_token(token)
     assert token not in enrollment.token_hash

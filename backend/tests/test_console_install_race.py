@@ -24,7 +24,7 @@ class _Socket:
 def test_subscribe_during_install_survives_failed_watch():
     async def scenario():
         hub = ConsoleHub(_FailingCommands())
-        hub.start_install("srv")  # Puffer ist noch leer
+        hub.start_install("srv")  # buffer is still empty
         socket = _Socket()
         await hub.subscribe("srv", object(), socket)
         assert socket in hub._subs["srv"]

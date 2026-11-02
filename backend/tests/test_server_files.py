@@ -10,7 +10,7 @@ from app.agentlink.protocol import CommandResult
 from app.models import AuditLog, Node, Server
 from tests import test_server_power as base
 
-# Der Fixture "server" legt einen Server mit Node, Egg und Allocation an.
+# The fixture "server" creates a server with a node, an egg and an allocation.
 server = base.server
 
 

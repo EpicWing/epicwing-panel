@@ -166,7 +166,7 @@ def test_recorded_signature_cannot_be_replayed(client, db_session, user):
         ws.send_json(recorded)
         assert ws.receive_json() == {"type": "auth_ok"}
 
-    # Neue Verbindung, neue Nonce: Die alte Signatur passt nicht mehr.
+    # New connection, new nonce: the old signature no longer fits.
     with client.websocket_connect(WS_URL) as ws:
         ws.receive_json()
         ws.send_json(recorded)
@@ -212,7 +212,7 @@ def test_newer_connection_replaces_the_older_one(client, db_session, user):
                 first.receive_json()
             assert exc.value.code == REPLACED
 
-            # Die ersetzte Verbindung setzt die Node nicht auf offline.
+            # The replaced connection does not set the node to offline.
             assert db_session.scalars(select(Node)).one().status == "online"
             second.send_json(HEARTBEAT)
             assert second.receive_json() == {"type": "heartbeat_ack"}
@@ -319,7 +319,7 @@ def test_disconnecting_one_node_keeps_the_stats_of_others(client, user, clean_st
             ws_a.send_json(_stats_frame(server_a))
             ws_b.send_json(_stats_frame(server_b))
             assert _eventually(lambda: set(registry.server_stats) == {server_a, server_b})
-        # Node A ist getrennt: ihre Stats verschwinden, die von Node B bleiben.
+        # Node A is disconnected: its stats disappear, the ones of node B stay.
         assert _eventually(lambda: set(registry.server_stats) == {server_b})
         assert server_a not in registry.server_stats
 
@@ -337,7 +337,7 @@ def test_stats_feed_the_ddos_detector(client, user, clean_stats):
         frame["console"] = {"window_lines": 5, "bogus": 7}
         ws.send_json(frame)
         assert _eventually(lambda: detector.snapshot(server_id, time.monotonic()) is not None)
-    # Beim Trennen vergisst die Registry auch den Zustand des Detektors.
+    # When a node disconnects, the registry also forgets the state of the detector.
     assert _eventually(lambda: detector.snapshot(server_id, time.monotonic()) is None)
 
 

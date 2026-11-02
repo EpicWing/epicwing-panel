@@ -147,7 +147,7 @@ def test_busy_and_missing_container_have_their_own_messages(client, installed, b
     for code in ("BACKUP_RUNNING", "NODE_BUSY", "CONTAINER_MISSING"):
         broker.failures["container.start"] = (code, "x")
         assert _start(client, installed, owner).json()["detail"] == MESSAGES[code]
-        # Aus "error" ist ein neuer Start erlaubt.
+        # A new start is allowed from "error".
 
 
 def test_offline_node_message_is_unchanged(client, installed, broker):
