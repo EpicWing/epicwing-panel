@@ -195,6 +195,28 @@ export const guide: GuideGroup[] = [
         title: "Notifications",
         summary: "Get a message when something fails.",
         steps: ["Fill in the e-mail settings.", "Paste a Discord webhook URL to get alerts in a channel."],
+        tips: [
+          "The e-mail settings also switch on the 'Forgot password?' link on the sign-in page. See Password reset.",
+        ],
+      },
+      {
+        id: "password-reset",
+        icon: "key",
+        title: "Password reset",
+        summary: "People who forgot their password can choose a new one with a link from an e-mail.",
+        steps: [
+          "Save working e-mail settings under Admin > Notifications and send a test mail.",
+          "Check that EPICWING_PUBLIC_URL in the .env file of the panel is the address people use to open it. The links in the mails are built from it.",
+          "Reload the sign-in page. The link 'Forgot password?' appears under the password field.",
+          "A user enters the e-mail address and gets a link. The link works for 30 minutes and only once.",
+        ],
+        code: ".venv/bin/python -m app.cli set-password --email user@example.com",
+        tips: [
+          "After a reset, every session of that account is signed out. If the account uses 2FA, the code is still asked at the next sign-in.",
+          "If no mail arrives, look in the spam folder and send a test mail under Notifications. The command above sets a password directly on the machine. Run it in the backend folder of the panel.",
+          "Each address can ask for 3 links and each IP address for 10 in 15 minutes. These counters live in memory, so a restart of the panel clears them.",
+        ],
+        warnings: ["A reset mail is only as safe as the mailbox. Anyone who can read it can take over the account."],
       },
     ],
   },
