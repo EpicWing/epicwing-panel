@@ -1,0 +1,61 @@
+{
+    "_comment": "Written for EpicWing in the Pterodactyl egg format.",
+    "meta": {
+        "version": "PTDL_v2"
+    },
+    "exported_at": "2026-11-03T20:35:58.510700+00:00",
+    "name": "PaperProxy",
+    "author": "LucasTHCR",
+    "description": "PaperProxy: a Velocity fork that runs Velocity and BungeeCord plugins side by side, with per-server forwarding, PaperGuard, messages.yml and plugin reload. Not an official Paper project. Made by LucasTHCR.",
+    "features": [],
+    "docker_images": {
+        "ghcr.io/ptero-eggs/yolks:java_25": "ghcr.io/ptero-eggs/yolks:java_25"
+    },
+    "file_denylist": [],
+    "startup": "java -Xms128M -XX:MaxRAMPercentage=95.0 -XX:+UseG1GC -XX:G1HeapRegionSize=4M -XX:+UnlockExperimentalVMOptions -XX:+ParallelRefProcEnabled -XX:+AlwaysPreTouch -jar {{SERVER_JARFILE}} --port {{SERVER_PORT}}",
+    "config": {
+        "files": "{}",
+        "startup": "{\n    \"done\": \"Done (\"\n}",
+        "logs": "{}",
+        "stop": "shutdown"
+    },
+    "scripts": {
+        "installation": {
+            "script": "#!/bin/ash\n# PaperProxy install script (Pterodactyl). Downloads the PaperProxy jar from GitHub releases.\napk add --no-cache curl jq >/dev/null\n\nmkdir -p /mnt/server\ncd /mnt/server || exit 1\n\nAPI=\"https://api.github.com/repos/LucasTHCRR/PaperProxy/releases\"\nRELEASE=/tmp/paperproxy-release.json\n# Kept in a file: release notes contain escapes that \"echo\" would break in some shells.\nif [ -z \"${PAPERPROXY_VERSION}\" ] || [ \"${PAPERPROXY_VERSION}\" = \"latest\" ]; then\n  curl -fsSL \"${API}?per_page=1\" | jq '.[0]' > \"${RELEASE}\"\nelse\n  curl -fsSL \"${API}/tags/${PAPERPROXY_VERSION}\" > \"${RELEASE}\"\nfi\nif [ ! -s \"${RELEASE}\" ] || [ \"$(jq -r '.tag_name // empty' \"${RELEASE}\")\" = \"\" ]; then\n  echo \"Release ${PAPERPROXY_VERSION} not found on GitHub.\"\n  exit 1\nfi\n\nif [ \"${OFFLINE_JAR}\" = \"1\" ] || [ \"${OFFLINE_JAR}\" = \"true\" ]; then FULL=true; else FULL=false; fi\nQUERY='[.assets[] | select(.name | test(\"^paperproxy-.*\\\\.jar$\"))\n              | select((.name | endswith(\"-full.jar\")) == $full)][0]'\nNAME=$(jq -r --argjson full \"${FULL}\" \"${QUERY} | .name\" \"${RELEASE}\")\nURL=$(jq -r --argjson full \"${FULL}\" \"${QUERY} | .browser_download_url\" \"${RELEASE}\")\nTAG=$(jq -r '.tag_name' \"${RELEASE}\")\nif [ -z \"${URL}\" ] || [ \"${URL}\" = \"null\" ]; then\n  echo \"No PaperProxy jar found in release ${TAG}.\"\n  exit 1\nfi\n\necho \"Downloading ${NAME} (${TAG})\"\ncurl -fL -o \"${SERVER_JARFILE}\" \"${URL}\" || exit 1\n\n# The small jar is published with a SHA-512 checksum; check it when available.\nSHA_URL=$(jq -r --arg n \"${NAME}.sha512\" '.assets[] | select(.name == $n) | .browser_download_url' \"${RELEASE}\")\nif [ -n \"${SHA_URL}\" ]; then\n  EXPECTED=$(curl -fsSL \"${SHA_URL}\" | cut -d ' ' -f 1)\n  ACTUAL=$(sha512sum \"${SERVER_JARFILE}\" | cut -d ' ' -f 1)\n  if [ \"${EXPECTED}\" != \"${ACTUAL}\" ]; then\n    echo \"Checksum mismatch, removing the download.\"\n    rm -f \"${SERVER_JARFILE}\"\n    exit 1\n  fi\n  echo \"Checksum verified.\"\nfi\n\nif [ \"${FULL}\" = \"true\" ]; then\n  echo \"PaperProxy installed (offline jar, no downloads needed on start).\"\nelse\n  echo \"PaperProxy installed. Libraries are downloaded on the first start.\"\nfi\n",
+            "container": "ghcr.io/pterodactyl/installers:alpine",
+            "entrypoint": "ash"
+        }
+    },
+    "variables": [
+        {
+            "name": "Jar file",
+            "description": "File name of the PaperProxy jar.",
+            "env_variable": "SERVER_JARFILE",
+            "default_value": "paperproxy.jar",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|regex:/^([\\w\\d._-]+)(\\.jar)$/",
+            "field_type": "text"
+        },
+        {
+            "name": "PaperProxy version",
+            "description": "Release tag to install, e.g. v1.0.0-ALPHA, or \"latest\" for the newest release (including test builds). Reinstall the server to change it.",
+            "env_variable": "PAPERPROXY_VERSION",
+            "default_value": "latest",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|max:40",
+            "field_type": "text"
+        },
+        {
+            "name": "Offline jar",
+            "description": "1 installs the large jar with all libraries inside (no downloads on start). 0 installs the small jar, which downloads its libraries on the first start.",
+            "env_variable": "OFFLINE_JAR",
+            "default_value": "0",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|boolean",
+            "field_type": "text"
+        }
+    ]
+}

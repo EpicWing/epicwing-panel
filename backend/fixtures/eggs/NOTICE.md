@@ -28,4 +28,5 @@ The game-eggs project uses the MIT license:
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
     SOFTWARE.
 
-Eggs written by EpicWing itself are not covered by this notice.
+Eggs written by EpicWing itself are not covered by this notice. The PaperStream and PaperProxy
+eggs were written by the authors of those projects and are covered by this repository's license.

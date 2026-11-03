@@ -70,7 +70,7 @@ Options, the manual installation, updating and troubleshooting are in
 
 ## Bundled eggs
 
-Minecraft (Vanilla, Paper, Purpur, Fabric), Unturned and a static website. Pterodactyl-format egg files can be imported for everything else.
+Minecraft (Vanilla, Paper, Purpur, Fabric, PaperStream), the PaperProxy proxy, Unturned and a static website. Pterodactyl-format egg files can be imported for everything else.
 
 ## Components
 

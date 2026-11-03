@@ -22,5 +22,13 @@
   {
     "nest": "Minecraft",
     "file": "minecraft-vanilla-minecraft.json"
+  },
+  {
+    "nest": "Minecraft",
+    "file": "minecraft-paperstream.json"
+  },
+  {
+    "nest": "Minecraft",
+    "file": "minecraft-paperproxy.json"
   }
 ]

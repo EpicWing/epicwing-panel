@@ -1,0 +1,103 @@
+{
+    "_comment": "Written for EpicWing in the Pterodactyl egg format.",
+    "meta": {
+        "version": "PTDL_v2"
+    },
+    "exported_at": "2026-11-03T20:35:58.510700+00:00",
+    "name": "PaperStream",
+    "author": "LucasTHCR",
+    "description": "PaperStream: a Paper fork that uses less CPU and RAM, loads chunks faster and protects against lag machines and crash items. Every change can be switched off in paperstream.yml. Not an official Paper project. Made by LucasTHCR.",
+    "features": [
+        "eula"
+    ],
+    "docker_images": {
+        "ghcr.io/ptero-eggs/yolks:java_25": "ghcr.io/ptero-eggs/yolks:java_25"
+    },
+    "file_denylist": [],
+    "startup": "bash paperstream-start.sh",
+    "config": {
+        "files": "{\n    \"server.properties\": {\n        \"parser\": \"properties\",\n        \"find\": {\n            \"server-ip\": \"0.0.0.0\",\n            \"server-port\": \"{{server.build.default.port}}\",\n            \"query.port\": \"{{server.build.default.port}}\"\n        }\n    }\n}",
+        "startup": "{\n    \"done\": \")! For help, type \"\n}",
+        "logs": "{}",
+        "stop": "stop"
+    },
+    "scripts": {
+        "installation": {
+            "script": "#!/bin/ash\n# PaperStream install script (Pterodactyl). Downloads the PaperStream server jar from GitHub releases.\napk add --no-cache curl jq >/dev/null\n\nmkdir -p /mnt/server\ncd /mnt/server || exit 1\n\nAPI=\"https://api.github.com/repos/LucasTHCRR/PaperStream/releases?per_page=100\"\nRELEASES=/tmp/paperstream-releases.json\ncurl -fsSL \"${API}\" > \"${RELEASES}\" || { echo \"Could not reach GitHub.\"; exit 1; }\n\nif [ -z \"${PAPERSTREAM_BUILD}\" ] || [ \"${PAPERSTREAM_BUILD}\" = \"latest\" ]; then\n  # Newest release for the chosen Minecraft version, alpha builds included.\n  TAG=$(jq -r --arg mc \"${MINECRAFT_VERSION}\" '[.[] | select(.tag_name | startswith($mc + \"-\"))][0].tag_name // empty' \"${RELEASES}\")\nelse\n  TAG=\"${PAPERSTREAM_BUILD}\"\nfi\nif [ -z \"${TAG}\" ]; then\n  echo \"No PaperStream release found for Minecraft ${MINECRAFT_VERSION}. Available:\"\n  jq -r '.[].tag_name' \"${RELEASES}\"\n  exit 1\nfi\n\nURL=$(jq -r --arg tag \"${TAG}\" '.[] | select(.tag_name == $tag) | .assets[] | select(.name | test(\"^paperstream-.*\\\\.jar$\")) | .browser_download_url' \"${RELEASES}\" | head -n 1)\nif [ -z \"${URL}\" ]; then\n  echo \"Release ${TAG} has no PaperStream jar.\"\n  exit 1\nfi\n\necho \"Downloading PaperStream ${TAG}\"\ncurl -fL -o \"${SERVER_JARFILE}\" \"${URL}\" || exit 1\nbasename \"${URL}\" > .paperstream-installed\necho \"Installed ${SERVER_JARFILE} (${TAG})\"\n\n# The start command runs this before every start when \"Auto update\" is on.\ncat > paperstream-update.sh <<'UPDATE'\n#!/bin/sh\n# Written by the PaperStream egg. Runs before every start when \"Auto update\" is on:\n# installs the newest PaperStream build for this Minecraft version, unless a build is pinned.\nMC=\"${MINECRAFT_VERSION}\"\nJAR=\"${SERVER_JARFILE:-server.jar}\"\nif [ -n \"${PAPERSTREAM_BUILD}\" ] && [ \"${PAPERSTREAM_BUILD}\" != \"latest\" ]; then\n  exit 0\nfi\nJSON=$(curl -fsSL --max-time 15 \"https://api.github.com/repos/LucasTHCRR/PaperStream/releases?per_page=100\") || {\n  echo \"[PaperStream] Update check failed, starting the installed build.\"\n  exit 0\n}\nURL=$(printf '%s' \"${JSON}\" | grep -o \"\\\"browser_download_url\\\": *\\\"[^\\\"]*/paperstream-${MC}-[^\\\"]*\\.jar\\\"\" | head -n 1 | sed 's/.*\"\\(https[^\"]*\\)\"$/\\1/')\nif [ -z \"${URL}\" ]; then\n  echo \"[PaperStream] No build found for Minecraft ${MC}, starting the installed build.\"\n  exit 0\nfi\nNEW=$(basename \"${URL}\")\nOLD=$(cat .paperstream-installed 2>/dev/null)\nif [ \"${NEW}\" = \"${OLD}\" ] && [ -f \"${JAR}\" ]; then\n  echo \"[PaperStream] ${NEW} is up to date.\"\n  exit 0\nfi\necho \"[PaperStream] Updating ${OLD:-unknown} -> ${NEW}\"\nif curl -fsSL --max-time 300 -o \"${JAR}.download\" \"${URL}\"; then\n  mv \"${JAR}.download\" \"${JAR}\" && echo \"${NEW}\" > .paperstream-installed\nelse\n  rm -f \"${JAR}.download\"\n  echo \"[PaperStream] Download failed, starting the installed build.\"\nfi\nUPDATE\nchmod +x paperstream-update.sh\n\n# The panel's start command runs this file.\ncat > paperstream-start.sh <<'START'\n#!/bin/bash\n# Written by the PaperStream egg. The panel's start command only runs this file.\nif [ \"${AUTO_UPDATE}\" = \"1\" ] && [ -f paperstream-update.sh ]; then\n  sh paperstream-update.sh\nfi\nFLAGS=\"\"\nif [ \"${AIKAR_FLAGS}\" = \"1\" ]; then\n  FLAGS=\"-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 -XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC -XX:G1NewSizePercent=30 -XX:G1MaxNewSizePercent=40 -XX:G1HeapRegionSize=8M -XX:G1ReservePercent=20 -XX:G1MixedGCCountTarget=4 -XX:InitiatingHeapOccupancyPercent=15 -XX:G1MixedGCLiveThresholdPercent=90 -XX:G1RSetUpdatingPauseTimePercent=5 -XX:SurvivorRatio=32 -XX:+PerfDisableSharedMem -XX:MaxTenuringThreshold=1\"\nfi\n# exec, so Java gets the console input and the panel's stop command directly.\nexec java -Xms128M -XX:MaxRAMPercentage=\"${MAX_RAM_PERCENT:-90.0}\" ${FLAGS} ${JVM_ARGS} -Dterminal.jline=false -Dterminal.ansi=true -jar \"${SERVER_JARFILE:-server.jar}\" --nogui\nSTART\nchmod +x paperstream-start.sh\n",
+            "container": "ghcr.io/pterodactyl/installers:alpine",
+            "entrypoint": "ash"
+        }
+    },
+    "variables": [
+        {
+            "name": "Minecraft version",
+            "description": "Minecraft version to install PaperStream for: 26.3, 26.2 or 1.21.11. 26.x needs the Java 25 image, 1.21.11 the Java 21 image. Reinstall the server to change it.",
+            "env_variable": "MINECRAFT_VERSION",
+            "default_value": "26.3",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|in:26.3,26.2,1.21.11",
+            "field_type": "text"
+        },
+        {
+            "name": "PaperStream build",
+            "description": "Release tag to install, e.g. 26.3-alpha.2, or \"latest\" for the newest build of the chosen Minecraft version. Reinstall the server to update.",
+            "env_variable": "PAPERSTREAM_BUILD",
+            "default_value": "latest",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|max:40",
+            "field_type": "text"
+        },
+        {
+            "name": "Server jar file",
+            "description": "File name of the server jar.",
+            "env_variable": "SERVER_JARFILE",
+            "default_value": "server.jar",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|regex:/^([\\w\\d._-]+)(\\.jar)$/",
+            "field_type": "text"
+        },
+        {
+            "name": "Auto update",
+            "description": "1 = before every start, install the newest PaperStream build for the chosen Minecraft version (only while \"PaperStream build\" is latest). 0 = only on reinstall.",
+            "env_variable": "AUTO_UPDATE",
+            "default_value": "1",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|boolean",
+            "field_type": "text"
+        },
+        {
+            "name": "Aikar flags",
+            "description": "1 = start Java with Aikar's tuned G1 garbage collector flags (recommended). 0 = plain Java defaults.",
+            "env_variable": "AIKAR_FLAGS",
+            "default_value": "1",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|boolean",
+            "field_type": "text"
+        },
+        {
+            "name": "Max RAM percent",
+            "description": "Share of the server's memory limit Java may use as heap. Keep some room for Java itself; 85-95 is usual.",
+            "env_variable": "MAX_RAM_PERCENT",
+            "default_value": "90.0",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|numeric|between:25,98",
+            "field_type": "text"
+        },
+        {
+            "name": "Extra JVM arguments",
+            "description": "Added to the java command, e.g. -Dpaper.playerconnection.keepalive=60. Leave empty if unsure.",
+            "env_variable": "JVM_ARGS",
+            "default_value": "",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "nullable|string|max:512",
+            "field_type": "text"
+        }
+    ]
+}

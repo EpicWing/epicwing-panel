@@ -21,3 +21,17 @@ def test_seeded_unturned_keeps_its_variables(db_session):
         for v in db_session.scalars(select(EggVariable).where(EggVariable.egg_id == egg.id))
     }
     assert {"GSLT", "SRV_NAME", "SRV_ID"} <= names
+
+
+def test_seeded_paper_forks_ship_install_scripts_and_variables(db_session):
+    seed(db_session)
+    stream = db_session.scalar(select(Egg).where(Egg.name == "PaperStream"))
+    proxy = db_session.scalar(select(Egg).where(Egg.name == "PaperProxy"))
+    assert stream is not None and proxy is not None
+    assert "releases" in stream.install_script and "paperstream-start.sh" in stream.install_script
+    assert "{{SERVER_PORT}}" in proxy.startup
+    names = {
+        v.env_variable
+        for v in db_session.scalars(select(EggVariable).where(EggVariable.egg_id == stream.id))
+    }
+    assert {"MINECRAFT_VERSION", "PAPERSTREAM_BUILD", "SERVER_JARFILE"} <= names
