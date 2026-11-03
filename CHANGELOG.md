@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.1.7-beta (2026-11-03)
+
+- Password reset by e-mail: a "Forgot password?" link on the sign-in page. It only shows up when the e-mail settings are saved and `EPICWING_PUBLIC_URL` is set
+- The reset link works for 30 minutes and only once, signs out every session of the account and does not skip 2FA. The answer is the same for known and unknown addresses, and requests are rate limited
+- New database migration (0021): run `alembic upgrade head` when you update
+- Server page: click the address to copy it (also works without HTTPS)
+- Admin guide: new part about the password reset
+- Version numbers in the panel, the backend and the frontend match the release
+
+## 0.1.6-beta (2026-11-02)
+
+- Settings: list of active sessions (without IP addresses), aligned cards
+- Access tab: permission presets in the form, tabs and settings buttons are hidden without permission, clearer manager preset and admin hint
+- Agent: golang.org/x/crypto updated to 0.52.0
+- All code comments in English, empty architecture doc removed
+- Docs: Discord link, contact addresses and badges, README requirements
+- Installer and docs point to v0.1.6-beta
+
 ## 0.1.5-beta (2026-11-01)
 
 - The agent reports its real version (set at build time from the git tag), `update-agent.sh` does the same
