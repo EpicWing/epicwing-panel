@@ -19,6 +19,7 @@ const AdminGuideView = () => import("../views/AdminGuideView.vue");
 
 const ApiKeysView = () => import("../views/ApiKeysView.vue");
 const SshKeysView = () => import("../views/SshKeysView.vue");
+const ResetPasswordView = () => import("../views/ResetPasswordView.vue");
 
 const router = createRouter({
   history: createWebHistory(),
@@ -91,6 +92,7 @@ const router = createRouter({
     { path: "/nodes", redirect: "/admin/nodes" },
     { path: "/admin/mail", redirect: "/admin/notifications" },
     { path: "/login", name: "login", component: LoginView },
+    { path: "/reset-password", name: "reset-password", component: ResetPasswordView },
     { path: "/:pathMatch(.*)*", redirect: "/" },
   ],
 });
