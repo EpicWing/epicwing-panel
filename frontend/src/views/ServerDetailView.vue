@@ -116,6 +116,47 @@ function navIcon(key: string): string {
   return NAV_ICONS[key] ?? "M12 12h.01";
 }
 
+const ipCopied = ref(false);
+
+function fallbackCopy(text: string): boolean {
+  // navigator.clipboard needs HTTPS or localhost, so plain HTTP panels use this.
+  const area = document.createElement("textarea");
+  area.value = text;
+  area.style.position = "fixed";
+  area.style.opacity = "0";
+  document.body.appendChild(area);
+  area.select();
+  let ok = false;
+  try {
+    ok = document.execCommand("copy");
+  } catch {
+    ok = false;
+  }
+  document.body.removeChild(area);
+  return ok;
+}
+
+async function copyIp(): Promise<void> {
+  const a = server.value?.allocations[0];
+  if (!a) {
+    return;
+  }
+  const text = `${a.ip}:${a.port}`;
+  let ok = false;
+  try {
+    await navigator.clipboard.writeText(text);
+    ok = true;
+  } catch {
+    ok = fallbackCopy(text);
+  }
+  if (ok) {
+    ipCopied.value = true;
+    setTimeout(() => {
+      ipCopied.value = false;
+    }, 1500);
+  }
+}
+
 function onAllocationsChanged(rows: Allocation[]): void {
   if (server.value) server.value.allocations = rows;
 }
@@ -632,7 +673,7 @@ onMounted(async () => {
         </div>
 
         <div v-if="active === 'home'" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <div class="rounded-xl border border-ink-700 bg-ink-900 p-4"><p class="text-xs uppercase text-ink-400">IP address</p><p class="mt-2 truncate font-mono text-lg font-semibold">{{ server.allocations[0]?.ip }}:{{ server.allocations[0]?.port }}</p></div>
+          <div class="rounded-xl border border-ink-700 bg-ink-900 p-4"><p class="text-xs uppercase text-ink-400">IP address</p><div class="mt-2 flex items-center gap-2"><p class="min-w-0 flex-1 truncate font-mono text-lg font-semibold">{{ server.allocations[0]?.ip }}:{{ server.allocations[0]?.port }}</p><button type="button" class="shrink-0 rounded-lg border border-ink-700 px-2 py-1 text-xs text-ink-400 hover:text-white" @click="copyIp">{{ ipCopied ? "Copied" : "Copy" }}</button></div></div>
           <div class="rounded-xl border border-ink-700 bg-ink-900 p-4"><p class="text-xs uppercase text-ink-400">CPU usage</p><p class="mt-2 text-xl font-semibold">{{ server?.status === 'running' || server?.status === 'starting' ? metrics.cpu.toFixed(1) + '%' : 'Offline' }}</p></div>
           <div class="rounded-xl border border-ink-700 bg-ink-900 p-4"><p class="text-xs uppercase text-ink-400">RAM usage</p><p class="mt-2 text-xl font-semibold">{{ server?.status === 'running' || server?.status === 'starting' ? formatBytes(metrics.ram) : 'Offline' }}</p></div>
           <div class="rounded-xl border border-ink-700 bg-ink-900 p-4"><p class="text-xs uppercase text-ink-400">Storage usage</p><p class="mt-2 text-xl font-semibold">{{ formatBytes(metrics.disk) }}</p></div>
