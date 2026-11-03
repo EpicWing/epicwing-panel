@@ -5,6 +5,7 @@ from app.models.ddos import DdosSample
 from app.models.egg import Egg, EggVariable, Nest
 from app.models.node import Node, NodeCredential, NodeEnrollment
 from app.models.panel import PanelSetting
+from app.models.passwordreset import PasswordResetToken
 from app.models.rbac import Role, RolePermission, UserRole
 from app.models.schedule import Schedule, ScheduleTask
 from app.models.server import Allocation, Server, ServerVariable
@@ -25,6 +26,7 @@ __all__ = [
     "NodeCredential",
     "NodeEnrollment",
     "PanelSetting",
+    "PasswordResetToken",
     "RecoveryCode",
     "Role",
     "RolePermission",

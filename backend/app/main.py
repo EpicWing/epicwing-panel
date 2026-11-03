@@ -28,6 +28,7 @@ from app.api.admin_database_hosts import router as admin_database_hosts_router
 from app.api.admin_mail import router as admin_mail_router
 from app.api.admin_notifications import router as admin_notifications_router
 from app.api.api_keys import router as api_keys_router
+from app.api.password_reset import router as password_reset_router
 from app.api.schedules import router as schedules_router
 from app.api.server_databases import router as server_databases_router
 from app.api.ssh_keys import router as ssh_keys_router
@@ -81,6 +82,7 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router, prefix="/api")
     app.include_router(auth.router, prefix="/api")
+    app.include_router(password_reset_router, prefix="/api")
     app.include_router(two_factor.router, prefix="/api")
     app.include_router(users.router, prefix="/api")
     app.include_router(audit.router, prefix="/api")
