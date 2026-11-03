@@ -19,6 +19,10 @@ PUBLIC_ROUTES = {
     ("/api/health", "GET"),
     ("/api/auth/login", "POST"),
     ("/api/auth/login/2fa", "POST"),
+    # Password reset: the person has no session yet. Tokens and rate limits protect it.
+    ("/api/auth/password-reset/available", "GET"),
+    ("/api/auth/password-reset/request", "POST"),
+    ("/api/auth/password-reset/confirm", "POST"),
     # The agent has no account yet and identifies itself with a one-time token.
     ("/api/agent/enroll", "POST"),
 }
