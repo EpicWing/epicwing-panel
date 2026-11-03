@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 
-import { ApiError } from "../api/client";
+import { api, ApiError } from "../api/client";
 import LogoMark from "../components/LogoMark.vue";
 import { auth } from "../stores/auth";
 
@@ -15,6 +15,17 @@ const error = ref("");
 const busy = ref(false);
 const challenge = ref("");
 const code = ref("");
+const canReset = ref(false);
+
+onMounted(async () => {
+  // The link only shows up when the panel can send e-mails.
+  try {
+    const info = await api<{ available: boolean }>("/auth/password-reset/available");
+    canReset.value = info.available;
+  } catch {
+    canReset.value = false;
+  }
+});
 
 function restart() {
   challenge.value = "";
@@ -91,6 +102,13 @@ async function submit() {
             required
             class="w-full rounded-md border border-ink-700 bg-ink-950 px-3 py-2 text-sm outline-none transition focus:border-accent-500"
           />
+        </div>
+        <div v-if="canReset" class="text-right">
+          <router-link
+            :to="{ name: 'reset-password' }"
+            class="text-sm text-ink-400 transition hover:text-ink-200"
+            >{{ t("login.forgot") }}</router-link
+          >
         </div>
 
         </template>
