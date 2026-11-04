@@ -1,0 +1,54 @@
+name: Release
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  agent:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goarch: [amd64, arm64]
+    defaults:
+      run:
+        working-directory: agent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - name: Build
+        run: |
+          pkg="$(go list -f '{{if eq .Name "main"}}{{.ImportPath}}{{end}}' ./... | head -n1)"
+          echo "main package: $pkg"
+          CGO_ENABLED=0 GOOS=linux GOARCH=${{ matrix.goarch }} \
+            go build -trimpath -ldflags="-s -w -buildid=" \
+            -o "epicwing-agent-linux-${{ matrix.goarch }}" "$pkg"
+          sha256sum "epicwing-agent-linux-${{ matrix.goarch }}" | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agent-${{ matrix.goarch }}
+          path: agent/epicwing-agent-linux-${{ matrix.goarch }}
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: agent
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" \
+            --prerelease --generate-notes

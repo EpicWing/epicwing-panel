@@ -44,7 +44,7 @@ def create_app() -> FastAPI:
 
     app = FastAPI(
         title="EpicWing",
-        version="0.1.7-beta",
+        version="0.1.8-beta",
         lifespan=lifespan,
         # API docs are public only in development
         docs_url=None if settings.is_production else "/docs",
