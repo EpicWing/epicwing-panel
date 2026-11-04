@@ -30,9 +30,7 @@ DbSession = Annotated[Session, Depends(get_db)]
 
 TOKEN_LIFETIME = timedelta(minutes=30)
 # The same answer for known and unknown addresses, so nobody can probe for accounts.
-ACCEPTED = {
-    "detail": "If an account with this address exists, an email with a link is on its way."
-}
+ACCEPTED = {"detail": "If an account with this address exists, an email with a link is on its way."}
 
 
 class ResetRequest(BaseModel):
