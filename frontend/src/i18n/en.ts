@@ -60,6 +60,7 @@ export default {
     adminPanel: "Admin panel",
     adminBadge: "Admin",
     guide: "Guide",
+    activity: "Activity",
     backToPanel: "Back to panel",
   },
   reset: {

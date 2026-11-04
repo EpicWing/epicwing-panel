@@ -1,7 +1,7 @@
 from app.models.apikey import ApiKey
 from app.models.audit import AuditLog
 from app.models.database import DatabaseHost, ServerDatabase
-from app.models.ddos import DdosSample
+from app.models.ddos import DdosRollup, DdosSample
 from app.models.egg import Egg, EggVariable, Nest
 from app.models.node import Node, NodeCredential, NodeEnrollment
 from app.models.panel import PanelSetting
@@ -18,6 +18,7 @@ __all__ = [
     "Allocation",
     "AuditLog",
     "DatabaseHost",
+    "DdosRollup",
     "DdosSample",
     "Egg",
     "EggVariable",

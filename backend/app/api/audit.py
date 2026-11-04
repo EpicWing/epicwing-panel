@@ -102,11 +102,12 @@ class ActivityFilter:
         self.since = since
         self.until = until
         self.q = (q or "").strip()
+        self.group_map: dict[str, tuple[str, ...]] = GROUPS
 
     def clauses(self) -> list[ColumnElement[bool]]:
         out: list[ColumnElement[bool]] = []
         if self.groups:
-            patterns = [p for group in self.groups for p in GROUPS[group]]
+            patterns = [p for group in self.groups for p in self.group_map[group]]
             out.append(
                 or_(
                     *[
@@ -242,6 +243,128 @@ def export_activity(
     )
 
     filename = f"activity-{secrets.token_hex(4)}.{fmt}"
+    return Response(
+        body,
+        media_type=media_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
+# Global activity for administrators
+
+AdminGroup = Literal["security", "logins", "users", "keys", "nodes", "eggs", "servers"]
+ADMIN_GROUPS: dict[str, tuple[str, ...]] = {
+    "security": ("auth.login_failed", "auth.password_change_failed", "node.agent_auth_failed"),
+    "logins": ("auth.",),
+    "users": ("user.",),
+    "keys": ("api_key.", "ssh_key."),
+    "nodes": ("node.",),
+    "eggs": ("egg.",),
+    "servers": ("server.",),
+}
+ADMIN_CSV_HEADER = ["time", "user", "action", "target", "ip", "details"]
+
+AuditAccess = Annotated[AuthContext, Depends(require(Permission.AUDIT_VIEW))]
+DbSession = Annotated[Session, Depends(get_db)]
+
+
+class AdminActivityFilter(ActivityFilter):
+    def __init__(
+        self,
+        groups: Annotated[list[AdminGroup] | None, Query()] = None,
+        since: date | None = None,
+        until: date | None = None,
+        q: Annotated[str | None, Query(max_length=100)] = None,
+    ) -> None:
+        super().__init__(None, since, until, q)
+        self.groups = groups or []
+        self.group_map = ADMIN_GROUPS
+
+
+AdminFilter = Annotated[AdminActivityFilter, Depends()]
+
+
+class AdminActivityItem(ActivityItem):
+    target_type: str | None = None
+    target_id: str | None = None
+
+
+class AdminActivityPage(BaseModel):
+    items: list[AdminActivityItem]
+    has_more: bool
+
+
+def _admin_items(db: Session, rows: list[AuditLog]) -> list[AdminActivityItem]:
+    emails = _emails(db, rows)
+    return [
+        AdminActivityItem(
+            **_item(row, emails.get(row.actor_id), True).model_dump(),
+            target_type=row.target_type,
+            target_id=row.target_id,
+        )
+        for row in rows
+    ]
+
+
+def _admin_query(flt: ActivityFilter):
+    return (
+        select(AuditLog)
+        .where(AuditLog.action.not_in(HIDDEN_ACTIONS), *flt.clauses())
+        .order_by(AuditLog.created_at.desc(), AuditLog.id.desc())
+    )
+
+
+@router.get("/events")
+def admin_activity(
+    _auth: AuditAccess,
+    db: DbSession,
+    flt: AdminFilter,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    offset: Annotated[int, Query(ge=0, le=100000)] = 0,
+) -> AdminActivityPage:
+    rows = list(db.scalars(_admin_query(flt).offset(offset).limit(limit + 1)))
+    has_more = len(rows) > limit
+    return AdminActivityPage(items=_admin_items(db, rows[:limit]), has_more=has_more)
+
+
+@router.get("/events/export")
+def export_admin_activity(
+    request: Request,
+    auth: AuditAccess,
+    db: DbSession,
+    flt: AdminFilter,
+    fmt: Annotated[Literal["csv", "json"], Query(alias="format")] = "csv",
+) -> Response:
+    rows = list(db.scalars(_admin_query(flt).limit(EXPORT_LIMIT)))
+    items = _admin_items(db, rows)
+
+    if fmt == "json":
+        body = json.dumps([i.model_dump(mode="json") for i in items], indent=2, ensure_ascii=False)
+        media_type = "application/json"
+    else:
+        buffer = io.StringIO()
+        writer = csv.writer(buffer)
+        writer.writerow(ADMIN_CSV_HEADER)
+        for i in items:
+            target = f"{i.target_type}:{i.target_id}" if i.target_type else ""
+            details = json.dumps(i.details, ensure_ascii=False) if i.details else ""
+            cells = (i.created_at.isoformat(), i.actor or "", i.action, target, i.ip or "", details)
+            writer.writerow([_csv_cell(cell) for cell in cells])
+        body = buffer.getvalue()
+        media_type = "text/csv; charset=utf-8"
+
+    audit.record(
+        db,
+        "audit.export",
+        actor_id=auth.user.id,
+        ip=audit.client_ip(request),
+        details={"format": fmt, "rows": len(items)},
+    )
+    filename = f"audit-{secrets.token_hex(4)}.{fmt}"
     return Response(
         body,
         media_type=media_type,
