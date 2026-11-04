@@ -5,7 +5,7 @@ from app.services import ddos_alerts
 
 def test_cooldown_per_server(monkeypatch):
     sent = []
-    monkeypatch.setattr(ddos_alerts, "_deliver", lambda name, reasons: sent.append(name))
+    monkeypatch.setattr(ddos_alerts, "_deliver", lambda name, reasons, layers=(): sent.append(name))
     ddos_alerts._last_alert.clear()
 
     async def scenario():

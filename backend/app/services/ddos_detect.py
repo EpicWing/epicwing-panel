@@ -44,11 +44,16 @@ DROP_KEYS = (
 )
 
 
+# Counters of the network layer (IP). The other DROP_KEYS belong to TCP and UDP.
+NETWORK_DROP_KEYS = ("rx_dropped", "ip_in_hdr_errors", "ip_in_addr_errors")
+
+
 @dataclass(frozen=True)
 class Verdict:
     level: str
     reasons: tuple[str, ...]
     alert: bool  # True exactly when it switches to "attack"
+    layers: tuple[str, ...] = ()  # affected layers, strongest signal first
 
 
 class _Series:
@@ -91,6 +96,7 @@ class _State:
     samples: int = 0
     level: str = "learning"
     reasons: tuple[str, ...] = ()
+    layers: tuple[str, ...] = ()
     rates: dict[str, float | None] = field(default_factory=dict)
     tx_bytes: int = 0
     points: deque[tuple[float, float, float]] = field(
@@ -128,6 +134,7 @@ class Detector:
         return {
             "level": state.level,
             "reasons": list(state.reasons),
+            "layers": list(state.layers),
             "samples": state.samples,
             "rates": dict(state.rates),
             "age": now - state.at,
@@ -210,7 +217,7 @@ class Detector:
             return Verdict(state.level, state.reasons, False)
 
         state.samples += 1
-        found: list[tuple[int, str]] = []
+        found: list[tuple[int, str, str]] = []  # (level, reason, layer)
 
         rx_rate = (rx_bytes - previous_rx) / dt
         tx_rate = (tx_bytes - previous_tx) / dt if tx_bytes is not None else 0.0
@@ -225,13 +232,19 @@ class Detector:
             packets_index, _, packets_factor = state.packets.add(pps, PPS_WATCH, PPS_ATTACK)
             if packets_index >= 2:
                 found.append(
-                    (packets_index, f"Incoming packet rate is {packets_factor:.0f}x the usual rate")
+                    (
+                        packets_index,
+                        f"Incoming packet rate is {packets_factor:.0f}x the usual rate",
+                        "transport",
+                    )
                 )
 
         dropped = sum(_delta(net, before, key) for key in DROP_KEYS) / dt
+        network_dropped = sum(_delta(net, before, key) for key in NETWORK_DROP_KEYS) / dt
         dropped_index = _absolute(dropped, DROP_WATCH, DROP_ATTACK)
         if dropped_index >= 2:
-            found.append((dropped_index, f"{dropped:.0f} packets/s are dropped or rejected"))
+            layer = "network" if network_dropped >= dropped - network_dropped else "transport"
+            found.append((dropped_index, f"{dropped:.0f} packets/s are dropped or rejected", layer))
 
         lines_rate: float | None = None
         sources_rate: float | None = None
@@ -250,6 +263,7 @@ class Detector:
                         console_index,
                         f"Console flooded with {lines_rate:.0f} lines/s "
                         f"from about {sources_rate:.0f} sources/s",
+                        "application",
                     )
                 )
 
@@ -258,7 +272,9 @@ class Detector:
         if bytes_index >= 3 and max(packets_index, dropped_index, console_index) < 2:
             bytes_index = 2
         if bytes_index >= 2:
-            found.append((bytes_index, f"Incoming traffic is {factor:.0f}x the usual rate"))
+            found.append(
+                (bytes_index, f"Incoming traffic is {factor:.0f}x the usual rate", "network")
+            )
 
         index = max(1, bytes_index, packets_index, dropped_index, console_index)
         if index < 2 and bytes_index == 0:
@@ -266,7 +282,9 @@ class Detector:
         level = LEVELS[index]
         alert = level == "attack" and state.level != "attack"
         state.level = level
-        state.reasons = tuple(text for _, text in sorted(found, key=lambda f: -f[0]))
+        ordered = sorted(found, key=lambda f: -f[0])
+        state.reasons = tuple(text for _, text, _ in ordered)
+        state.layers = tuple(dict.fromkeys(layer for _, _, layer in ordered))
         state.rates = {
             "rx_bytes_per_s": rx_rate,
             "rx_packets_per_s": pps,
@@ -276,7 +294,7 @@ class Detector:
             "usual_rx_bytes_per_s": usual,
             "tx_bytes_per_s": tx_rate,
         }
-        return Verdict(level, state.reasons, alert)
+        return Verdict(level, state.reasons, alert, state.layers)
 
 
 detector = Detector()

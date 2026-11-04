@@ -166,7 +166,7 @@ async def handle_frame(db: Session, node_id: uuid.UUID, raw: str) -> bool:
             tx_bytes=stats.network_tx_bytes,
         )
         if verdict.alert:
-            ddos_alerts.schedule(stats.name, verdict.reasons)
+            ddos_alerts.schedule(stats.name, verdict.reasons, layers=verdict.layers)
         registry.server_stats[stats.name] = payload
         stats_history.record(stats.name, payload)
         registry.register_stats(node_id, stats.name)

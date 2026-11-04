@@ -14,6 +14,7 @@ interface DdosStatus {
   online: boolean;
   level: string;
   reasons: string[];
+  layers: string[];
   samples: number;
   rates: Record<string, number | null>;
   history: { step_seconds: number; rx: number[]; tx: number[] };
@@ -39,6 +40,26 @@ const LEVELS: Record<Level, { label: string; hint: string; dot: string }> = {
   attack: { label: "Possible attack", hint: "Traffic or console activity is far above the usual range.", dot: "bg-bad text-bad animate-pulse" },
 };
 
+const RANGES = [
+  { key: "1h", label: "1 h" },
+  { key: "24h", label: "24 h" },
+  { key: "7d", label: "7 days" },
+  { key: "14d", label: "14 days" },
+] as const;
+type RangeKey = (typeof RANGES)[number]["key"];
+const range = ref<RangeKey>("1h");
+
+const LAYERS: Record<string, string> = {
+  network: "Network (IP)",
+  transport: "Transport (TCP/UDP)",
+  application: "Application (console)",
+};
+
+function setRange(key: RangeKey): void {
+  range.value = key;
+  void refresh();
+}
+
 const status = ref<DdosStatus | null>(null);
 const failed = ref(false);
 let timer: number | undefined;
@@ -49,7 +70,7 @@ async function refresh(): Promise<void> {
   if (busy) return;
   busy = true;
   try {
-    const result = await api<DdosStatus>(`/servers/${props.serverId}/ddos`);
+    const result = await api<DdosStatus>(`/servers/${props.serverId}/ddos?range=${range.value}`);
     if (disposed) return;
     status.value = result;
     failed.value = false;
@@ -99,6 +120,7 @@ const level = computed<Level>(() => {
 const live = computed(() => props.online && !failed.value && status.value?.online === true);
 const rates = computed(() => (live.value ? (status.value?.rates ?? {}) : {}));
 const reasons = computed(() => (live.value ? (status.value?.reasons ?? []) : []));
+const layers = computed(() => (live.value ? (status.value?.layers ?? []) : []));
 
 const usual = computed(() => rates.value.usual_rx_bytes_per_s ?? null);
 const factor = computed(() => {
@@ -113,7 +135,11 @@ const chartTx = computed(() => status.value?.history.tx ?? []);
 const latest = computed(() => props.rx[props.rx.length - 1] ?? rates.value.rx_bytes_per_s ?? 0);
 const latestTx = computed(() => props.tx[props.tx.length - 1] ?? rates.value.tx_bytes_per_s ?? 0);
 // Peak of the last 2 minutes = last 12 buckets
-const peakIn = computed(() => Math.max(...chartRx.value.slice(-12), latest.value, 0));
+const peakIn = computed(() =>
+  Math.max(...(range.value === "1h" ? chartRx.value : props.rx).slice(-12), latest.value, 0),
+);
+// Number of chart slots: 1 h is anchored to the right edge, longer ranges fill the width.
+const slots = computed(() => (range.value === "1h" ? POINTS : Math.max(chartRx.value.length, 2)));
 const peak = computed(() => Math.max(...chartRx.value, ...chartTx.value, 1024));
 
 function axis(fraction: number): string {
@@ -125,7 +151,7 @@ function line(values: number[]): string {
   if (!props.online || values.length < 2) return `M0,${HEIGHT} L${WIDTH},${HEIGHT}`;
   return values
     .map((value, index) => {
-      const x = WIDTH - (values.length - 1 - index) * (WIDTH / (POINTS - 1));
+      const x = WIDTH - (values.length - 1 - index) * (WIDTH / (slots.value - 1));
       const y = HEIGHT - (value / peak.value) * (HEIGHT - 8);
       return `${index === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
     })
@@ -134,7 +160,7 @@ function line(values: number[]): string {
 
 function area(values: number[]): string {
   if (!props.online || values.length < 2) return "";
-  const first = WIDTH - (values.length - 1) * (WIDTH / (POINTS - 1));
+  const first = WIDTH - (values.length - 1) * (WIDTH / (slots.value - 1));
   return `${line(values)} L${WIDTH},${HEIGHT} L${first.toFixed(1)},${HEIGHT} Z`;
 }
 </script>
@@ -195,6 +221,10 @@ function area(values: number[]): string {
 
     <div v-if="reasons.length" class="rounded-xl border border-ink-700 bg-ink-900 p-4">
       <p class="text-xs uppercase tracking-wider text-ink-400">Why this status</p>
+      <div v-if="layers.length" class="mt-2 flex flex-wrap items-center gap-2 text-xs">
+        <span class="text-ink-400">Affected layer:</span>
+        <span v-for="layer in layers" :key="layer" class="rounded-full border border-ink-700 px-2 py-0.5">{{ LAYERS[layer] ?? layer }}</span>
+      </div>
       <ul class="mt-2 list-disc space-y-1 pl-5 text-sm">
         <li v-for="reason in reasons" :key="reason">{{ reason }}</li>
       </ul>
@@ -202,7 +232,20 @@ function area(values: number[]): string {
 
     <div class="rounded-xl border border-ink-700 bg-ink-900 p-4">
       <div class="flex flex-wrap items-center justify-between gap-2">
-        <p class="text-xs uppercase tracking-wider text-ink-400">Live traffic</p>
+        <div>
+          <p class="text-xs uppercase tracking-wider text-ink-400">{{ range === "1h" ? "Live traffic" : "Traffic history" }}</p>
+          <p v-if="range !== '1h'" class="mt-1 text-xs text-ink-500">Highest value per 5 minutes</p>
+          <div class="mt-2 flex gap-1">
+            <button
+              v-for="option in RANGES"
+              :key="option.key"
+              type="button"
+              class="rounded-md border px-2 py-0.5 text-xs"
+              :class="range === option.key ? 'border-accent-400 text-accent-400' : 'border-ink-700 text-ink-400'"
+              @click="setRange(option.key)"
+            >{{ option.label }}</button>
+          </div>
+        </div>
         <div class="flex items-center gap-4 text-xs text-ink-400">
           <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full" :style="{ backgroundColor: RX_COLOR }"></span>↓ Incoming</span>
           <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full" :style="{ backgroundColor: TX_COLOR }"></span>↑ Outgoing</span>
