@@ -494,8 +494,6 @@ def test_member_without_startup_view_gets_no_startup_data(client, world, db_sess
 
 
 def test_member_with_startup_view_gets_startup_command(client, world, db_session):
-    _grant(
-        db_session, world, world.member, _permission("server.view"), _permission("startup.view")
-    )
+    _grant(db_session, world, world.member, _permission("server.view"), _permission("startup.view"))
     body = _server_as(client, world, world.member)
     assert body["startup_command"] != ""
