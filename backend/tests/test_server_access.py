@@ -414,22 +414,31 @@ def test_allocation_rights_split_view_and_manage(client, db_session, world):
     assert client.post(world.url + "/allocations", json=unknown, headers=headers).status_code == 422
 
 
-def test_access_candidates_exclude_owner_members_and_self(client, db_session, world):
+def test_access_candidates_only_exact_email(client, db_session, world):
     manager = _user(db_session, "manager@example.test")
     _grant(db_session, world, manager, P.ACCESS_MANAGE)
     headers = _login(client, manager)
-    response = client.get(world.url + "/access/candidates", headers=headers)
-    assert response.status_code == 200, response.text
-    emails = {row["email"] for row in response.json()}
-    assert "stranger@example.test" in emails
-    assert "member@example.test" in emails
-    assert "owner@example.test" not in emails
-    assert "manager@example.test" not in emails
-    found = client.get(world.url + "/access/candidates?q=STRANG", headers=headers).json()
-    assert [row["email"] for row in found] == ["stranger@example.test"]
+    url = world.url + "/access/candidates"
+
+    def search(q):
+        response = client.get(url, params={"q": q}, headers=headers)
+        assert response.status_code == 200, response.text
+        return [row["email"] for row in response.json()]
+
+    # No search term and partial search return no list anymore.
+    assert client.get(url, headers=headers).json() == []
+    assert search("STRANG") == []
+    assert search("@example.test") == []
+    # Only the exact e-mail returns one result. Upper and lower case do not matter.
+    assert search("stranger@example.test") == ["stranger@example.test"]
+    assert search("STRANGER@EXAMPLE.TEST") == ["stranger@example.test"]
+    # The owner and the user themselves are never candidates.
+    assert search("owner@example.test") == []
+    assert search("manager@example.test") == []
+    # A user who is not a member yet is found. After adding, they are gone.
+    assert search("member@example.test") == ["member@example.test"]
     _grant(db_session, world, world.member)
-    again = client.get(world.url + "/access/candidates", headers=headers).json()
-    assert "member@example.test" not in {row["email"] for row in again}
+    assert search("member@example.test") == []
 
 
 def test_backup_view_does_not_allow_changes(client, db_session, world):
@@ -463,3 +472,30 @@ def test_backup_limit_admin_can_set_within_range(client, world):
     assert ok.json()["backup_limit"] == 3
     bad = client.patch(world.url, json={"backup_limit": 2000}, headers=headers)
     assert bad.status_code == 422, bad.status_code
+
+
+def _permission(value):
+    return next(p for p in ServerPermission if p.value == value)
+
+
+def _server_as(client, world, account):
+    client.post("/api/auth/login", json={"email": account.email, "password": TEST_PASSWORD})
+    response = client.get(world.url)
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def test_member_without_startup_view_gets_no_startup_data(client, world, db_session):
+    # Mitglied darf den Server sehen, aber nicht den Startbefehl und die Variablen.
+    _grant(db_session, world, world.member, _permission("server.view"))
+    body = _server_as(client, world, world.member)
+    assert body["variables"] == {}
+    assert body["startup_command"] == ""
+
+
+def test_member_with_startup_view_gets_startup_command(client, world, db_session):
+    _grant(
+        db_session, world, world.member, _permission("server.view"), _permission("startup.view")
+    )
+    body = _server_as(client, world, world.member)
+    assert body["startup_command"] != ""
