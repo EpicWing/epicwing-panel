@@ -269,7 +269,7 @@ def remove_member(
     db.commit()
 
 
-CANDIDATE_MIN_QUERY = 0  # this many characters are needed before results come (0 = always)
+CANDIDATE_MIN_QUERY = 3  # only exact e-mail lookups, never a list
 CANDIDATE_LIMIT = 50
 
 
@@ -297,8 +297,6 @@ def list_candidates(
         orm.User.id.not_in(members),
         orm.User.id != owner_id,
     )
-    if term:
-        escaped = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-        query = query.where(orm.User.email.ilike(f"%{escaped}%", escape="\\"))
+    query = query.where(orm.User.email == term.lower())
     rows = db.execute(query.order_by(orm.User.email).limit(CANDIDATE_LIMIT)).all()
     return [{"id": str(row.id), "email": row.email} for row in rows]

@@ -127,6 +127,7 @@ def _outs(db: Session, servers: list[Server], viewer: User | None = None) -> lis
                 (v.egg_id, v.env_variable)
                 for v in db.scalars(select(EggVariable).where(EggVariable.user_viewable.is_(False)))
             }
+    is_admin_viewer = viewer is None or is_server_admin(db, viewer)
     outs = []
     for server in servers:
         out = ServerOut.model_validate(server)
@@ -135,14 +136,17 @@ def _outs(db: Session, servers: list[Server], viewer: User | None = None) -> lis
         out.allocations = sorted(
             allocations.get(server.id, []), key=lambda a: (not a.is_primary, a.port)
         )
+        can_startup = is_admin_viewer or "startup.view" in permissions.get(server.id, ())
         out.variables = {
             key: value
             for key, value in values.get(server.id, {}).items()
-            if (server.egg_id, key) not in hidden
+            if can_startup and (server.egg_id, key) not in hidden
         }
+        if not can_startup and hasattr(out, "startup"):
+            out.startup = ""
         out.permissions = sorted(permissions.get(server.id, ()))
         main = out.allocations[0] if out.allocations else None
-        out.startup_command = startup_service.render(
+        out.startup_command = "" if not can_startup else startup_service.render(
             server.startup,
             out.variables,
             server.memory_mb,
