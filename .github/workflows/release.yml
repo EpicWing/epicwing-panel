@@ -26,8 +26,10 @@ jobs:
         run: |
           pkg="$(go list -f '{{if eq .Name "main"}}{{.ImportPath}}{{end}}' ./... | head -n1)"
           echo "main package: $pkg"
+          version="${GITHUB_REF_NAME#v}"
           CGO_ENABLED=0 GOOS=linux GOARCH=${{ matrix.goarch }} \
-            go build -trimpath -buildvcs=false -ldflags="-s -w -buildid=" \
+            go build -trimpath -buildvcs=false \
+            -ldflags="-s -w -buildid= -X main.version=${version}" \
             -o "epicwing-agent-linux-${{ matrix.goarch }}" "$pkg"
           sha256sum "epicwing-agent-linux-${{ matrix.goarch }}" | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
