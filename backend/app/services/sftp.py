@@ -55,6 +55,7 @@ def authorize(
     """None means refused, with no reason: the agent does not learn why."""
     grant = _check(db, node_id, fingerprint, server_ref)
     reject_key = f"{node_id}|{fingerprint[:64]}"
+    # Audit-Einträge für abgelehnte Logins drosseln, sonst lässt sich das Audit-Log fluten
     if grant is None and sftp_reject_limiter.retry_after(reject_key) == 0:
         sftp_reject_limiter.add_failure(reject_key)
         audit.record(

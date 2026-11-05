@@ -70,6 +70,7 @@ def login(
     ip = _client_ip(request)
     email = body.email.strip().lower()
 
+    # Sperre pro IP und E-Mail: Fremde können so nur ihre eigene IP aussperren, nicht das Konto
     wait = max(login_ip_limiter.retry_after(ip), login_email_limiter.retry_after(f"{ip}|{email}"))
     if wait:
         raise HTTPException(
