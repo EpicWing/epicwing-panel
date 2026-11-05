@@ -162,11 +162,11 @@ def test_reset_ends_all_sessions(client, user, outbox):
 
 def test_reset_lifts_login_lockout(client, user, outbox):
     for _ in range(5):
-        login_email_limiter.add_failure(user.email)
-    assert login_email_limiter.retry_after(user.email) > 0
+        login_email_limiter.add_failure(f"203.0.113.9|{user.email.lower()}")
+    assert login_email_limiter.retry_after(f"203.0.113.9|{user.email.lower()}") > 0
     client.post(REQUEST, json={"email": user.email})
     client.post(CONFIRM, json={"token": _token(outbox), "new_password": NEW_PASSWORD})
-    assert login_email_limiter.retry_after(user.email) == 0
+    assert login_email_limiter.retry_after(f"203.0.113.9|{user.email.lower()}") == 0
 
 
 def test_mail_flood_per_address_is_limited_silently(client, user, outbox):
