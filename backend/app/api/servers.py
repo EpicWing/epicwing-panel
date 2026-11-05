@@ -147,13 +147,17 @@ def _outs(db: Session, servers: list[Server], viewer: User | None = None) -> lis
             out.startup = ""
         out.permissions = sorted(permissions.get(server.id, ()))
         main = out.allocations[0] if out.allocations else None
-        out.startup_command = "" if not can_startup else startup_service.render(
-            server.startup,
-            out.variables,
-            server.memory_mb,
-            main.ip if main else None,
-            main.port if main else None,
-            host_memory_mb=host_ram.get(server.node_id),
+        out.startup_command = (
+            ""
+            if not can_startup
+            else startup_service.render(
+                server.startup,
+                out.variables,
+                server.memory_mb,
+                main.ip if main else None,
+                main.port if main else None,
+                host_memory_mb=host_ram.get(server.node_id),
+            )
         )
         live = registry.server_stats.get(lifecycle.container_name(server.id), {})
         out.live_cpu_percent = live.get("cpu_percent")
