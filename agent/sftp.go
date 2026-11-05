@@ -133,6 +133,7 @@ type sftpServer struct {
 	config   *ssh.ServerConfig
 	auth     sftpAuthFunc
 	dataPath func(name string) string
+	limit    *ipLimiter
 	slots    chan struct{}
 }
 
@@ -142,6 +143,7 @@ func newSFTPServer(ctx context.Context, hostKey ssh.Signer, auth sftpAuthFunc, d
 		auth:     auth,
 		dataPath: dataPath,
 		slots:    make(chan struct{}, sftpMaxConns),
+		limit:    newIPLimiter(sftpMaxFails, sftpFailWindow),
 	}
 	s.config = &ssh.ServerConfig{
 		MaxAuthTries:      3,
@@ -153,6 +155,18 @@ func newSFTPServer(ctx context.Context, hostKey ssh.Signer, auth sftpAuthFunc, d
 }
 
 func (s *sftpServer) publicKey(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
+	ip := sftpRemoteIP(conn.RemoteAddr())
+	if s.limit.blocked(ip) {
+		return nil, errSFTPRejected
+	}
+	perms, err := s.checkKey(conn, key)
+	if err != nil {
+		s.limit.fail(ip)
+	}
+	return perms, err
+}
+
+func (s *sftpServer) checkKey(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
 	user := conn.User()
 	if user == "" || len(user) > sftpMaxUserLen {
 		return nil, errSFTPRejected
@@ -199,6 +213,9 @@ func (s *sftpServer) serve(ln net.Listener) {
 
 func (s *sftpServer) handleConn(c net.Conn) {
 	defer c.Close()
+	if s.limit.blocked(sftpRemoteIP(c.RemoteAddr())) {
+		return
+	}
 	if tc, ok := c.(*net.TCPConn); ok {
 		tc.SetKeepAlive(true)
 		tc.SetKeepAlivePeriod(30 * time.Second)
