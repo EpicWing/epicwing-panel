@@ -230,6 +230,9 @@ func (s *sftpServer) handleConn(c net.Conn) {
 	go ssh.DiscardRequests(reqs)
 
 	perms := sconn.Permissions
+	done := make(chan struct{})
+	defer close(done)
+	go s.watchGrant(sconn, perms.Extensions, done)
 	sftpAuth.notifyLogin(perms.Extensions["fp"], perms.Extensions["server"])
 	var wg sync.WaitGroup
 	for nc := range chans {
