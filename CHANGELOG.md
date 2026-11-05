@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Admin activity page: shown inside the app layout again, so the sidebar and header are there
+
 ## 0.1.7-beta (2026-11-03)
 
 - Password reset by e-mail: a "Forgot password?" link on the sign-in page. It only shows up when the e-mail settings are saved and `EPICWING_PUBLIC_URL` is set
