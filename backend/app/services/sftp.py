@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.security.ratelimit import sftp_reject_limiter
 from app.models import Server, SshKey, User
 from app.security.server_access import ServerPermission, effective_permissions
 from app.services import audit
@@ -53,7 +54,9 @@ def authorize(
 ) -> SftpGrant | None:
     """None means refused, with no reason: the agent does not learn why."""
     grant = _check(db, node_id, fingerprint, server_ref)
-    if grant is None:
+    reject_key = f"{node_id}|{fingerprint[:64]}"
+    if grant is None and sftp_reject_limiter.retry_after(reject_key) == 0:
+        sftp_reject_limiter.add_failure(reject_key)
         audit.record(
             db,
             "sftp.login_rejected",

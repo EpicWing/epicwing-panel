@@ -70,7 +70,7 @@ def login(
     ip = _client_ip(request)
     email = body.email.strip().lower()
 
-    wait = max(login_ip_limiter.retry_after(ip), login_email_limiter.retry_after(email))
+    wait = max(login_ip_limiter.retry_after(ip), login_email_limiter.retry_after(f"{ip}|{email}"))
     if wait:
         raise HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS,
@@ -84,7 +84,7 @@ def login(
 
     if user is None or not valid or user.disabled_at is not None:
         login_ip_limiter.add_failure(ip)
-        login_email_limiter.add_failure(email)
+        login_email_limiter.add_failure(f"{ip}|{email}")
         log.warning("Failed login from %s", ip)
         # The e-mail that was typed in is deliberately not stored.
         reason = "disabled" if user and valid else "invalid_credentials"
