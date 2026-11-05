@@ -2,7 +2,6 @@
 import { computed, onMounted, reactive, ref } from "vue";
 
 import { ApiError, api } from "../api/client";
-import AppLayout from "../components/AppLayout.vue";
 import UserAvatar from "../components/UserAvatar.vue";
 
 interface Item {
@@ -205,7 +204,12 @@ onMounted(load);
 </script>
 
 <template>
-  <AppLayout area="admin" title="Activity" subtitle="Everything that happened in the panel: logins, users, keys, nodes, eggs and servers.">
+  <div class="space-y-6">
+    <div>
+      <h2 class="text-2xl font-semibold">Activity</h2>
+      <p class="mt-2 text-sm text-ink-400">Everything that happened in the panel: logins, users, keys, nodes, eggs and servers.</p>
+    </div>
+
     <div class="rounded-xl border border-ink-700 bg-ink-900">
       <div class="flex flex-wrap items-center justify-between gap-3 border-b border-ink-700 px-5 py-3">
         <h3 class="text-lg font-semibold">Events <span v-if="!loading && !error" class="ml-1 text-sm font-normal text-ink-400">({{ items.length }}{{ hasMore ? "+" : "" }} events)</span></h3>
@@ -259,5 +263,5 @@ onMounted(load);
         <button :class="buttonClass" :disabled="loadingMore" @click="more">{{ loadingMore ? "Loading…" : "Show more" }}</button>
       </div>
     </div>
-  </AppLayout>
+  </div>
 </template>
