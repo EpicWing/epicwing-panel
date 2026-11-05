@@ -98,7 +98,7 @@ def login(
         )
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Incorrect email or password.")
 
-    login_email_limiter.reset(email)
+    login_email_limiter.reset(f"{ip}|{email}")
     if needs_rehash(user.password_hash):
         user.password_hash = hash_password(body.password)
 
