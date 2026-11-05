@@ -179,7 +179,7 @@ def confirm_reset(body: ResetConfirm, request: Request, db: DbSession) -> None:
     )
     db.commit()
     # Someone who was locked out by failed logins can sign in again.
-    login_email_limiter.reset(user.email.lower())
+    login_email_limiter.reset_suffix(f"|{user.email.lower()}")
     # The password and the token never go into the audit log.
     audit.record(db, "auth.password_reset", actor_id=user.id, ip=ip)
     db.commit()
