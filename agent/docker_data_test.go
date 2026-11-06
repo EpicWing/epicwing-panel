@@ -28,7 +28,7 @@ func TestUnlimitedResourcesOmitDockerLimits(t *testing.T) {
 		t.Fatal(err)
 	}
 	joined := strings.Join((*calls)[0], " ")
-	for _, flag := range []string{"--memory", "--cpus"} {
+	for _, flag := range []string{"--memory", "--memory-swap", "--cpus"} {
 		if strings.Contains(joined, flag) {
 			t.Errorf("%s must be left out for unlimited: %q", flag, joined)
 		}

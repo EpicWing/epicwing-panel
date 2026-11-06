@@ -207,7 +207,7 @@ func (m *containerManager) installArgs(spec InstallSpec) []string {
 		"--entrypoint", spec.InstallerEntrypoint,
 	}
 	if spec.MemoryMB > 0 {
-		args = append(args, "--memory", strconv.Itoa(spec.MemoryMB)+"m")
+		args = append(args, "--memory", strconv.Itoa(spec.MemoryMB)+"m", "--memory-swap", strconv.Itoa(spec.MemoryMB)+"m")
 	}
 	if spec.CPUs > 0 {
 		args = append(args, "--cpus", strconv.FormatFloat(spec.CPUs, 'f', -1, 64))
@@ -309,7 +309,7 @@ func (m *containerManager) createArgs(spec ContainerSpec) []string {
 		"--pids-limit", "512",
 	}
 	if spec.MemoryMB > 0 {
-		args = append(args, "--memory", strconv.Itoa(spec.MemoryMB)+"m")
+		args = append(args, "--memory", strconv.Itoa(spec.MemoryMB)+"m", "--memory-swap", strconv.Itoa(spec.MemoryMB)+"m")
 	}
 	if spec.CPUs > 0 {
 		args = append(args, "--cpus", strconv.FormatFloat(spec.CPUs, 'f', -1, 64))
