@@ -427,3 +427,11 @@ body:has(.server-detail-shell) {
 :root[data-theme="light"] .border-ink-700.rounded-lg {
   box-shadow: 0 1px 3px rgb(20 20 30 / 0.18);
 }
+
+/* Heller Modus: Schatten dämpfen (Start/Restart/Stop-Gruppe und Dialoge) */
+:root[data-theme="light"] .shadow-lg {
+  box-shadow: 0 1px 3px rgb(20 20 30 / 0.14);
+}
+:root[data-theme="light"] .shadow-2xl {
+  box-shadow: 0 10px 30px rgb(20 20 30 / 0.2);
+}
