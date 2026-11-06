@@ -2,7 +2,24 @@
 
 ## Unreleased
 
+## 0.2.0-beta (2026-11-07)
+
+- Node limits: set a memory limit and a storage limit (GB) per node in the node settings. Empty means unlimited. The panel refuses new servers and limit changes that would go over what is left on the node, also when several requests arrive at the same time
+- New database migration (0023): run `alembic upgrade head` when you update, and make a backup first
+- Server settings: admins can edit memory, CPU and storage of a server
+- Light mode with a theme switch (light, dark or system), plus several rounds of contrast and colour fixes
+- Console: the output is cleared when the container exits and the offline line shows up on a stopped server
+- Admin overview: stat cards link to their pages
 - Admin activity page: shown inside the app layout again, so the sidebar and header are there
+- Settings and server settings use two columns on wide screens
+- Database pool settings are documented in `.env.example`, and the server and node lists support limit and offset
+- Game servers now run in their own Docker network (`epicwing-servers`) with container-to-container traffic switched off. Ports and internet access work as before
+- Servers get a swap limit equal to their memory limit, so they can't use more RAM than they were given
+- Container logs are capped at 3 files of 10 MB
+- All API routes now check for a login
+- The agent is built with Go 1.26.10, x/crypto is updated
+- Network, swap and log settings only apply to containers created after the update. Existing servers keep their old settings until they are recreated, a normal restart is not enough
+- Not done yet: the admin overview doesn't show the node limits, and you can't set them while creating a node, only afterwards in the settings
 
 ## 0.1.7-beta (2026-11-03)
 
