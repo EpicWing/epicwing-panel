@@ -70,7 +70,7 @@ function setHistory(n: NodeDetail) {
   };
 }
 
-const form = ref({ name: "", location: "", fqdn: "" });
+const form = ref({ name: "", location: "", fqdn: "", portStart: 1024, portEnd: 65535 });
 
 const inputClass =
   "w-full rounded-md border border-ink-700 bg-ink-950 px-3 py-2 text-sm outline-none transition focus:border-accent-500";
@@ -102,6 +102,8 @@ function fillForm(n: NodeDetail) {
     name: n.name,
     location: n.location,
     fqdn: n.fqdn ?? "",
+    portStart: n.port_range_start,
+    portEnd: n.port_range_end,
   };
 }
 
@@ -190,6 +192,8 @@ async function save() {
         name: form.value.name,
         location: form.value.location,
         fqdn: form.value.fqdn.trim() || null,
+        port_range_start: Number(form.value.portStart),
+        port_range_end: Number(form.value.portEnd),
       },
     });
     node.value = result;
@@ -399,6 +403,14 @@ onUnmounted(() => window.clearInterval(timer));
             :placeholder="t('nodes.locationPlaceholder')"
             :class="inputClass"
           />
+        </div>
+        <div>
+          <label for="portStart" class="mb-1.5 block text-sm text-ink-300">First port</label>
+          <input id="portStart" v-model.number="form.portStart" type="number" min="1024" max="65535" required :class="inputClass" />
+        </div>
+        <div>
+          <label for="portEnd" class="mb-1.5 block text-sm text-ink-300">Last port</label>
+          <input id="portEnd" v-model.number="form.portEnd" type="number" min="1024" max="65535" required :class="inputClass" />
         </div>
         <div class="sm:col-span-2">
           <button type="submit" :disabled="busy" :class="primaryClass">
