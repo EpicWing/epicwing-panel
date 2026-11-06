@@ -56,7 +56,8 @@ async function submit() {
 
 <template>
   <AppLayout :title="t('settings.title')" :subtitle="t('settings.subtitle')">
-    <div class="max-w-2xl space-y-6">
+    <div class="grid max-w-5xl items-start gap-6 lg:grid-cols-2">
+    <div class="space-y-6">
     <AvatarPanel />
     <ThemePanel />
     <section class="rounded-xl border border-ink-700 bg-ink-900 p-6">
@@ -128,8 +129,11 @@ async function submit() {
         </button>
       </form>
     </section>
+    </div>
+    <div class="space-y-6">
     <TwoFactorPanel />
     <SessionsPanel />
+    </div>
     </div>
   </AppLayout>
 </template>
