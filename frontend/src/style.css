@@ -347,14 +347,14 @@ body:has(.server-detail-shell) {
 :root[data-theme="light"] {
   color-scheme: light;
 
-  --color-ink-950: #f5f5f7;
-  --color-ink-900: #ffffff;
-  --color-ink-800: #efeff2;
-  --color-ink-700: #dcdce1;
-  --color-ink-600: #c3c3cb;
-  --color-ink-400: #6a6a75;
-  --color-ink-300: #4f4f59;
-  --color-ink-100: #17171a;
+  --color-ink-950: #e6e6ea;
+  --color-ink-900: #f1f1f4;
+  --color-ink-800: #e0e0e5;
+  --color-ink-700: #cfcfd6;
+  --color-ink-600: #b8b8c1;
+  --color-ink-400: #62626d;
+  --color-ink-300: #484852;
+  --color-ink-100: #25252b;
 
 
   --color-ok: #1a7f37;
@@ -388,7 +388,7 @@ body:has(.server-detail-shell) {
 :root[data-theme="light"] .ansi-fg-13 { color: #7a3fc2; }
 :root[data-theme="light"] .ansi-fg-14 { color: #0e7c86; }
 :root[data-theme="light"] .ansi-fg-15 { color: #17171a; }
-:root[data-theme="light"] .ansi-bg-0 { background-color: #e4e4ea; }
+:root[data-theme="light"] .ansi-bg-0 { background-color: #d6d6dd; }
 :root[data-theme="light"] .ansi-bg-7 { background-color: #d0d0d8; }
 :root[data-theme="light"] .ansi-bg-15 { background-color: #ffffff; }
 
