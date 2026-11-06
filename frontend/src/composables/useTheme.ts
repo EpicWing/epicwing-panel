@@ -37,7 +37,7 @@ function apply(animate: boolean) {
   root.dataset.theme = theme;
   document
     .querySelector('meta[name="theme-color"]')
-    ?.setAttribute("content", theme === "light" ? "#f5f5f7" : "#09090a");
+    ?.setAttribute("content", theme === "light" ? "#e6e6ea" : "#09090a");
   document.querySelector('meta[name="color-scheme"]')?.setAttribute("content", theme);
 }
 
