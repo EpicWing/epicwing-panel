@@ -18,6 +18,8 @@ interface NodeDetail {
   cpu_total: number | null;
   ram_total_mb: number | null;
   disk_total_mb: number | null;
+  ram_limit_mb: number | null;
+  disk_limit_mb: number | null;
   agent_version: string | null;
   port_range_start: number;
   port_range_end: number;
@@ -70,7 +72,7 @@ function setHistory(n: NodeDetail) {
   };
 }
 
-const form = ref({ name: "", location: "", fqdn: "" });
+const form = ref({ name: "", location: "", fqdn: "", ramGb: "", diskGb: "" });
 
 const inputClass =
   "w-full rounded-md border border-ink-700 bg-ink-950 px-3 py-2 text-sm outline-none transition focus:border-accent-500";
@@ -102,6 +104,8 @@ function fillForm(n: NodeDetail) {
     name: n.name,
     location: n.location,
     fqdn: n.fqdn ?? "",
+    ramGb: mbToGb(n.ram_limit_mb),
+    diskGb: mbToGb(n.disk_limit_mb),
   };
 }
 
@@ -179,9 +183,28 @@ async function copy(key: string, text: string) {
   }
 }
 
+// Limits werden in GB eingegeben und als MB gespeichert, leer heißt unbegrenzt
+function mbToGb(mb: number | null | undefined): string {
+  return mb == null ? "" : String(Math.round((mb / 1024) * 100) / 100);
+}
+
+// null = unbegrenzt, undefined = ungültige Eingabe
+function parseGb(text: string): number | null | undefined {
+  const value = text.trim().replace(",", ".");
+  if (value === "") return null;
+  const gb = Number(value);
+  return Number.isFinite(gb) && gb > 0 ? Math.round(gb * 1024) : undefined;
+}
+
 async function save() {
   error.value = "";
   notice.value = "";
+  const ramLimit = parseGb(form.value.ramGb);
+  const diskLimit = parseGb(form.value.diskGb);
+  if (ramLimit === undefined || diskLimit === undefined) {
+    error.value = "Please enter a number above 0, or leave the field empty for unlimited.";
+    return;
+  }
   busy.value = true;
   try {
     const result = await api<NodeDetail>(`/nodes/${nodeId}`, {
@@ -190,6 +213,8 @@ async function save() {
         name: form.value.name,
         location: form.value.location,
         fqdn: form.value.fqdn.trim() || null,
+        ram_limit_mb: ramLimit,
+        disk_limit_mb: diskLimit,
       },
     });
     node.value = result;
@@ -399,6 +424,16 @@ onUnmounted(() => window.clearInterval(timer));
             :placeholder="t('nodes.locationPlaceholder')"
             :class="inputClass"
           />
+        </div>
+        <div>
+          <label for="ramGb" class="mb-1.5 block text-sm text-ink-300">Memory limit (GB)</label>
+          <input id="ramGb" v-model="form.ramGb" inputmode="decimal" placeholder="Unlimited" :class="inputClass" />
+          <p class="mt-1.5 text-xs text-ink-400">How much memory all servers on this node may use together.</p>
+        </div>
+        <div>
+          <label for="diskGb" class="mb-1.5 block text-sm text-ink-300">Storage limit (GB)</label>
+          <input id="diskGb" v-model="form.diskGb" inputmode="decimal" placeholder="Unlimited" :class="inputClass" />
+          <p class="mt-1.5 text-xs text-ink-400">How much storage all servers on this node may use together.</p>
         </div>
         <div class="sm:col-span-2">
           <button type="submit" :disabled="busy" :class="primaryClass">
