@@ -10,6 +10,11 @@ class Settings(BaseSettings):
 
     epicwing_env: str = "development"
     database_url: str
+    # Database connection pool. Defaults are the same as SQLAlchemy.
+    epicwing_db_pool_size: int = Field(default=5, ge=1, le=200)
+    epicwing_db_max_overflow: int = Field(default=10, ge=0, le=200)
+    # Close connections after this many seconds, so old ones do not break
+    epicwing_db_pool_recycle: int = Field(default=1800, ge=60)
     epicwing_secret_key: str = Field(min_length=32)
     epicwing_encryption_key: str
     resend_api_key: str = ""
