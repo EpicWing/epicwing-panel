@@ -88,15 +88,18 @@ type containerManager struct {
 	stopWait    time.Duration
 	// portProbe is only set in tests; nil means probePort.
 	portProbe portProbe
+	// network is the Docker network for new containers, empty means the default one.
+	network string
 }
 
 func newContainerManager(policy ContainerPolicy) *containerManager {
 	return &containerManager{
-		policy: policy,
-		run:    runDocker,
-		mkdir:  os.MkdirAll,
-		uid:    os.Getuid(),
-		gid:    os.Getgid(),
+		policy:  policy,
+		run:     runDocker,
+		mkdir:   os.MkdirAll,
+		uid:     os.Getuid(),
+		gid:     os.Getgid(),
+		network: currentServerNetwork(),
 	}
 }
 
@@ -206,6 +209,9 @@ func (m *containerManager) installArgs(spec InstallSpec) []string {
 		"--workdir", containerHome,
 		"--entrypoint", spec.InstallerEntrypoint,
 	}
+	if m.network != "" {
+		args = append(args, "--network", m.network)
+	}
 	if spec.MemoryMB > 0 {
 		args = append(args, "--memory", strconv.Itoa(spec.MemoryMB)+"m", "--memory-swap", strconv.Itoa(spec.MemoryMB)+"m")
 	}
@@ -308,6 +314,9 @@ func (m *containerManager) createArgs(spec ContainerSpec) []string {
 		"--security-opt", "no-new-privileges",
 		"--pids-limit", "512",
 		"--log-opt", "max-size=10m", "--log-opt", "max-file=3",
+	}
+	if m.network != "" {
+		args = append(args, "--network", m.network)
 	}
 	if spec.MemoryMB > 0 {
 		args = append(args, "--memory", strconv.Itoa(spec.MemoryMB)+"m", "--memory-swap", strconv.Itoa(spec.MemoryMB)+"m")
