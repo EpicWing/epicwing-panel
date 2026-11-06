@@ -8,7 +8,9 @@ from app.models.node import Node
 from app.models.server import Server
 
 
-def allocated(db: Session, node_id: uuid.UUID, exclude_server_id: uuid.UUID | None = None) -> tuple[int, int]:
+def allocated(
+    db: Session, node_id: uuid.UUID, exclude_server_id: uuid.UUID | None = None
+) -> tuple[int, int]:
     """Summe aus RAM und Speicher (MB), die schon an Server der Node vergeben ist."""
     stmt = select(
         func.coalesce(func.sum(Server.memory_mb), 0),

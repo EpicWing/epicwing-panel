@@ -7,7 +7,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
-from app.services import node_limits
 from app.agentlink.commands import AgentOffline, broker
 from app.agentlink.registry import registry
 from app.db import get_db
@@ -24,7 +23,7 @@ from app.schemas.node import (
 )
 from app.security.permissions import AdminAuth, Permission, require
 from app.security.sessions import AuthContext
-from app.services import audit
+from app.services import audit, node_limits
 from app.services import nodes as node_service
 
 router = APIRouter(prefix="/nodes", tags=["nodes"])

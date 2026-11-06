@@ -15,7 +15,6 @@ from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.services import node_limits
 from app.agentlink import protocol
 from app.agentlink.commands import AgentOffline, broker
 from app.agentlink.console import hub
@@ -35,7 +34,7 @@ from app.security.server_access import (
     visible_servers,
 )
 from app.security.sessions import AuthContext
-from app.services import audit, lifecycle, server_databases, transfer
+from app.services import audit, lifecycle, node_limits, server_databases, transfer
 from app.services import rules as rule_engine
 from app.services import startup as startup_service
 from app.services.agent_errors import AgentFailure
