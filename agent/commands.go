@@ -79,6 +79,9 @@ func cmdRun(args []string) error {
 	s := &sampler{}
 	_, _ = s.cpuPercent() // prime the CPU counters
 	log.Printf("epicwing-agent %s, node %s, panel %s", version, cfg.NodeID, cfg.Panel)
+	if err := ensureServerNetwork(ctx, runDocker); err != nil {
+		log.Printf("server network: %v (new servers use the default network)", err)
+	}
 
 	backoff := minBackoff
 	for ctx.Err() == nil {
