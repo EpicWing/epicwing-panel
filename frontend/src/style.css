@@ -435,3 +435,24 @@ body:has(.server-detail-shell) {
 :root[data-theme="light"] .shadow-2xl {
   box-shadow: 0 10px 30px rgb(20 20 30 / 0.2);
 }
+
+/* Heller Modus: aktiver Menüpunkt (Klasse mit "!") bleibt sonst zu hell.
+   Muss in der utilities-Schicht stehen, damit es gegen das important von Tailwind gewinnt. */
+@layer utilities {
+  :root[data-theme="light"] [class~="!text-accent-400"] {
+    color: #b36b00 !important;
+  }
+}
+
+/* Heller Modus: Knöpfe Documentation und GitHub passen sich dem Grau der Oberfläche an */
+:root[data-theme="light"] .bg-blue-600 {
+  background-color: var(--color-ink-100);
+}
+:root[data-theme="light"] .hover\:bg-blue-500:hover {
+  background-color: var(--color-ink-300);
+}
+
+/* Heller Modus: Node-Load-Kacheln heller als die Seite, aber abgesetzt von der Karte */
+:root[data-theme="light"] .load-tile {
+  background-color: #eeeef2;
+}
