@@ -71,6 +71,8 @@ class NodeOut(BaseModel):
     cpu_total: int | None
     ram_total_mb: int | None
     disk_total_mb: int | None
+    ram_limit_mb: int | None = None
+    disk_limit_mb: int | None = None
     agent_version: str | None
     port_range_start: int
     port_range_end: int
@@ -123,6 +125,9 @@ class NodeUpdate(BaseModel):
     fqdn: str | None = None
     port_range_start: int | None = Field(default=None, ge=1024, le=65535)
     port_range_end: int | None = Field(default=None, ge=1024, le=65535)
+    # None setzt das Limit zurück auf unbegrenzt
+    ram_limit_mb: int | None = Field(default=None, ge=1, le=100_000_000)
+    disk_limit_mb: int | None = Field(default=None, ge=1, le=100_000_000)
 
     @field_validator("name")
     @classmethod

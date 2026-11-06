@@ -15,6 +15,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.services import node_limits
 from app.agentlink import protocol
 from app.agentlink.commands import AgentOffline, broker
 from app.agentlink.console import hub
@@ -226,6 +227,7 @@ def create_server(
         raise _not_found("Egg not found.")
     egg_variables = list(db.scalars(select(EggVariable).where(EggVariable.egg_id == egg.id)))
     _check_values(egg_variables, body.variables, fill_defaults=True)
+    node_limits.check_fits(db, node, body.memory_mb, body.disk_mb)
 
     wanted = [body.allocation_id, *body.extra_allocation_ids]
     found = {a.id: a for a in db.scalars(select(Allocation).where(Allocation.id.in_(wanted)))}
@@ -314,6 +316,18 @@ def update_server(
     server = _get(db, server_id)
     data = body.model_dump(exclude_unset=True)
     _check_update_rights(auth, set(data))
+    if {"memory_mb", "disk_mb"} & set(data):
+        node = db.get(Node, server.node_id)
+        if node is not None:
+            node_limits.check_fits(
+                db,
+                node,
+                data.get("memory_mb", server.memory_mb),
+                data.get("disk_mb", server.disk_mb),
+                old_memory=server.memory_mb,
+                old_disk=server.disk_mb,
+                exclude_server_id=server.id,
+            )
     variables = data.pop("variables", None)
     if variables is not None:
         _check_values(_egg_variables(db, server.egg_id), variables)

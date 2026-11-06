@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
+from app.services import node_limits
 from app.agentlink.commands import AgentOffline, broker
 from app.agentlink.registry import registry
 from app.db import get_db
@@ -175,6 +176,21 @@ def update_node(
     end = data.get("port_range_end", node.port_range_end)
     if start > end:
         raise HTTPException(422, "The port range is invalid: the start must not be after the end.")
+
+    if "ram_limit_mb" in data or "disk_limit_mb" in data:
+        ram_used, disk_used = node_limits.allocated(db, node.id)
+        new_ram = data.get("ram_limit_mb", node.ram_limit_mb)
+        new_disk = data.get("disk_limit_mb", node.disk_limit_mb)
+        if new_ram is not None and new_ram < ram_used:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                f"The memory limit is below what servers already use ({ram_used} MB).",
+            )
+        if new_disk is not None and new_disk < disk_used:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                f"The storage limit is below what servers already use ({disk_used} MB).",
+            )
 
     for field, value in data.items():
         setattr(node, field, value)

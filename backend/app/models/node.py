@@ -21,6 +21,9 @@ class Node(Base):
     cpu_total: Mapped[int | None] = mapped_column(Integer)
     ram_total_mb: Mapped[int | None] = mapped_column(Integer)
     disk_total_mb: Mapped[int | None] = mapped_column(Integer)
+    # Obergrenze für die Summe aller Server der Node, leer heißt unbegrenzt
+    ram_limit_mb: Mapped[int | None] = mapped_column(Integer)
+    disk_limit_mb: Mapped[int | None] = mapped_column(Integer)
     agent_version: Mapped[str | None] = mapped_column(String(32))
     port_range_start: Mapped[int] = mapped_column(Integer)
     port_range_end: Mapped[int] = mapped_column(Integer)
