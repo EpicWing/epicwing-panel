@@ -1,7 +1,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -43,8 +43,15 @@ def _name_taken() -> HTTPException:
 
 
 @router.get("")
-def list_nodes(_auth: ManageNodes, db: Annotated[Session, Depends(get_db)]) -> list[NodeOut]:
-    nodes = db.scalars(select(Node).order_by(Node.created_at))
+def list_nodes(
+    _auth: ManageNodes,
+    db: Annotated[Session, Depends(get_db)],
+    response: Response,
+    limit: Annotated[int, Query(ge=1, le=500)] = 500,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> list[NodeOut]:
+    response.headers["X-Total-Count"] = str(db.scalar(select(func.count(Node.id))) or 0)
+    nodes = db.scalars(select(Node).order_by(Node.created_at, Node.id).limit(limit).offset(offset))
     return [_node_out(n) for n in nodes]
 
 

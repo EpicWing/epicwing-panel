@@ -8,10 +8,10 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Annotated, Any, Literal
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from fastapi.responses import StreamingResponse
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -192,8 +192,18 @@ def _check_values(
 
 
 @router.get("")
-def list_servers(auth: ServerAuth, db: DbSession) -> list[ServerOut]:
-    servers = db.scalars(visible_servers(db, auth.user).order_by(Server.created_at))
+def list_servers(
+    auth: ServerAuth,
+    db: DbSession,
+    response: Response,
+    limit: Annotated[int, Query(ge=1, le=1000)] = 1000,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> list[ServerOut]:
+    visible = visible_servers(db, auth.user)
+    # The total helps the frontend to build pages later
+    total = db.scalar(select(func.count()).select_from(visible.subquery())) or 0
+    response.headers["X-Total-Count"] = str(total)
+    servers = db.scalars(visible.order_by(Server.created_at, Server.id).limit(limit).offset(offset))
     return _outs(db, list(servers), auth.user)
 
 
