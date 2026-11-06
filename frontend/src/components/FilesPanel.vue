@@ -1222,10 +1222,10 @@ watch(blocked, (value) => {
   caret-color: #17171a;
 }
 :root[data-theme="light"] .code-surface {
-  background: #ebebef;
+  background: #f8f8fa;
 }
 :root[data-theme="light"] .code-gutter {
-  background: #e2e2e7;
+  background: #ececf0;
   color: #8a8a95;
 }
 :root[data-theme="light"] .code-layer {

@@ -347,14 +347,14 @@ body:has(.server-detail-shell) {
 :root[data-theme="light"] {
   color-scheme: light;
 
-  --color-ink-950: #e6e6ea;
-  --color-ink-900: #f1f1f4;
-  --color-ink-800: #e0e0e5;
-  --color-ink-700: #cfcfd6;
-  --color-ink-600: #b8b8c1;
-  --color-ink-400: #62626d;
-  --color-ink-300: #484852;
-  --color-ink-100: #25252b;
+  --color-ink-950: #dcdce2;
+  --color-ink-900: #f8f8fa;
+  --color-ink-800: #e9e9ee;
+  --color-ink-700: #b9b9c4;
+  --color-ink-600: #a3a3af;
+  --color-ink-400: #55555f;
+  --color-ink-300: #3d3d47;
+  --color-ink-100: #1c1c22;
 
 
   --color-ok: #1a7f37;
@@ -409,4 +409,12 @@ body:has(.server-detail-shell) {
 :root[data-theme="light"] .text-accent-500,
 :root[data-theme="light"] .hover\:text-accent-400:hover {
   color: #b36b00;
+}
+
+/* Heller Modus: Karten und Konsole heben sich vom Hintergrund ab */
+:root[data-theme="light"] .console-surface {
+  background: #f8f8fa;
+}
+:root[data-theme="light"] .bg-ink-900 {
+  box-shadow: 0 1px 2px rgb(20 20 30 / 0.07);
 }
