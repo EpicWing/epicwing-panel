@@ -356,8 +356,6 @@ body:has(.server-detail-shell) {
   --color-ink-300: #4f4f59;
   --color-ink-100: #17171a;
 
-  /* Akzent als Text braucht im hellen Modus mehr Kontrast */
-  --color-accent-400: #b36b00;
 
   --color-ok: #1a7f37;
   --color-warn: #9a6700;
@@ -404,4 +402,11 @@ body:has(.server-detail-shell) {
     transition-duration: 250ms !important;
     transition-timing-function: ease !important;
   }
+}
+
+/* Heller Modus: Akzent nur als Text abdunkeln, Flächen (bg-accent-*) bleiben gelb */
+:root[data-theme="light"] .text-accent-400,
+:root[data-theme="light"] .text-accent-500,
+:root[data-theme="light"] .hover\:text-accent-400:hover {
+  color: #b36b00;
 }

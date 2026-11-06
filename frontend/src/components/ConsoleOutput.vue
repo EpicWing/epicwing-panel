@@ -52,7 +52,7 @@ onMounted(toBottom);
 <template>
   <div
     ref="scroller"
-    class="overflow-auto bg-[#090a0c] p-4 font-mono text-xs leading-5 text-ink-200"
+    class="overflow-auto bg-ink-950 p-4 font-mono text-xs leading-5 text-ink-200"
     role="log"
     @scroll.passive="onScroll"
   >
