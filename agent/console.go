@@ -192,6 +192,8 @@ func (c *consoleManager) watchLoop(ctx context.Context, name string, w *consoleW
 			if !history {
 				since = time.Now()
 				c.stream(ctx, name, []string{"logs", "--tail", consoleHistory, name})
+				// A console opened on a stopped container gets the offline line, which is otherwise only sent live.
+				c.send(daemonFrame(name, "Server marked as offline"))
 				history = true
 			}
 			sleepCtx(ctx, time.Second)
