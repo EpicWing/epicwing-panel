@@ -1216,4 +1216,38 @@ watch(blocked, (value) => {
 .code-layer :deep(.hl-section) {
   color: #f59e0b;
 }
+
+/* Heller Modus: Editor und Syntax-Farben */
+:root[data-theme="light"] .code-input--overlay {
+  caret-color: #17171a;
+}
+:root[data-theme="light"] .code-surface {
+  background: #f6f6f8;
+}
+:root[data-theme="light"] .code-gutter {
+  background: #efeff2;
+  color: #8a8a95;
+}
+:root[data-theme="light"] .code-layer {
+  color: #4f4f59;
+}
+:root[data-theme="light"] .code-layer :deep(.hl-comment),
+:root[data-theme="light"] .code-layer :deep(.hl-punct) {
+  color: #8a8a95;
+}
+:root[data-theme="light"] .code-layer :deep(.hl-key) {
+  color: #17171a;
+}
+:root[data-theme="light"] .code-layer :deep(.hl-value) {
+  color: #4f4f59;
+}
+:root[data-theme="light"] .code-layer :deep(.hl-string) {
+  color: #3b3d44;
+}
+:root[data-theme="light"] .code-layer :deep(.hl-number) {
+  color: #9a5b00;
+}
+:root[data-theme="light"] .code-layer :deep(.hl-section) {
+  color: #b36b00;
+}
 </style>

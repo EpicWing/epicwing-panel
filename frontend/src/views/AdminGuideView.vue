@@ -192,4 +192,23 @@ async function copy(id: string, text: string) {
   background: rgba(245, 158, 11, 0.08);
   color: #fde68a;
 }
+
+/* Heller Modus: dunklere Schrift auf hellem Grund */
+:root[data-theme="light"] .accent {
+  color: #b36b00;
+}
+:root[data-theme="light"] .steps li::before {
+  background: rgba(245, 158, 11, 0.18);
+  color: #b36b00;
+}
+:root[data-theme="light"] .note-tip {
+  border-color: rgba(2, 132, 199, 0.35);
+  background: rgba(56, 189, 248, 0.12);
+  color: #075985;
+}
+:root[data-theme="light"] .note-warn {
+  border-color: rgba(217, 119, 6, 0.4);
+  background: rgba(245, 158, 11, 0.12);
+  color: #92400e;
+}
 </style>
