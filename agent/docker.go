@@ -307,6 +307,7 @@ func (m *containerManager) createArgs(spec ContainerSpec) []string {
 		"--cap-drop", "ALL",
 		"--security-opt", "no-new-privileges",
 		"--pids-limit", "512",
+		"--log-opt", "max-size=10m", "--log-opt", "max-file=3",
 	}
 	if spec.MemoryMB > 0 {
 		args = append(args, "--memory", strconv.Itoa(spec.MemoryMB)+"m", "--memory-swap", strconv.Itoa(spec.MemoryMB)+"m")
