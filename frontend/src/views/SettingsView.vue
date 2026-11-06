@@ -6,6 +6,7 @@ import { ApiError, api } from "../api/client";
 import AppLayout from "../components/AppLayout.vue";
 import AvatarPanel from "../components/AvatarPanel.vue";
 import SessionsPanel from "../components/SessionsPanel.vue";
+import ThemePanel from "../components/ThemePanel.vue";
 import TwoFactorPanel from "../components/TwoFactorPanel.vue";
 
 const MIN_LENGTH = 1;
@@ -57,6 +58,7 @@ async function submit() {
   <AppLayout :title="t('settings.title')" :subtitle="t('settings.subtitle')">
     <div class="max-w-2xl space-y-6">
     <AvatarPanel />
+    <ThemePanel />
     <section class="rounded-xl border border-ink-700 bg-ink-900 p-6">
       <h2 class="text-lg font-semibold">{{ t("settings.passwordTitle") }}</h2>
       <p class="mt-1 text-sm text-ink-400">{{ t("settings.passwordBody", { min: MIN_LENGTH }) }}</p>
