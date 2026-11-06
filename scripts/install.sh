@@ -11,7 +11,7 @@
 # Set EPICWING_SHA256 to check the downloaded archive against a checksum.
 set -euo pipefail
 
-VERSION="v0.1.9-beta-hotfix"
+VERSION="v0.2.0-beta"
 REPO="EpicWing/epicwing-panel"
 ARCHIVE_URL="https://github.com/$REPO/archive/refs/tags/$VERSION.tar.gz"
 AGENT_BASE_URL="https://github.com/$REPO/releases/download/$VERSION/epicwing-agent-linux-"
