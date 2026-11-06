@@ -439,7 +439,13 @@ function handleFrame(frame: ConsoleFrame): void {
       previousNetwork = { rx: last.network_rx_bytes, tx: last.network_tx_bytes, at: Date.now() };
     }
   }
-  if (frame.type === "status" && frame.status && server.value) setStatus(frame.status);
+  if (frame.type === "status" && frame.status && server.value) {
+    // Startet ein gestoppter Server wieder (egal wer ihn startet), beginnt die Konsole leer
+    const before = server.value.status;
+    const starting = frame.status === "starting" || frame.status === "running";
+    if ((before === "offline" || before === "error") && starting) clearConsole();
+    setStatus(frame.status);
+  }
 }
 
 const {
