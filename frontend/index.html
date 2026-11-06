@@ -7,6 +7,17 @@
     <meta name="theme-color" content="#09090a" />
     <title>EpicWing</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <script>
+      (function () {
+        try {
+          var c = localStorage.getItem("epicwing-theme");
+          var light = c === "light" || (c === "system" && window.matchMedia("(prefers-color-scheme: light)").matches);
+          document.documentElement.dataset.theme = light ? "light" : "dark";
+          document.querySelector('meta[name="theme-color"]').setAttribute("content", light ? "#f5f5f7" : "#09090a");
+          document.querySelector('meta[name="color-scheme"]').setAttribute("content", light ? "light" : "dark");
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body class="antialiased">
     <div id="app"></div>
