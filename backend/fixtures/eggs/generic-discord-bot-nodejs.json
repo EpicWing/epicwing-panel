@@ -1,0 +1,124 @@
+{
+  "_comment": "Generic Discord bot egg. Nothing in here is specific to one bot.",
+  "meta": {
+    "version": "PTDL_v2",
+    "update_url": null
+  },
+  "exported_at": "2026-11-07T18:29:39+00:00",
+  "name": "Discord Bot Node.js",
+  "author": "support@epicwing.de",
+  "description": "Run any Discord bot written in JavaScript. Use a git repository or upload your own files, then choose the main file, extra packages and start arguments.",
+  "features": null,
+  "docker_images": {
+    "Node.js 24": "ghcr.io/ptero-eggs/yolks:nodejs_24",
+    "Node.js 22": "ghcr.io/ptero-eggs/yolks:nodejs_22",
+    "Node.js 20": "ghcr.io/ptero-eggs/yolks:nodejs_20"
+  },
+  "file_denylist": [],
+  "startup": "if [[ -d .git ]] && [[ \"{{AUTO_UPDATE}}\" == \"1\" ]]; then git pull; fi; if [[ ! -z \"{{EXTRA_PACKAGES}}\" ]]; then npm install {{EXTRA_PACKAGES}}; fi; if [[ -f /home/container/package.json ]]; then npm install; fi; node /home/container/{{MAIN_FILE}} {{START_ARGS}}",
+  "config": {
+    "files": "{}",
+    "startup": "{}",
+    "logs": "{}",
+    "stop": "^C"
+  },
+  "scripts": {
+    "installation": {
+      "script": "#!/bin/ash\napk add --no-cache git ca-certificates\nmkdir -p /mnt/server\ncd /mnt/server\n\nif [ -n \"${GIT_ADDRESS}\" ]; then\n  URL=\"${GIT_ADDRESS}\"\n  # For private repositories, put the credentials into the HTTPS URL\n  if [ -n \"${GIT_ACCESS_TOKEN}\" ] && [ -n \"${GIT_USERNAME}\" ]; then\n    case \"${GIT_ADDRESS}\" in\n      https://*) URL=\"https://${GIT_USERNAME}:${GIT_ACCESS_TOKEN}@${GIT_ADDRESS#https://}\" ;;\n    esac\n  fi\n  # Only clone if the folder is empty, so nothing gets overwritten\n  if [ -z \"$(ls -A /mnt/server)\" ]; then\n    if [ -n \"${BRANCH}\" ]; then\n      git clone --single-branch --branch \"${BRANCH}\" \"${URL}\" .\n    else\n      git clone \"${URL}\" .\n    fi\n  else\n    echo \"Directory is not empty, skipping git clone.\"\n  fi\nelse\n  echo \"No git repository set. Upload your bot files with the file manager.\"\nfi\necho \"Installation finished.\"\n",
+      "container": "ghcr.io/ptero-eggs/installers:alpine",
+      "entrypoint": "ash"
+    }
+  },
+  "variables": [
+    {
+      "name": "Main file",
+      "description": "The file that starts your bot.",
+      "env_variable": "MAIN_FILE",
+      "default_value": "index.js",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|string|max:128",
+      "field_type": "text"
+    },
+    {
+      "name": "Extra npm packages",
+      "description": "Optional. Space separated list of additional npm packages.",
+      "env_variable": "EXTRA_PACKAGES",
+      "default_value": "",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "nullable|string|max:255",
+      "field_type": "text"
+    },
+    {
+      "name": "Git repository",
+      "description": "HTTPS or SSH URL of your bot's repository. Leave empty to upload your own files. Only used during installation.",
+      "env_variable": "GIT_ADDRESS",
+      "default_value": "",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "nullable|string|max:255",
+      "field_type": "text"
+    },
+    {
+      "name": "Git branch",
+      "description": "Branch to clone. Leave empty for the default branch.",
+      "env_variable": "BRANCH",
+      "default_value": "",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "nullable|string|max:100",
+      "field_type": "text"
+    },
+    {
+      "name": "Git username",
+      "description": "Only needed for private repositories over HTTPS.",
+      "env_variable": "GIT_USERNAME",
+      "default_value": "",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "nullable|string|max:100",
+      "field_type": "text"
+    },
+    {
+      "name": "Git access token",
+      "description": "Only needed for private repositories over HTTPS. Use a read-only token.",
+      "env_variable": "GIT_ACCESS_TOKEN",
+      "default_value": "",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "nullable|string|max:255",
+      "field_type": "text"
+    },
+    {
+      "name": "Update on start",
+      "description": "Run git pull before every start. Needs a git repository.",
+      "env_variable": "AUTO_UPDATE",
+      "default_value": "0",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|boolean",
+      "field_type": "text"
+    },
+    {
+      "name": "Start arguments",
+      "description": "Optional arguments that are added to the start command.",
+      "env_variable": "START_ARGS",
+      "default_value": "",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "nullable|string|max:255",
+      "field_type": "text"
+    },
+    {
+      "name": "Discord token",
+      "description": "Optional. Passed to your bot as the environment variable DISCORD_TOKEN. You can also use a .env file instead.",
+      "env_variable": "DISCORD_TOKEN",
+      "default_value": "",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "nullable|string|max:255",
+      "field_type": "text"
+    }
+  ]
+}
