@@ -22,5 +22,13 @@
   {
     "nest": "Minecraft",
     "file": "minecraft-vanilla-minecraft.json"
+  },
+  {
+    "nest": "Generic",
+    "file": "generic-discord-bot-python.json"
+  },
+  {
+    "nest": "Generic",
+    "file": "generic-discord-bot-nodejs.json"
   }
 ]
