@@ -1,8 +1,5 @@
-blank_issues_enabled: false
+blank_issues_enabled: true
 contact_links:
-  - name: Questions and help
-    url: https://discord.gg/tc7xtNPsmh
-    about: For questions and quick help, please ask on Discord.
-  - name: Security problem
-    url: https://github.com/EpicWing/epicwing-panel/security/policy
-    about: Please do not open a public issue for security problems. Read the security policy first.
+  - name: Questions and ideas
+    url: https://github.com/EpicWing/epicwing-panel/discussions
+    about: Ask questions and share ideas in Discussions.
