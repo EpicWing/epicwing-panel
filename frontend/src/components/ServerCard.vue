@@ -85,7 +85,7 @@ async function copyAddress() {
         <div class="flex min-w-0 items-center gap-2">
           <h3
             class="truncate text-lg font-semibold"
-            :class="server.status === 'offline' ? 'text-ink-300' : 'text-white'"
+            :class="server.status === 'offline' ? 'text-ink-300' : 'text-ink-100'"
           >
             {{ server.name }}
           </h3>
