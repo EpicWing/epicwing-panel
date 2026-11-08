@@ -30,6 +30,15 @@ const dot = computed(
     })[props.server.status],
 );
 
+const tone = computed(
+  () =>
+    ({
+      running: { glow: "border-ok/25 from-ok/10", text: "text-ok" },
+      starting: { glow: "border-warn/25 from-warn/10", text: "text-warn" },
+      offline: { glow: "border-bad/20 from-bad/[0.07]", text: "text-bad" },
+    })[props.server.status],
+);
+
 const stats = computed(() => {
   const off = props.server.status === "offline";
   const offline = t("servers.status.offline");
@@ -62,7 +71,7 @@ async function copyAddress() {
 
 <template>
   <div
-    class="relative cursor-pointer overflow-hidden rounded-2xl border border-ink-700 bg-ink-800 transition duration-200 hover:-translate-y-0.5 hover:border-ink-600 hover:shadow-lg hover:shadow-black/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/50"
+    class="relative cursor-pointer overflow-hidden rounded-2xl border border-transparent bg-ink-800 transition duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/50"
     :class="
       layout === 'list'
         ? 'flex flex-wrap items-center justify-between gap-x-8 gap-y-4 px-5 py-4'
@@ -74,12 +83,17 @@ async function copyAddress() {
     @keydown.enter="emit('open', server.id)"
     @keydown.space.prevent="emit('open', server.id)"
   >
+    <div
+      class="pointer-events-none absolute inset-0 rounded-2xl border bg-gradient-to-br to-transparent to-60%"
+      :class="tone.glow"
+      aria-hidden="true"
+    ></div>
     <div class="min-w-0" :class="layout === 'list' ? 'flex-1 basis-64' : ''">
       <div class="flex items-start justify-between gap-3">
         <div class="flex min-w-0 items-center gap-2">
           <h3
             class="truncate text-lg font-semibold"
-            :class="server.status === 'offline' ? 'text-ink-300' : ''"
+            :class="server.status === 'offline' ? 'text-ink-300' : 'text-white'"
           >
             {{ server.name }}
           </h3>
@@ -90,7 +104,7 @@ async function copyAddress() {
             {{ t("common.demo") }}
           </span>
         </div>
-        <span class="inline-flex shrink-0 items-center gap-1.5 pt-1 text-xs text-ink-300">
+        <span class="inline-flex shrink-0 items-center gap-1.5 pt-1 text-xs font-medium" :class="tone.text">
           <span class="h-2 w-2 rounded-full transition-colors duration-500" :class="dot"></span>
           {{ t(`servers.status.${server.status}`) }}
         </span>
@@ -124,7 +138,7 @@ async function copyAddress() {
         <p class="text-xs text-ink-400">{{ stat.label }}</p>
         <p
           class="mt-0.5 font-mono text-sm font-semibold"
-          :class="server.status === 'offline' ? 'text-ink-400' : ''"
+          :class="server.status === 'offline' ? 'text-ink-400' : 'text-ink-100'"
         >
           {{ stat.value }}
         </p>
