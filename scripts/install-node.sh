@@ -137,6 +137,8 @@ fi
 POLICY="$CONF_DIR/policy.json"
 if [ ! -f "$POLICY" ] || [ "$FORCE" -eq 1 ]; then
   info "Writing $POLICY (bind address $BIND_IP)"
+  # Jedes Image, das ein mitgeliefertes Egg nutzt, muss hier in allowed_images stehen.
+  # Images zusätzlich mit Hash in image_digests pinnen, sonst läuft das Image ungepinnt über den Tag
   cat > "$POLICY" <<POLICYEOF
 {
   "allowed_images": [
@@ -145,6 +147,8 @@ if [ ! -f "$POLICY" ] || [ "$FORCE" -eq 1 ]; then
     "ghcr.io/ptero-eggs/yolks:java_22",
     "ghcr.io/ptero-eggs/yolks:java_25",
     "ghcr.io/ptero-eggs/yolks:python_3.12",
+    "ghcr.io/ptero-eggs/yolks:nodejs_22",
+    "ghcr.io/ptero-eggs/yolks:nodejs_24",
     "ghcr.io/pyrodactyl-oss/images:java_25",
     "ghcr.io/ptero-eggs/steamcmd:debian",
     "ghcr.io/pterodactyl/installers:alpine",
@@ -155,6 +159,8 @@ if [ ! -f "$POLICY" ] || [ "$FORCE" -eq 1 ]; then
   "image_digests": {
     "ghcr.io/ptero-eggs/yolks:mono_latest": "sha256:327404b6358bdc3b558587713b21fbc1719c10b369a38f32b33045954ab4627b",
     "ghcr.io/ptero-eggs/yolks:python_3.12": "sha256:196fee6764133099f82971c8e2fced2f0075c94930e90860c43f5e6619a7d575",
+    "ghcr.io/ptero-eggs/yolks:nodejs_22": "sha256:23e4eeec6706fad7d0486081ffdd6fd26d745802d34bee3e101b86d8758cce69",
+    "ghcr.io/ptero-eggs/yolks:nodejs_24": "sha256:5c5a3e74fb39f25c2dc65851ca7255d7e739af54d94c6df46cdb91a496ee51f4",
     "ghcr.io/ptero-eggs/yolks:java_22": "sha256:3d71f6ebbfdae46e46d39b499533b7829e2272cb84b4950164110f6c6bddd27c",
     "ghcr.io/ptero-eggs/yolks:java_25": "sha256:afbe93630fc543361cd463630335fc04d799d52e1e87ca8d87005938e0508ad2",
     "ghcr.io/ptero-eggs/steamcmd:debian": "sha256:c8a93dc0e256d1dba10aed6a0d8d6e739d4f1809f4e3b7428d0c01adc6e6e68b",
