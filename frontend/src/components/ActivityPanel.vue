@@ -230,7 +230,7 @@ onMounted(load);
     <div class="flex flex-wrap items-center justify-between gap-3 border-b border-ink-700 px-5 py-3">
       <h3 class="text-lg font-semibold">Events <span v-if="canView && !loading && !error" class="ml-1 text-sm font-normal text-ink-400">({{ items.length }}{{ hasMore ? "+" : "" }} events)</span></h3>
       <div class="flex flex-wrap items-center gap-2">
-        <button :class="buttonClass" :disabled="!canView" @click="showFilters = !showFilters">Filters<span v-if="filterCount" class="ml-1.5 rounded-full bg-accent-500 px-1.5 text-[10px] font-semibold text-white">{{ filterCount }}</span></button>
+        <button :class="buttonClass" :disabled="!canView" @click="showFilters = !showFilters">Filters<span v-if="filterCount" class="ml-1.5 rounded-full bg-accent-500 px-1.5 text-[10px] font-semibold text-ink-950">{{ filterCount }}</span></button>
         <button :class="buttonClass" :disabled="!canView || exporting" @click="exportAs('csv')">Export CSV</button>
         <button :class="buttonClass" :disabled="!canView || exporting" @click="exportAs('json')">Export JSON</button>
         <button :class="buttonClass" :disabled="loading || !canView" @click="load">Refresh</button>
