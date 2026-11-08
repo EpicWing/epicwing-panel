@@ -30,11 +30,15 @@ const dot = computed(
     })[props.server.status],
 );
 
-const stats = computed(() => [
-  { label: t("servers.cpu"), value: props.server.cpu, pct: props.server.cpuPct },
-  { label: t("servers.ram"), value: props.server.ram, pct: props.server.ramPct },
-  { label: t("servers.storage"), value: props.server.storage, pct: props.server.diskPct },
-]);
+const stats = computed(() => {
+  const off = props.server.status === "offline";
+  const offline = t("servers.status.offline");
+  return [
+    { label: t("servers.cpu"), value: off ? offline : props.server.cpu, pct: off ? undefined : props.server.cpuPct },
+    { label: t("servers.ram"), value: off ? offline : props.server.ram, pct: off ? undefined : props.server.ramPct },
+    { label: t("servers.storage"), value: off ? offline : props.server.storage, pct: off ? undefined : props.server.diskPct },
+  ];
+});
 
 function barColor(pct: number): string {
   if (pct >= 90) {
@@ -113,13 +117,17 @@ async function copyAddress() {
     </div>
 
     <div
-      v-if="server.status !== 'offline'"
       class="grid grid-cols-3 gap-4"
       :class="layout === 'list' ? 'w-full sm:w-auto sm:min-w-[22rem]' : 'mt-5'"
     >
       <div v-for="stat in stats" :key="stat.label">
         <p class="text-xs text-ink-400">{{ stat.label }}</p>
-        <p class="mt-0.5 font-mono text-sm font-semibold">{{ stat.value }}</p>
+        <p
+          class="mt-0.5 font-mono text-sm font-semibold"
+          :class="server.status === 'offline' ? 'text-ink-400' : ''"
+        >
+          {{ stat.value }}
+        </p>
         <div
           v-if="stat.pct !== undefined"
           class="mt-2 h-1.5 overflow-hidden rounded-full bg-ink-950"
