@@ -36,7 +36,7 @@ Options:
   --binary <file>   Local agent binary to install
   --url <url>       Download the agent binary from this HTTPS address
   --sha256 <hash>   Expected SHA-256 of the binary
-  --token <token>   Enrollment token (asked for if omitted, input stays hidden)
+  --token <token>   Enrollment token (or set EPICWING_ENROLL_TOKEN; asked for if omitted)
   --bind-ip <ip>    IPv4 address game servers bind to (default: primary address)
   --force           Enroll again and replace the policy
   --insecure        Allow http:// for local tests only
@@ -44,7 +44,7 @@ Options:
 
 The agent's enroll command takes the token as a command line argument, so it is
 visible in the process list for a moment. Run this on a machine only you can
-log in to, and leave out --token so the installer asks for it.
+log in to, and pass the token with EPICWING_ENROLL_TOKEN or let the installer ask for it.
 USAGE
 }
 
@@ -219,6 +219,8 @@ CONFIG="$CONF_DIR/config.json"
 if [ -f "$CONFIG" ] && [ "$FORCE" -eq 0 ]; then
   info "Already enrolled, keeping $CONFIG (use --force to enroll again)"
 else
+  # Token aus der Umgebung übernehmen, wenn kein --token gegeben wurde
+  [ -n "$TOKEN" ] || TOKEN="${EPICWING_ENROLL_TOKEN:-}"
   if [ -z "$TOKEN" ]; then
     [ -t 0 ] || die "No token given and no terminal to ask on."
     read -rs -p "Enrollment token: " TOKEN
@@ -232,6 +234,7 @@ else
   runuser -u "$AGENT_USER" -- "$BIN_DIR/epicwing-agent" enroll \
     --panel "$PANEL" --token "$TOKEN" --config "$CONFIG"
   TOKEN=""
+  unset EPICWING_ENROLL_TOKEN
 fi
 
 info "Starting the agent"
