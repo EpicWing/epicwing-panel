@@ -456,3 +456,18 @@ body:has(.server-detail-shell) {
 :root[data-theme="light"] .load-tile {
   background-color: #eeeef2;
 }
+
+/* Chart palette: one place for all chart colors, with darker values for the light theme */
+:root {
+  --chart-cpu: #f5a524;
+  --chart-ram: #6ea8fe;
+  --chart-rx: #4cc38a;
+  --chart-tx: #b48ef0;
+}
+
+:root[data-theme="light"] {
+  --chart-cpu: #b87400;
+  --chart-ram: #1f6fd1;
+  --chart-rx: #1a7f37;
+  --chart-tx: #8250df;
+}
