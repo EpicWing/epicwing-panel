@@ -137,8 +137,8 @@ fi
 POLICY="$CONF_DIR/policy.json"
 if [ ! -f "$POLICY" ] || [ "$FORCE" -eq 1 ]; then
   info "Writing $POLICY (bind address $BIND_IP)"
-  # Jedes Image, das ein mitgeliefertes Egg nutzt, muss hier in allowed_images stehen.
-  # Images zusätzlich mit Hash in image_digests pinnen, sonst läuft das Image ungepinnt über den Tag
+  # Every image used by a bundled egg must be listed in allowed_images.
+  # Also pin images by hash in image_digests, otherwise the image runs unpinned by its tag.
   cat > "$POLICY" <<POLICYEOF
 {
   "allowed_images": [
@@ -219,7 +219,7 @@ CONFIG="$CONF_DIR/config.json"
 if [ -f "$CONFIG" ] && [ "$FORCE" -eq 0 ]; then
   info "Already enrolled, keeping $CONFIG (use --force to enroll again)"
 else
-  # Token aus der Umgebung übernehmen, wenn kein --token gegeben wurde
+  # Take the token from the environment if --token was not given
   [ -n "$TOKEN" ] || TOKEN="${EPICWING_ENROLL_TOKEN:-}"
   if [ -z "$TOKEN" ]; then
     [ -t 0 ] || die "No token given and no terminal to ask on."
