@@ -219,18 +219,6 @@ function onMove(event: MouseEvent): void {
     flipY: Math.min(rxY, txY) > 60,
   };
 }
-
-// Five time labels under the chart, calculated back from the last fetch.
-const ticks = computed(() => {
-  const step = status.value?.history.step_seconds ?? 10;
-  const pad = (n: number): string => String(n).padStart(2, "0");
-  return [0, 0.25, 0.5, 0.75, 1].map((p) => {
-    const at = new Date(fetchedAt.value - (1 - p) * (slots.value - 1) * step * 1000);
-    const clock = `${pad(at.getHours())}:${pad(at.getMinutes())}`;
-    const day = `${pad(at.getMonth() + 1)}-${pad(at.getDate())}`;
-    return { p, label: range.value === "1h" ? clock : `${day} ${clock}` };
-  });
-});
 </script>
 
 <template>
@@ -360,14 +348,6 @@ const ticks = computed(() => {
               <p class="mt-0.5" :style="{ color: TX_COLOR }">↑ Upload : {{ hover.tx }}</p>
             </div>
           </template>
-        </div>
-        <div v-if="online" class="relative mt-2 h-4 font-mono text-[10px] leading-none text-ink-500">
-          <span
-            v-for="tick in ticks"
-            :key="tick.p"
-            class="absolute top-0 whitespace-nowrap"
-            :style="{ left: tick.p * 100 + '%', transform: `translateX(${-tick.p * 100}%)` }"
-          >{{ tick.label }}</span>
         </div>
       </div>
       </div>
