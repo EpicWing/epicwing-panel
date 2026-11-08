@@ -290,16 +290,22 @@ function onMove(event: MouseEvent): void {
       <div class="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p class="text-xs uppercase tracking-wider text-ink-400">{{ range === "1h" ? "Live traffic" : "Traffic history" }}</p>
-          <p v-if="range !== '1h'" class="mt-1 text-xs text-ink-500">Highest value per 5 minutes</p>
-          <div class="mt-2 flex gap-1">
-            <button
-              v-for="option in RANGES"
-              :key="option.key"
-              type="button"
-              class="rounded-md border px-2 py-0.5 text-xs"
-              :class="range === option.key ? 'border-accent-400 text-accent-400' : 'border-ink-700 text-ink-400'"
-              @click="setRange(option.key)"
-            >{{ option.label }}</button>
+          <p v-if="range !== '1h'" class="mt-1 text-xs text-ink-500">Highest value per interval</p>
+          <div class="mt-3 flex flex-wrap items-end gap-4">
+            <label class="block">
+              <span class="mb-1.5 block text-xs font-medium uppercase tracking-wider text-ink-400">Time range</span>
+              <span class="relative block">
+                <select
+                  class="cursor-pointer appearance-none rounded-lg border border-ink-700 bg-ink-950 py-2 pl-3 pr-9 text-sm text-ink-100 outline-none transition hover:border-ink-600 focus-visible:ring-2 focus-visible:ring-accent-500/50"
+                  :value="range"
+                  @change="setRange(($event.target as HTMLSelectElement).value as RangeKey)"
+                >
+                  <option v-for="option in RANGES" :key="option.key" :value="option.key">{{ option.label }}</option>
+                </select>
+                <svg viewBox="0 0 24 24" class="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+              </span>
+            </label>
+            <p class="pb-2 text-xs text-ink-400">Interval: {{ range === "1h" ? "10 seconds" : "5 minutes" }}</p>
           </div>
         </div>
         <div class="flex items-center gap-4 text-xs text-ink-400">
