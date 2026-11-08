@@ -62,6 +62,7 @@ function setRange(key: RangeKey): void {
 
 const status = ref<DdosStatus | null>(null);
 const failed = ref(false);
+const fetchedAt = ref(Date.now());
 let timer: number | undefined;
 let busy = false;
 let disposed = false;
@@ -73,6 +74,7 @@ async function refresh(): Promise<void> {
     const result = await api<DdosStatus>(`/servers/${props.serverId}/ddos?range=${range.value}`);
     if (disposed) return;
     status.value = result;
+    fetchedAt.value = Date.now();
     failed.value = false;
   } catch {
     if (!disposed) failed.value = true;
@@ -162,6 +164,43 @@ function area(values: number[]): string {
   if (!props.online || values.length < 2) return "";
   const first = WIDTH - (values.length - 1) * (WIDTH / (slots.value - 1));
   return `${line(values)} L${WIDTH},${HEIGHT} L${first.toFixed(1)},${HEIGHT} Z`;
+}
+
+interface Hover {
+  pct: number;
+  time: string;
+  rx: string;
+  tx: string;
+}
+const hover = ref<Hover | null>(null);
+
+function onMove(event: MouseEvent): void {
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+  const n = chartRx.value.length;
+  if (!props.online || n < 2 || rect.width === 0) {
+    hover.value = null;
+    return;
+  }
+  const x = ((event.clientX - rect.left) / rect.width) * WIDTH;
+  const stepX = WIDTH / (slots.value - 1);
+  const index = Math.round(n - 1 - (WIDTH - x) / stepX);
+  if (index < 0 || index > n - 1) {
+    hover.value = null;
+    return;
+  }
+  const pointX = WIDTH - (n - 1 - index) * stepX;
+  const step = status.value?.history.step_seconds ?? 10;
+  const at = new Date(fetchedAt.value - (n - 1 - index) * step * 1000);
+  const time =
+    range.value === "1h"
+      ? at.toLocaleTimeString("en-GB")
+      : at.toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", hour12: false });
+  hover.value = {
+    pct: (pointX / WIDTH) * 100,
+    time,
+    rx: `${formatBytes(chartRx.value[index] ?? 0)}/s`,
+    tx: `${formatBytes(chartTx.value[index] ?? 0)}/s`,
+  };
 }
 </script>
 
@@ -255,12 +294,25 @@ function area(values: number[]): string {
         <div class="flex h-64 flex-col justify-between py-2 font-mono text-[10px] leading-none text-ink-500">
           <span>{{ axis(1) }}</span><span>{{ axis(0.5) }}</span><span>{{ axis(0) }}</span>
         </div>
-        <svg viewBox="0 0 300 80" class="h-64 min-w-0 flex-1" preserveAspectRatio="none" aria-hidden="true">
+        <div class="relative h-64 min-w-0 flex-1" @mousemove="onMove" @mouseleave="hover = null">
+          <svg viewBox="0 0 300 80" class="h-full w-full" preserveAspectRatio="none" aria-hidden="true">
           <path :d="area(chartRx)" :fill="RX_COLOR" fill-opacity="0.2" />
           <path :d="line(chartRx)" fill="none" :stroke="RX_COLOR" stroke-width="2" vector-effect="non-scaling-stroke" />
           <path :d="area(chartTx)" :fill="TX_COLOR" fill-opacity="0.2" />
           <path :d="line(chartTx)" fill="none" :stroke="TX_COLOR" stroke-width="2" vector-effect="non-scaling-stroke" />
-        </svg>
+          </svg>
+          <template v-if="hover">
+            <div class="pointer-events-none absolute inset-y-0 w-px bg-ink-500" :style="{ left: hover.pct + '%' }"></div>
+            <div
+              class="pointer-events-none absolute top-2 z-10 whitespace-nowrap rounded-lg border border-ink-700 bg-ink-900 px-3 py-2 text-xs shadow-lg"
+              :style="hover.pct > 65 ? { right: 100 - hover.pct + '%', marginRight: '8px' } : { left: hover.pct + '%', marginLeft: '8px' }"
+            >
+              <p class="font-medium text-ink-100">{{ hover.time }}</p>
+              <p class="mt-1 font-mono text-ink-200"><span :style="{ color: RX_COLOR }">↓</span> {{ hover.rx }}</p>
+              <p class="font-mono text-ink-200"><span :style="{ color: TX_COLOR }">↑</span> {{ hover.tx }}</p>
+            </div>
+          </template>
+        </div>
       </div>
     </div>
 
