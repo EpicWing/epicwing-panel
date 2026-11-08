@@ -138,8 +138,8 @@ async function logout() {
             <RouterLink
               v-if="item.to"
               :to="item.to"
-              class="mb-0.5 block border-l-2 border-transparent px-3 py-1.5 text-sm text-ink-300 transition hover:bg-ink-800 hover:text-ink-100"
-              exact-active-class="!border-accent-500 !bg-accent-500/10 !text-accent-400"
+              class="mb-0.5 block rounded-md px-3 py-1.5 text-sm text-ink-300 transition hover:bg-ink-800 hover:text-ink-100"
+              exact-active-class="!bg-accent-500/15 !text-accent-400"
             >
               <span class="flex items-center justify-between gap-2">
                 <span class="flex items-center gap-2.5"><NavIcon v-if="item.icon" :name="item.icon" />{{ item.label }}</span>
@@ -151,7 +151,7 @@ async function logout() {
             </RouterLink>
             <div
               v-else
-              class="mb-0.5 flex cursor-not-allowed items-center justify-between border-l-2 border-transparent px-3 py-1.5 text-sm text-ink-600"
+              class="mb-0.5 flex cursor-not-allowed items-center justify-between rounded-md px-3 py-1.5 text-sm text-ink-600"
             >
               <span class="flex items-center gap-2.5"><NavIcon v-if="item.icon" :name="item.icon" />{{ item.label }}</span>
               <span class="text-[10px] uppercase tracking-wide">{{ t("common.soon") }}</span>

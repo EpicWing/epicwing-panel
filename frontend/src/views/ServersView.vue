@@ -111,7 +111,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <AppLayout wide :title="t('servers.title')" :subtitle="t('servers.subtitle')">
+  <AppLayout wide :title="t('servers.title')">
     <template #actions>
       <div class="flex items-center gap-2">
         <button
