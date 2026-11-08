@@ -75,7 +75,30 @@ def save_settings(
     db.commit()
 
 
+_DISCORD_HOSTS = ("discord.com", "discordapp.com")
+
+
+def _is_discord_webhook(url: str) -> bool:
+    """True only for https://<discord host>/api/webhooks/... without port or login."""
+    try:
+        parsed = httpx.URL(url)
+    except httpx.InvalidURL:
+        return False
+    host = parsed.host
+    host_ok = host in _DISCORD_HOSTS or host.endswith(tuple("." + h for h in _DISCORD_HOSTS))
+    return (
+        parsed.scheme == "https"
+        and host_ok
+        and parsed.port is None
+        and not parsed.userinfo
+        and parsed.path.startswith("/api/webhooks/")
+    )
+
+
 def send_discord(url: str, title: str, text: str) -> tuple[bool, str]:
+    # Checked here as well, so no caller can make the panel request another address.
+    if not _is_discord_webhook(url):
+        return False, "This is not a Discord webhook URL"
     content = f"**{title}**\n{text}"[:1900]
     try:
         response = httpx.post(

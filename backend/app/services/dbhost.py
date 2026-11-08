@@ -114,19 +114,28 @@ def create_database(endpoint: Endpoint, name: str, user: str, remote: str, passw
     # In GRANT, _ and % are placeholders for database names; without escaping, the
     # user would also match other databases with similar names.
     grant_name = name.replace("_", "\\_")
+    # Step 1 on its own. If it fails (for example the name already exists on the
+    # host), we created nothing and must not clean up: a cleanup would drop the
+    # database that was there before.
+    _run(
+        endpoint,
+        [
+            (
+                f"CREATE DATABASE `{name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci",
+                None,
+            ),
+        ],
+    )
     try:
         _run(
             endpoint,
             [
-                (
-                    f"CREATE DATABASE `{name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci",
-                    None,
-                ),
                 ("CREATE USER %s@%s IDENTIFIED BY %s", (user, remote, password)),
                 (f"GRANT {PRIVILEGES} ON `{grant_name}`.* TO %s@%s", (user, remote)),
             ],
         )
     except HostError:
+        # The database is ours, so it is safe to remove it again.
         with contextlib.suppress(HostError):
             drop_database(endpoint, name, user, remote)
         raise
