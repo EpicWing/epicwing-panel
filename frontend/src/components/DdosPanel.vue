@@ -25,8 +25,8 @@ const POLL_MS = 3000;
 const WIDTH = 300;
 const HEIGHT = 72;
 const POINTS = 360; // 60 min at 10 s steps
-const RX_COLOR = "#49c58a";
-const TX_COLOR = "#f778ba";
+const RX_COLOR = "var(--chart-rx)";
+const TX_COLOR = "var(--chart-tx)";
 
 type Level = "loading" | "unavailable" | "offline" | "learning" | "normal" | "watch" | "attack";
 
