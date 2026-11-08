@@ -54,10 +54,10 @@ const links: HelpLink[] = [
   { key: "support", label: t("admin.linkSupport"), url: HELP_URLS.support },
 ].filter((link) => link.url);
 const linkClass: Record<string, string> = {
-  discord: "bg-amber-500 hover:bg-amber-400",
-  docs: "bg-blue-600 hover:bg-blue-500",
-  github: "bg-blue-600 hover:bg-blue-500",
-  support: "bg-green-600 hover:bg-green-500",
+  discord: "bg-amber-500 text-ink-950 hover:bg-amber-400",
+  docs: "bg-blue-600 text-white hover:bg-blue-500",
+  github: "bg-blue-600 text-white hover:bg-blue-500",
+  support: "bg-green-600 text-white hover:bg-green-500",
 };
 
 const linkIcons: Record<string, string> = {
@@ -164,8 +164,8 @@ onUnmounted(() => window.clearInterval(timer));
           :href="link.url || undefined"
           :target="link.url ? '_blank' : undefined"
           rel="noopener noreferrer"
-          class="flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition"
-          :class="link.url ? linkClass[link.key] : 'cursor-not-allowed bg-ink-800 opacity-50'"
+          class="flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition"
+          :class="link.url ? linkClass[link.key] : 'cursor-not-allowed bg-ink-800 text-ink-300 opacity-50'"
         >
           <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path :d="linkIcons[link.key]" />

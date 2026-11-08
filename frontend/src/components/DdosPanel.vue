@@ -219,6 +219,18 @@ function onMove(event: MouseEvent): void {
     flipY: Math.min(rxY, txY) > 60,
   };
 }
+
+// Five time labels under the chart, calculated back from the last fetch.
+const ticks = computed(() => {
+  const step = status.value?.history.step_seconds ?? 10;
+  const pad = (n: number): string => String(n).padStart(2, "0");
+  return [0, 0.25, 0.5, 0.75, 1].map((p) => {
+    const at = new Date(fetchedAt.value - (1 - p) * (slots.value - 1) * step * 1000);
+    const clock = `${pad(at.getHours())}:${pad(at.getMinutes())}`;
+    const day = `${pad(at.getMonth() + 1)}-${pad(at.getDate())}`;
+    return { p, label: range.value === "1h" ? clock : `${day} ${clock}` };
+  });
+});
 </script>
 
 <template>
@@ -233,7 +245,7 @@ function onMove(event: MouseEvent): void {
 
     <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <div class="rounded-xl border border-ink-700 bg-ink-900 p-4">
-        <p class="text-xs uppercase text-ink-400">Status</p>
+        <p class="text-sm text-ink-400">Status</p>
         <p class="mt-2 flex items-center gap-2 text-xl font-semibold">
           <span class="h-2.5 w-2.5 rounded-full shadow-[0_0_10px_currentColor]" :class="LEVELS[level].dot"></span>
           {{ LEVELS[level].label }}
@@ -241,16 +253,16 @@ function onMove(event: MouseEvent): void {
         <p class="mt-1 text-xs text-ink-400">{{ LEVELS[level].hint }}</p>
       </div>
       <div class="rounded-xl border border-ink-700 bg-ink-900 p-4">
-        <p class="text-xs uppercase text-ink-400">Incoming now</p>
+        <p class="text-sm text-ink-400">Incoming now</p>
         <p class="mt-2 text-xl font-semibold">{{ online ? formatBytes(latest) + "/s" : "Offline" }}</p>
         <p class="mt-1 text-xs text-ink-400">Peak (2 min): {{ online ? formatBytes(peakIn) + "/s" : "–" }}</p>
       </div>
       <div class="rounded-xl border border-ink-700 bg-ink-900 p-4">
-        <p class="text-xs uppercase text-ink-400">Outgoing now</p>
+        <p class="text-sm text-ink-400">Outgoing now</p>
         <p class="mt-2 text-xl font-semibold">{{ online ? formatBytes(latestTx) + "/s" : "Offline" }}</p>
       </div>
       <div class="rounded-xl border border-ink-700 bg-ink-900 p-4">
-        <p class="text-xs uppercase text-ink-400">Usual incoming</p>
+        <p class="text-sm text-ink-400">Usual incoming</p>
         <p class="mt-2 text-xl font-semibold">{{ usual !== null ? formatBytes(usual) + "/s" : "–" }}</p>
         <p class="mt-1 text-xs text-ink-400">{{ factor !== null ? "Now: " + factor.toFixed(1) + "× usual" : "Still learning" }}</p>
       </div>
@@ -258,25 +270,25 @@ function onMove(event: MouseEvent): void {
 
     <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <div class="rounded-xl border border-ink-700 bg-ink-900 p-4">
-        <p class="text-xs uppercase text-ink-400">Packets in</p>
+        <p class="text-sm text-ink-400">Packets in</p>
         <p class="mt-2 text-xl font-semibold">{{ count(rates.rx_packets_per_s, "/s") }}</p>
       </div>
       <div class="rounded-xl border border-ink-700 bg-ink-900 p-4">
-        <p class="text-xs uppercase text-ink-400">Dropped / rejected</p>
+        <p class="text-sm text-ink-400">Dropped / rejected</p>
         <p class="mt-2 text-xl font-semibold">{{ count(rates.dropped_per_s, "/s") }}</p>
       </div>
       <div class="rounded-xl border border-ink-700 bg-ink-900 p-4">
-        <p class="text-xs uppercase text-ink-400">Console lines</p>
+        <p class="text-sm text-ink-400">Console lines</p>
         <p class="mt-2 text-xl font-semibold">{{ count(rates.console_lines_per_s, "/s") }}</p>
       </div>
       <div class="rounded-xl border border-ink-700 bg-ink-900 p-4">
-        <p class="text-xs uppercase text-ink-400">Console sources</p>
+        <p class="text-sm text-ink-400">Console sources</p>
         <p class="mt-2 text-xl font-semibold">{{ count(rates.console_sources_per_s, "/s") }}</p>
       </div>
     </div>
 
     <div v-if="reasons.length" class="rounded-xl border border-ink-700 bg-ink-900 p-4">
-      <p class="text-xs uppercase tracking-wider text-ink-400">Why this status</p>
+      <p class="text-sm text-ink-300">Why this status</p>
       <div v-if="layers.length" class="mt-2 flex flex-wrap items-center gap-2 text-xs">
         <span class="text-ink-400">Affected layer:</span>
         <span v-for="layer in layers" :key="layer" class="rounded-full border border-ink-700 px-2 py-0.5">{{ LAYERS[layer] ?? layer }}</span>
@@ -289,7 +301,7 @@ function onMove(event: MouseEvent): void {
     <div class="rounded-xl border border-ink-700 bg-ink-900 p-4">
       <div class="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <p class="text-xs uppercase tracking-wider text-ink-400">{{ range === "1h" ? "Live traffic" : "Traffic history" }}</p>
+          <p class="text-sm text-ink-300">{{ range === "1h" ? "Live traffic" : "Traffic history" }}</p>
           <p v-if="range !== '1h'" class="mt-1 text-xs text-ink-500">Highest value per interval</p>
           <div class="mt-3 flex flex-wrap items-end gap-4">
             <label class="block">
@@ -317,7 +329,8 @@ function onMove(event: MouseEvent): void {
         <div class="flex h-64 flex-col justify-between py-2 font-mono text-[10px] leading-none text-ink-500">
           <span>{{ axis(1) }}</span><span>{{ axis(0.5) }}</span><span>{{ axis(0) }}</span>
         </div>
-        <div class="relative h-64 min-w-0 flex-1" @mousemove="onMove" @mouseleave="hover = null">
+        <div class="min-w-0 flex-1">
+        <div class="relative h-64" @mousemove="onMove" @mouseleave="hover = null">
           <svg viewBox="0 0 300 80" class="h-full w-full" preserveAspectRatio="none" aria-hidden="true">
           <path :d="area(chartRx)" :fill="RX_COLOR" fill-opacity="0.2" />
           <path :d="line(chartRx)" fill="none" :stroke="RX_COLOR" stroke-width="2" vector-effect="non-scaling-stroke" />
@@ -348,6 +361,15 @@ function onMove(event: MouseEvent): void {
             </div>
           </template>
         </div>
+        <div v-if="online" class="relative mt-2 h-4 font-mono text-[10px] leading-none text-ink-500">
+          <span
+            v-for="tick in ticks"
+            :key="tick.p"
+            class="absolute top-0 whitespace-nowrap"
+            :style="{ left: tick.p * 100 + '%', transform: `translateX(${-tick.p * 100}%)` }"
+          >{{ tick.label }}</span>
+        </div>
+      </div>
       </div>
     </div>
 
