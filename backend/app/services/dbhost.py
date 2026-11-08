@@ -85,11 +85,12 @@ def _run(endpoint: Endpoint, statements: list[tuple[str, tuple[str, ...] | None]
 
 
 def _check(name: str | None = None, user: str | None = None, remote: str | None = None) -> None:
-    if name is not None and not NAME_RE.match(name):
+    # fullmatch, not match: with match, a trailing newline would pass the check.
+    if name is not None and not NAME_RE.fullmatch(name):
         raise ValueError("invalid database name")
-    if user is not None and not USER_RE.match(user):
+    if user is not None and not USER_RE.fullmatch(user):
         raise ValueError("invalid user name")
-    if remote is not None and not REMOTE_RE.match(remote):
+    if remote is not None and not REMOTE_RE.fullmatch(remote):
         raise ValueError("invalid host pattern")
 
 
