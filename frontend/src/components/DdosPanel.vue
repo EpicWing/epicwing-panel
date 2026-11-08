@@ -168,6 +168,7 @@ function area(values: number[]): string {
 
 interface Hover {
   pct: number;
+  y: number;
   time: string;
   rx: string;
   tx: string;
@@ -197,6 +198,7 @@ function onMove(event: MouseEvent): void {
       : at.toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", hour12: false });
   hover.value = {
     pct: (pointX / WIDTH) * 100,
+    y: event.clientY - rect.top,
     time,
     rx: `${formatBytes(chartRx.value[index] ?? 0)}/s`,
     tx: `${formatBytes(chartTx.value[index] ?? 0)}/s`,
@@ -304,12 +306,10 @@ function onMove(event: MouseEvent): void {
           <template v-if="hover">
             <div class="pointer-events-none absolute inset-y-0 w-px bg-ink-500" :style="{ left: hover.pct + '%' }"></div>
             <div
-              class="pointer-events-none absolute top-2 z-10 whitespace-nowrap rounded-lg border border-ink-700 bg-ink-900 px-3 py-2 text-xs shadow-lg"
-              :style="hover.pct > 65 ? { right: 100 - hover.pct + '%', marginRight: '8px' } : { left: hover.pct + '%', marginLeft: '8px' }"
+              class="pointer-events-none absolute z-10 -translate-y-full whitespace-nowrap rounded bg-ink-900 px-2 py-0.5 text-xs shadow"
+              :style="{ top: hover.y - 8 + 'px', ...(hover.pct > 65 ? { right: 100 - hover.pct + '%', marginRight: '8px' } : { left: hover.pct + '%', marginLeft: '8px' }) }"
             >
               <p class="font-medium text-ink-100">{{ hover.time }}</p>
-              <p class="mt-1 font-mono text-ink-200"><span :style="{ color: RX_COLOR }">↓</span> {{ hover.rx }}</p>
-              <p class="font-mono text-ink-200"><span :style="{ color: TX_COLOR }">↑</span> {{ hover.tx }}</p>
             </div>
           </template>
         </div>
