@@ -61,8 +61,8 @@ async function copyAddress() {
     class="relative overflow-hidden rounded-xl border border-ink-700 bg-ink-800 transition hover:border-accent-500/50"
     :class="
       layout === 'list'
-        ? 'flex flex-wrap items-center justify-between gap-x-8 gap-y-4 py-4 pl-6 pr-5'
-        : 'p-5 pl-6'
+        ? 'flex flex-wrap items-center justify-between gap-x-8 gap-y-4 px-5 py-4'
+        : 'p-5'
     "
     role="button"
     tabindex="0"
@@ -70,12 +70,15 @@ async function copyAddress() {
     @keydown.enter="emit('open', server.id)"
     @keydown.space.prevent="emit('open', server.id)"
   >
-    <span class="absolute inset-y-0 left-0 w-1 transition-colors duration-500" :class="dot"></span>
-
     <div class="min-w-0" :class="layout === 'list' ? 'flex-1 basis-64' : ''">
       <div class="flex items-start justify-between gap-3">
         <div class="flex min-w-0 items-center gap-2">
-          <h3 class="truncate text-lg font-semibold">{{ server.name }}</h3>
+          <h3
+            class="truncate text-lg font-semibold"
+            :class="server.status === 'offline' ? 'text-ink-300' : ''"
+          >
+            {{ server.name }}
+          </h3>
           <span
             v-if="demo"
             class="shrink-0 rounded border border-ink-600 px-1.5 text-[10px] uppercase tracking-wide text-ink-400"
@@ -83,28 +86,30 @@ async function copyAddress() {
             {{ t("common.demo") }}
           </span>
         </div>
-        <span
-          class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-ink-950 px-2.5 py-1 text-xs text-ink-300"
-        >
+        <span class="inline-flex shrink-0 items-center gap-1.5 pt-1 text-xs text-ink-300">
           <span class="h-2 w-2 rounded-full transition-colors duration-500" :class="dot"></span>
           {{ t(`servers.status.${server.status}`) }}
         </span>
       </div>
 
-      <div class="mt-3 flex items-center gap-2 rounded-md bg-ink-950 py-1.5 pl-3 pr-1.5">
-        <p
-          class="min-w-0 flex-1 truncate font-mono text-sm text-ink-300"
-          :title="t('servers.connectWith')"
-        >
-          {{ server.address }}
-        </p>
-        <button
-          class="shrink-0 rounded border border-ink-700 px-2 py-0.5 text-xs text-ink-300 transition hover:border-ink-600 hover:text-ink-100"
-          @click.stop="copyAddress"
+      <button
+        type="button"
+        class="group mt-3 flex w-full items-center justify-between gap-3 rounded-md bg-ink-950 px-3 py-1.5 text-left transition hover:bg-ink-900"
+        :title="t('servers.connectWith')"
+        @click.stop="copyAddress"
+      >
+        <span class="min-w-0 truncate font-mono text-sm text-ink-300">{{ server.address }}</span>
+        <span
+          class="shrink-0 text-xs transition"
+          :class="
+            copied
+              ? 'text-accent-400'
+              : 'text-ink-400 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100'
+          "
         >
           {{ copied ? t("servers.copied") : t("servers.copy") }}
-        </button>
-      </div>
+        </span>
+      </button>
     </div>
 
     <div
@@ -112,7 +117,7 @@ async function copyAddress() {
       :class="layout === 'list' ? 'w-full sm:w-auto sm:min-w-[22rem]' : 'mt-5'"
     >
       <div v-for="stat in stats" :key="stat.label">
-        <p class="text-[11px] uppercase tracking-wider text-ink-400">{{ stat.label }}</p>
+        <p class="text-xs text-ink-400">{{ stat.label }}</p>
         <p class="mt-0.5 font-mono text-sm font-semibold">{{ stat.value }}</p>
         <div
           v-if="stat.pct !== undefined"
