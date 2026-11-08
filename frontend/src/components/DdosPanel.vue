@@ -168,12 +168,20 @@ function area(values: number[]): string {
 
 interface Hover {
   pct: number;
-  y: number;
+  rxY: number;
+  txY: number;
   time: string;
   rx: string;
   tx: string;
+  flipX: boolean;
+  flipY: boolean;
 }
 const hover = ref<Hover | null>(null);
+
+// Vertical position of a value in percent of the chart height (viewBox is 80 high).
+function yPct(value: number): number {
+  return ((HEIGHT - (value / peak.value) * (HEIGHT - 8)) / 80) * 100;
+}
 
 function onMove(event: MouseEvent): void {
   const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
@@ -196,12 +204,20 @@ function onMove(event: MouseEvent): void {
     range.value === "1h"
       ? at.toLocaleTimeString("en-GB")
       : at.toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", hour12: false });
+  const rxValue = chartRx.value[index] ?? 0;
+  const txValue = chartTx.value[index] ?? 0;
+  const rxY = yPct(rxValue);
+  const txY = yPct(txValue);
+  const pct = (pointX / WIDTH) * 100;
   hover.value = {
-    pct: (pointX / WIDTH) * 100,
-    y: event.clientY - rect.top,
+    pct,
+    rxY,
+    txY,
     time,
-    rx: `${formatBytes(chartRx.value[index] ?? 0)}/s`,
-    tx: `${formatBytes(chartTx.value[index] ?? 0)}/s`,
+    rx: `${formatBytes(rxValue)}/s`,
+    tx: `${formatBytes(txValue)}/s`,
+    flipX: pct > 65,
+    flipY: Math.min(rxY, txY) > 60,
   };
 }
 </script>
@@ -304,12 +320,26 @@ function onMove(event: MouseEvent): void {
           <path :d="line(chartTx)" fill="none" :stroke="TX_COLOR" stroke-width="2" vector-effect="non-scaling-stroke" />
           </svg>
           <template v-if="hover">
-            <div class="pointer-events-none absolute inset-y-0 w-px bg-ink-500" :style="{ left: hover.pct + '%' }"></div>
+            <div class="pointer-events-none absolute inset-y-0 w-px bg-ink-600" :style="{ left: hover.pct + '%' }"></div>
+            <span
+              class="pointer-events-none absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-ink-100 bg-ink-900"
+              :style="{ left: hover.pct + '%', top: hover.rxY + '%' }"
+            ></span>
+            <span
+              class="pointer-events-none absolute h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-ink-100 bg-ink-900"
+              :style="{ left: hover.pct + '%', top: hover.txY + '%' }"
+            ></span>
             <div
-              class="pointer-events-none absolute z-10 -translate-y-full whitespace-nowrap rounded bg-ink-900 px-2 py-0.5 text-xs shadow"
-              :style="{ top: hover.y - 8 + 'px', ...(hover.pct > 65 ? { right: 100 - hover.pct + '%', marginRight: '8px' } : { left: hover.pct + '%', marginLeft: '8px' }) }"
+              class="pointer-events-none absolute z-10 whitespace-nowrap rounded-lg border border-ink-700 bg-ink-900 px-3 py-2 text-xs"
+              :style="{
+                left: hover.pct + '%',
+                top: Math.min(hover.rxY, hover.txY) + '%',
+                transform: `translate(${hover.flipX ? 'calc(-100% - 14px)' : '14px'}, ${hover.flipY ? 'calc(-100% - 14px)' : '14px'})`,
+              }"
             >
-              <p class="font-medium text-ink-100">{{ hover.time }}</p>
+              <p class="text-ink-300">{{ hover.time }}</p>
+              <p class="mt-1.5 font-mono" :style="{ color: RX_COLOR }">↓ Download : {{ hover.rx }}</p>
+              <p class="font-mono" :style="{ color: TX_COLOR }">↑ Upload : {{ hover.tx }}</p>
             </div>
           </template>
         </div>
