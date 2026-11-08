@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.2.1-beta (2026-11-08)
+
+- Node.js Discord bot egg: the Node.js 22 and 24 images are now in the default node policy, pinned by digest. Before, a Node.js bot could not start on a fresh node because its images were not allowed
+- Node.js 20 is removed from the egg, it is end of life
+- Existing nodes keep their old `policy.json`. Add `ghcr.io/ptero-eggs/yolks:nodejs_22` and `ghcr.io/ptero-eggs/yolks:nodejs_24` to `allowed_images` in `/etc/epicwing-agent/policy.json` and run `systemctl restart epicwing-agent`. Pinning them in `image_digests` is optional
+- Agent: the "not on the allowlist" error now says that the image has to be added to `allowed_images` in `policy.json`
+- Creating a node or issuing a new token now shows a ready install command with the token inside, instead of the bare token. The panel address in the command comes from the address bar, so open the panel through its real domain. The command needs this release or newer
+- `install-node.sh` also reads the token from the `EPICWING_ENROLL_TOKEN` environment variable
+- Admin guide: the node steps describe the new install command
+
 ## 0.2.0-beta (2026-11-07)
 
 - Node limits: set a memory limit and a storage limit (GB) per node in the node settings. Empty means unlimited. The panel refuses new servers and limit changes that would go over what is left on the node, also when several requests arrive at the same time
