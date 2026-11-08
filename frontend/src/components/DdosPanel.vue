@@ -200,10 +200,9 @@ function onMove(event: MouseEvent): void {
   const pointX = WIDTH - (n - 1 - index) * stepX;
   const step = status.value?.history.step_seconds ?? 10;
   const at = new Date(fetchedAt.value - (n - 1 - index) * step * 1000);
-  const time =
-    range.value === "1h"
-      ? at.toLocaleTimeString("en-GB")
-      : at.toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", hour12: false });
+  const pad = (n: number): string => String(n).padStart(2, "0");
+  const clock = `${pad(at.getHours())}:${pad(at.getMinutes())}${range.value === "1h" ? ":" + pad(at.getSeconds()) : ""}`;
+  const time = `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())} ${clock}`;
   const rxValue = chartRx.value[index] ?? 0;
   const txValue = chartTx.value[index] ?? 0;
   const rxY = yPct(rxValue);
@@ -330,7 +329,7 @@ function onMove(event: MouseEvent): void {
               :style="{ left: hover.pct + '%', top: hover.txY + '%' }"
             ></span>
             <div
-              class="pointer-events-none absolute z-10 whitespace-nowrap rounded-lg border border-ink-700 bg-ink-900 px-3 py-2 text-xs"
+              class="pointer-events-none absolute z-10 whitespace-nowrap rounded-xl border border-ink-700 bg-ink-950 px-4 py-3 text-sm shadow-xl shadow-black/40"
               :style="{
                 left: hover.pct + '%',
                 top: Math.min(hover.rxY, hover.txY) + '%',
@@ -338,8 +337,8 @@ function onMove(event: MouseEvent): void {
               }"
             >
               <p class="text-ink-300">{{ hover.time }}</p>
-              <p class="mt-1.5 font-mono" :style="{ color: RX_COLOR }">↓ Download : {{ hover.rx }}</p>
-              <p class="font-mono" :style="{ color: TX_COLOR }">↑ Upload : {{ hover.tx }}</p>
+              <p class="mt-2" :style="{ color: RX_COLOR }">↓ Download : {{ hover.rx }}</p>
+              <p class="mt-0.5" :style="{ color: TX_COLOR }">↑ Upload : {{ hover.tx }}</p>
             </div>
           </template>
         </div>
