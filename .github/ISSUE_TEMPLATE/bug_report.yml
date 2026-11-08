@@ -6,7 +6,7 @@ body:
     id: version
     attributes:
       label: EpicWing version
-      description: Panel and agent version, for example v0.2.0-beta
+      description: Panel and agent version, for example v0.2.1-beta
     validations:
       required: true
   - type: textarea
