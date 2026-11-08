@@ -58,11 +58,11 @@ async function copyAddress() {
 
 <template>
   <div
-    class="relative overflow-hidden rounded-xl border border-ink-700 bg-ink-800 transition hover:border-accent-500/50"
+    class="relative cursor-pointer overflow-hidden rounded-2xl border border-ink-700 bg-ink-800 transition duration-200 hover:-translate-y-0.5 hover:border-ink-600 hover:shadow-lg hover:shadow-black/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/50"
     :class="
       layout === 'list'
         ? 'flex flex-wrap items-center justify-between gap-x-8 gap-y-4 px-5 py-4'
-        : 'p-5'
+        : 'p-6'
     "
     role="button"
     tabindex="0"
@@ -94,7 +94,7 @@ async function copyAddress() {
 
       <button
         type="button"
-        class="group mt-3 flex w-full items-center justify-between gap-3 rounded-md bg-ink-950 px-3 py-1.5 text-left transition hover:bg-ink-900"
+        class="group mt-3 flex w-full items-center justify-between gap-3 rounded-lg bg-ink-950 px-3 py-1.5 text-left transition hover:bg-ink-900"
         :title="t('servers.connectWith')"
         @click.stop="copyAddress"
       >
@@ -113,6 +113,7 @@ async function copyAddress() {
     </div>
 
     <div
+      v-if="server.status !== 'offline'"
       class="grid grid-cols-3 gap-4"
       :class="layout === 'list' ? 'w-full sm:w-auto sm:min-w-[22rem]' : 'mt-5'"
     >
@@ -121,7 +122,7 @@ async function copyAddress() {
         <p class="mt-0.5 font-mono text-sm font-semibold">{{ stat.value }}</p>
         <div
           v-if="stat.pct !== undefined"
-          class="mt-2 h-1 overflow-hidden rounded-full bg-ink-950"
+          class="mt-2 h-1.5 overflow-hidden rounded-full bg-ink-950"
         >
           <div
             class="h-full rounded-full transition-[width,background-color] duration-700 ease-out"
