@@ -132,7 +132,8 @@ func (m *containerManager) validateInstall(spec InstallSpec) error {
 		}
 	}
 	if !allowed {
-		return fmt.Errorf("image %q is not on the allowlist", spec.Image)
+		// Hint for the operator: the image must be allowed in the node's policy.json
+		return fmt.Errorf("image %q is not on the allowlist; add it to allowed_images in policy.json on this node", spec.Image)
 	}
 	installerAllowed := false
 	for _, image := range m.policy.AllowedImages {
@@ -142,7 +143,8 @@ func (m *containerManager) validateInstall(spec InstallSpec) error {
 		}
 	}
 	if !installerAllowed {
-		return fmt.Errorf("installer image %q is not on the allowlist", spec.InstallerImage)
+		// Hint for the operator: the installer image must be allowed in policy.json as well
+		return fmt.Errorf("installer image %q is not on the allowlist; add it to allowed_images in policy.json on this node", spec.InstallerImage)
 	}
 	if spec.InstallerEntrypoint == "" || !shellEntrypointRe.MatchString(spec.InstallerEntrypoint) {
 		return errors.New("invalid installer entrypoint")
@@ -263,7 +265,8 @@ func (m *containerManager) validate(spec ContainerSpec) error {
 		}
 	}
 	if !allowed {
-		return fmt.Errorf("image %q is not on the allowlist", spec.Image)
+		// Hint for the operator: the image must be allowed in the node's policy.json
+		return fmt.Errorf("image %q is not on the allowlist; add it to allowed_images in policy.json on this node", spec.Image)
 	}
 	if len(spec.Ports) > 32 {
 		return errors.New("too many ports")

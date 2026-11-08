@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { installCommand } from "../lib/nodeInstall";
 import { onMounted, onUnmounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 
@@ -146,7 +147,7 @@ async function copyToken() {
     return;
   }
   try {
-    await navigator.clipboard.writeText(issued.value.enrollment.token);
+    await navigator.clipboard.writeText(installCommand(issued.value.enrollment.token));
     copied.value = true;
   } catch {
     error.value = t("nodes.copyFailed");
@@ -202,7 +203,7 @@ onUnmounted(() => window.clearInterval(timer));
         <code
           class="min-w-0 flex-1 break-all rounded-md border border-ink-700 bg-ink-950 px-3 py-2 font-mono text-xs"
         >
-          {{ issued.enrollment.token }}
+          {{ installCommand(issued.enrollment.token) }}
         </code>
         <button :class="buttonClass" @click="copyToken">
           {{ copied ? t("nodes.copied") : t("nodes.copy") }}

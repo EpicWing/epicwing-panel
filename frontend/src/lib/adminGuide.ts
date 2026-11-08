@@ -89,7 +89,7 @@ export const guide: GuideGroup[] = [
         steps: [
           "Open Admin > Nodes and add a node.",
           "Enter a name and the address (domain or IP) of the machine. A location and a suggested port range are optional.",
-          "Create the node. The panel shows an enrollment token once. Copy it right away.",
+          "Create the node. The panel shows an install command once. Copy it right away.",
           "Install the agent on the machine (next section). Until it connects, the node says 'Waiting for agent'.",
         ],
         tips: [
@@ -104,9 +104,9 @@ export const guide: GuideGroup[] = [
         summary: "The agent runs on the node. It starts and stops the containers and talks to the panel.",
         steps: [
           "Make sure Docker is installed on the node. The installer does not install it.",
-          "Create the node in the panel and copy the enrollment token (see 'Nodes').",
-          "Run the command below on the node as root. Use the address of your own panel instead of panel.example.com.",
-          "Paste the enrollment token when the installer asks for it.",
+          "Create the node in the panel and copy the install command it shows (see 'Nodes').",
+          "Run the install command from the panel on the node as root. It already contains the token and the address of your panel. To install by hand, use the command below with the address of your own panel instead of panel.example.com.",
+          "With the manual command, paste the enrollment token when the installer asks for it.",
           "In the panel, the node changes from 'Waiting for agent' to online.",
         ],
         code: "bash <(curl -fsSL https://raw.githubusercontent.com/EpicWing/epicwing-panel/main/scripts/install.sh) node --panel https://panel.example.com",

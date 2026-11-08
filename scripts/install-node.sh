@@ -36,7 +36,7 @@ Options:
   --binary <file>   Local agent binary to install
   --url <url>       Download the agent binary from this HTTPS address
   --sha256 <hash>   Expected SHA-256 of the binary
-  --token <token>   Enrollment token (asked for if omitted, input stays hidden)
+  --token <token>   Enrollment token (or set EPICWING_ENROLL_TOKEN; asked for if omitted)
   --bind-ip <ip>    IPv4 address game servers bind to (default: primary address)
   --force           Enroll again and replace the policy
   --insecure        Allow http:// for local tests only
@@ -44,7 +44,7 @@ Options:
 
 The agent's enroll command takes the token as a command line argument, so it is
 visible in the process list for a moment. Run this on a machine only you can
-log in to, and leave out --token so the installer asks for it.
+log in to, and pass the token with EPICWING_ENROLL_TOKEN or let the installer ask for it.
 USAGE
 }
 
@@ -137,6 +137,8 @@ fi
 POLICY="$CONF_DIR/policy.json"
 if [ ! -f "$POLICY" ] || [ "$FORCE" -eq 1 ]; then
   info "Writing $POLICY (bind address $BIND_IP)"
+  # Every image used by a bundled egg must be listed in allowed_images.
+  # Also pin images by hash in image_digests, otherwise the image runs unpinned by its tag.
   cat > "$POLICY" <<POLICYEOF
 {
   "allowed_images": [
@@ -145,6 +147,8 @@ if [ ! -f "$POLICY" ] || [ "$FORCE" -eq 1 ]; then
     "ghcr.io/ptero-eggs/yolks:java_22",
     "ghcr.io/ptero-eggs/yolks:java_25",
     "ghcr.io/ptero-eggs/yolks:python_3.12",
+    "ghcr.io/ptero-eggs/yolks:nodejs_22",
+    "ghcr.io/ptero-eggs/yolks:nodejs_24",
     "ghcr.io/pyrodactyl-oss/images:java_25",
     "ghcr.io/ptero-eggs/steamcmd:debian",
     "ghcr.io/pterodactyl/installers:alpine",
@@ -155,6 +159,8 @@ if [ ! -f "$POLICY" ] || [ "$FORCE" -eq 1 ]; then
   "image_digests": {
     "ghcr.io/ptero-eggs/yolks:mono_latest": "sha256:327404b6358bdc3b558587713b21fbc1719c10b369a38f32b33045954ab4627b",
     "ghcr.io/ptero-eggs/yolks:python_3.12": "sha256:196fee6764133099f82971c8e2fced2f0075c94930e90860c43f5e6619a7d575",
+    "ghcr.io/ptero-eggs/yolks:nodejs_22": "sha256:23e4eeec6706fad7d0486081ffdd6fd26d745802d34bee3e101b86d8758cce69",
+    "ghcr.io/ptero-eggs/yolks:nodejs_24": "sha256:5c5a3e74fb39f25c2dc65851ca7255d7e739af54d94c6df46cdb91a496ee51f4",
     "ghcr.io/ptero-eggs/yolks:java_22": "sha256:3d71f6ebbfdae46e46d39b499533b7829e2272cb84b4950164110f6c6bddd27c",
     "ghcr.io/ptero-eggs/yolks:java_25": "sha256:afbe93630fc543361cd463630335fc04d799d52e1e87ca8d87005938e0508ad2",
     "ghcr.io/ptero-eggs/steamcmd:debian": "sha256:c8a93dc0e256d1dba10aed6a0d8d6e739d4f1809f4e3b7428d0c01adc6e6e68b",
@@ -213,6 +219,8 @@ CONFIG="$CONF_DIR/config.json"
 if [ -f "$CONFIG" ] && [ "$FORCE" -eq 0 ]; then
   info "Already enrolled, keeping $CONFIG (use --force to enroll again)"
 else
+  # Take the token from the environment if --token was not given
+  [ -n "$TOKEN" ] || TOKEN="${EPICWING_ENROLL_TOKEN:-}"
   if [ -z "$TOKEN" ]; then
     [ -t 0 ] || die "No token given and no terminal to ask on."
     read -rs -p "Enrollment token: " TOKEN
@@ -226,6 +234,7 @@ else
   runuser -u "$AGENT_USER" -- "$BIN_DIR/epicwing-agent" enroll \
     --panel "$PANEL" --token "$TOKEN" --config "$CONFIG"
   TOKEN=""
+  unset EPICWING_ENROLL_TOKEN
 fi
 
 info "Starting the agent"

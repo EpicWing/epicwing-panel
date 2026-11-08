@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { installCommand } from "../lib/nodeInstall";
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
@@ -171,7 +172,7 @@ const usage = computed(() => {
 
 const command = computed(() => {
   const token = issued.value?.token ?? "<token>";
-  return `epicwing-agent enroll --panel <panel-url> --token '${token}'\nepicwing-agent run`;
+  return installCommand(token);
 });
 
 async function copy(key: string, text: string) {
