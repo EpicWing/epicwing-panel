@@ -613,7 +613,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <AppLayout wide minimal :hide-header="active !== 'home'" :title="server?.name ?? 'Server'">
+  <AppLayout wide minimal hero :hide-header="active !== 'home'" :title="server?.name ?? 'Server'">
     <template #sidebar>
       <button class="mb-7 flex w-full items-center gap-2 px-3 py-2 text-sm text-ink-400 transition hover:text-ink-100" @click="router.push('/')">
         <span aria-hidden="true">←</span>
@@ -642,10 +642,10 @@ onMounted(async () => {
     </template>
 
     <template #actions>
-      <div v-if="active === 'home'" class="flex overflow-hidden rounded-lg border border-ink-700">
+      <div v-if="active === 'home'" class="flex overflow-hidden rounded-xl border border-ink-700 shadow-lg shadow-black/20">
         <button class="px-6 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40" :class="server?.status === 'running' || server?.status === 'starting' ? 'text-ink-300' : 'bg-accent-500 text-ink-950 hover:bg-accent-400'" :disabled="server?.status === 'running' || server?.status === 'starting' || server?.status === 'new' || server?.status === 'installing' || powerBusy !== null" :title="server?.status === 'new' ? 'This server has not been installed yet' : undefined" @click="power('start')"><span v-if="powerBusy === 'start'" class="spinner mr-2"></span>Start</button>
         <button class="border-l border-ink-700 px-6 py-3 text-sm font-semibold text-ink-100 transition hover:bg-ink-800 disabled:cursor-not-allowed disabled:opacity-40" :disabled="(server?.status !== 'running' && server?.status !== 'starting') || powerBusy !== null" @click="power('restart')"><span v-if="powerBusy === 'restart'" class="spinner mr-2"></span>Restart</button>
-        <button class="border-l px-6 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40" :class="server?.status === 'running' || server?.status === 'starting' ? 'border-ink-700 text-bad hover:bg-bad/10' : 'border-ink-700 text-ink-300'" :disabled="(server?.status !== 'running' && server?.status !== 'starting') || powerBusy !== null" @click="power('stop')"><span v-if="powerBusy === 'stop'" class="spinner mr-2"></span>Stop</button>
+        <button class="border-l px-6 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40" :class="server?.status === 'running' || server?.status === 'starting' ? 'border-accent-400/30 bg-accent-500 text-ink-950 hover:bg-accent-400' : 'border-ink-700 text-ink-300'" :disabled="(server?.status !== 'running' && server?.status !== 'starting') || powerBusy !== null" @click="power('stop')"><span v-if="powerBusy === 'stop'" class="spinner mr-2"></span>Stop</button>
       </div>
     </template>
 
@@ -663,18 +663,22 @@ onMounted(async () => {
             </div>
           </div>
         </div>
-        <div v-if="active === 'home'" class="flex flex-wrap items-center justify-start gap-x-5 gap-y-2">
+        <div v-if="active === 'home'" class="flex flex-wrap items-center justify-start gap-3">
           <div>
-            <span class="inline-flex items-center gap-2 text-sm font-medium text-ink-100">
+            <span class="inline-flex items-center gap-2 rounded-full border border-ink-700 bg-ink-900 px-3 py-1.5 text-sm font-medium text-ink-200 shadow-sm">
               <span class="h-2 w-2 rounded-full" :class="server.status === 'running' ? 'bg-ok' : server.status === 'starting' || server.status === 'installing' ? 'bg-warn animate-pulse' : 'bg-bad'" />
               {{ server.status === 'running' ? 'Running' : server.status === 'starting' ? 'Starting' : server.status === 'error' ? 'Error' : server.status === 'new' ? 'Not installed' : server.status === 'installing' ? 'Installing' : 'Offline' }}
             </span>
           </div>
-          <span class="text-sm text-ink-400">Uptime {{ uptimeText() }}</span>
-          <button type="button" class="group flex cursor-pointer items-center gap-2 text-left text-sm" title="Click to copy" @click="copyIp"><span class="font-mono text-ink-200 transition group-hover:text-accent-400">{{ server.allocations[0]?.ip }}:{{ server.allocations[0]?.port }}</span><span class="text-xs text-accent-500" aria-live="polite">{{ ipCopied ? "Copied" : "" }}</span></button>
-          <span class="text-sm text-ink-400">Storage <span class="font-mono text-ink-200">{{ formatBytes(metrics.disk) }}</span></span>
+          <span class="inline-flex items-center rounded-full border border-ink-700 bg-ink-900 px-3 py-1.5 text-sm font-medium text-ink-200 shadow-sm">Uptime: {{ uptimeText() }}</span>
         </div>
 
+        <div v-if="active === 'home'" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div class="rounded-xl border border-ink-700 bg-ink-900 p-4"><p class="text-xs uppercase text-ink-400">IP address</p><button type="button" class="mt-2 flex w-full cursor-pointer items-center gap-2 text-left" title="Click to copy" @click="copyIp"><span class="min-w-0 truncate font-mono text-lg font-semibold">{{ server.allocations[0]?.ip }}:{{ server.allocations[0]?.port }}</span><span class="shrink-0 text-xs text-accent-500" aria-live="polite">{{ ipCopied ? "Copied" : "" }}</span></button></div>
+          <div class="rounded-xl border border-ink-700 bg-ink-900 p-4"><p class="text-xs uppercase text-ink-400">CPU usage</p><p class="mt-2 text-xl font-semibold">{{ server?.status === 'running' || server?.status === 'starting' ? metrics.cpu.toFixed(1) + '%' : 'Offline' }}</p></div>
+          <div class="rounded-xl border border-ink-700 bg-ink-900 p-4"><p class="text-xs uppercase text-ink-400">RAM usage</p><p class="mt-2 text-xl font-semibold">{{ server?.status === 'running' || server?.status === 'starting' ? formatBytes(metrics.ram) : 'Offline' }}</p></div>
+          <div class="rounded-xl border border-ink-700 bg-ink-900 p-4"><p class="text-xs uppercase text-ink-400">Storage usage</p><p class="mt-2 text-xl font-semibold">{{ formatBytes(metrics.disk) }}</p></div>
+        </div>
 
         <p v-if="active === 'home' && server.status === 'new'" class="rounded-xl border border-warn/40 bg-warn/10 px-4 py-3 text-sm text-ink-100">This server has not been installed yet. Open Settings and choose Install Server to set it up.</p>
 
@@ -690,22 +694,22 @@ onMounted(async () => {
 
         <section v-if="active === 'home'" class="grid gap-4 lg:grid-cols-3">
           <div v-for="chart in [
-            { key: 'cpu', title: 'CPU', value: (server.status === 'running' || server.status === 'starting') ? `${metrics.cpu.toFixed(1)}%` : 'Offline', color: '#f5a524' },
-            { key: 'ram', title: 'RAM', value: (server.status === 'running' || server.status === 'starting') ? formatBytes(metrics.ram) : 'Offline', color: '#f5a524' },
+            { key: 'cpu', title: 'CPU', value: (server.status === 'running' || server.status === 'starting') ? `${metrics.cpu.toFixed(1)}%` : 'Offline', color: '#e5534b' },
+            { key: 'ram', title: 'RAM', value: (server.status === 'running' || server.status === 'starting') ? formatBytes(metrics.ram) : 'Offline', color: '#d9a21b' },
           ]" :key="chart.key" class="rounded-xl border border-ink-700 bg-ink-900 p-4">
-            <div class="flex items-center justify-between"><p class="flex items-center gap-2 text-sm text-ink-300"><span class="h-2 w-2 rounded-full" :style="{ backgroundColor: chart.color }"></span>{{ chart.title }}</p><p class="font-mono text-sm">{{ chart.value }}</p></div>
+            <div class="flex items-center justify-between"><p class="flex items-center gap-2 text-xs uppercase tracking-wider text-ink-400"><span class="h-2 w-2 rounded-full" :style="{ backgroundColor: chart.color }"></span>{{ chart.title }}</p><p class="font-mono text-sm">{{ chart.value }}</p></div>
             <div class="mt-3 flex gap-2"><div class="flex h-32 flex-col justify-between py-2 font-mono text-[10px] leading-none text-ink-500"><span>{{ axisLabel(chart.key, 1) }}</span><span>{{ axisLabel(chart.key, 0.5) }}</span><span>{{ axisLabel(chart.key, 0) }}</span></div><svg viewBox="0 0 300 80" class="h-32 min-w-0 flex-1" preserveAspectRatio="none" aria-hidden="true"><g :key="chartTick" :class="{ 'chart-glide': chartTick > 0 }" style="--glide: 5.085px"><path :d="smoothPath(chartPoints(chart.key), 300)" :fill="chart.color" fill-opacity="0.2" /><path :d="smoothPath(chartPoints(chart.key))" fill="none" :stroke="chart.color" stroke-width="2" vector-effect="non-scaling-stroke" /></g></svg></div>
           </div>
           <div class="rounded-xl border border-ink-700 bg-ink-900 p-4">
-            <div class="flex items-center justify-between"><p class="text-sm text-ink-300">Network activity</p><p class="font-mono text-sm">↓ {{ formatBytes(metrics.rx) }}/s · ↑ {{ formatBytes(metrics.tx) }}/s</p></div>
+            <div class="flex items-center justify-between"><p class="text-xs uppercase tracking-wider text-ink-400">Network activity</p><p class="font-mono text-sm">↓ {{ formatBytes(metrics.rx) }}/s · ↑ {{ formatBytes(metrics.tx) }}/s</p></div>
             <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-400">
-              <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full" style="background-color: #f5a524"></span>↓ Download (incoming)</span>
-              <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full" style="background-color: #a6a6af"></span>↑ Upload (outgoing)</span>
+              <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full" style="background-color: #49c58a"></span>↓ Download (incoming)</span>
+              <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full" style="background-color: #f778ba"></span>↑ Upload (outgoing)</span>
               <span class="text-ink-500">Both lines share one scale.</span>
             </div>
             <div class="mt-3 flex gap-2"><div class="flex h-32 flex-col justify-between py-2 font-mono text-[10px] leading-none text-ink-500"><span>{{ networkAxisLabel(1) }}</span><span>{{ networkAxisLabel(0.5) }}</span><span>{{ networkAxisLabel(0) }}</span></div><div class="min-w-0 flex-1"><svg viewBox="0 0 900 80" class="h-32 w-full" preserveAspectRatio="none" aria-hidden="true">
-              <g :key="chartTick" :class="{ 'chart-glide': chartTick > 0 }" style="--glide: 15.254px"><path :d="smoothPath(networkPoints('rx'), 900)" fill="#f5a524" fill-opacity="0.2" /><path :d="smoothPath(networkPoints('rx'))" fill="none" stroke="#f5a524" stroke-width="2" vector-effect="non-scaling-stroke" />
-              <path :d="smoothPath(networkPoints('tx'), 900)" fill="#a6a6af" fill-opacity="0.2" /><path :d="smoothPath(networkPoints('tx'))" fill="none" stroke="#a6a6af" stroke-width="2" vector-effect="non-scaling-stroke" /></g>
+              <g :key="chartTick" :class="{ 'chart-glide': chartTick > 0 }" style="--glide: 15.254px"><path :d="smoothPath(networkPoints('rx'), 900)" fill="#49c58a" fill-opacity="0.2" /><path :d="smoothPath(networkPoints('rx'))" fill="none" stroke="#49c58a" stroke-width="2" vector-effect="non-scaling-stroke" />
+              <path :d="smoothPath(networkPoints('tx'), 900)" fill="#f778ba" fill-opacity="0.2" /><path :d="smoothPath(networkPoints('tx'))" fill="none" stroke="#f778ba" stroke-width="2" vector-effect="non-scaling-stroke" /></g>
             </svg></div></div>
           </div>
         </section>
