@@ -613,7 +613,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <AppLayout wide minimal hero :hide-header="active !== 'home'" :title="server?.name ?? 'Server'">
+  <AppLayout wide minimal :hide-header="active !== 'home'" :title="server?.name ?? 'Server'">
     <template #sidebar>
       <button class="mb-7 flex w-full items-center gap-2 px-3 py-2 text-sm text-ink-400 transition hover:text-ink-100" @click="router.push('/')">
         <span aria-hidden="true">←</span>
