@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+## 0.2.2-beta (2026-11-09)
+
+- Server list: no colored edge on the cards, click the address to copy it, quieter labels, softer hover, more padding. The status glow is only on the status dot
+- Server list: stopped servers show "Offline" instead of 0 cores and 0 MiB
+- Server page: one status line instead of pills and tiles, a smaller title, and Stop is no longer the main button
+- Sidebar: the main sidebar uses the same style as the server sidebar, without the colored left edge
+- Charts: one theme-aware color palette (orange CPU, rose RAM, green download, violet upload) instead of scattered colors
+- DDoS chart: hover with a dot on the line, a guide line and a tooltip with the full date and time. The time range is a dropdown now
+- Light mode: better contrast for server names and the filter badge
+- Panel: the Discord webhook URL is checked when the message is sent
+- Panel: a failed database create no longer drops existing databases, and database, user and host names are matched completely
+- CI: the workflow token is limited to read access
+
 ## 0.2.1-beta (2026-11-08)
 
 - Node.js Discord bot egg: the Node.js 22 and 24 images are now in the default node policy, pinned by digest. Before, a Node.js bot could not start on a fresh node because its images were not allowed
