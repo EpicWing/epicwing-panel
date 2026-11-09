@@ -33,6 +33,14 @@ each node.
 **Status: beta.** Fine for small setups, not ready for large or multi-tenant hosting.
 See [Limitations](#limitations).
 
+## Why EpicWing
+
+- **Isolated by default:** every server runs in its own Docker container, in a separate network with container-to-container traffic switched off
+- **Image allowlist:** a node only starts images you allowed, and they can be pinned by digest
+- **Limits:** memory, swap and storage per server, and memory and storage limits per node
+- **Verified installs:** the installer checks a SHA-256 checksum of the agent binary before it installs it
+- **Login everywhere:** every API route needs a login, with two-factor authentication and a password reset that does not skip it
+
 <!--
 ## Screenshots
 
