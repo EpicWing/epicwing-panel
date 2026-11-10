@@ -95,6 +95,9 @@ banner
 : > "$LOG"
 info "Installing packages"
 export DEBIAN_FRONTEND=noninteractive
+# Ubuntu: needrestart soll waehrend apt nicht nachfragen
+export NEEDRESTART_MODE=a
+export NEEDRESTART_SUSPEND=1
 quiet apt-get update -qq
 PKGS=(postgresql nginx python3 python3-venv python3-dev build-essential libpq-dev openssl curl rsync ca-certificates)
 if [ -n "$LE_EMAIL" ]; then PKGS+=(certbot python3-certbot-nginx); fi
@@ -111,6 +114,10 @@ if ! node_ok; then
   fi
 fi
 node_ok || die "Node.js 20 or newer is required."
+# Ubuntu-Images haben teils eine aktive Firewall, dann sind 80/443 zu
+if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q 'Status: active'; then
+  warn "ufw is active. Allow ports 80 and 443 (ufw allow 80,443/tcp), or the panel will not be reachable."
+fi
 systemctl enable --now postgresql >/dev/null 2>&1 || true
 
 info "Creating the service user and copying the code"
