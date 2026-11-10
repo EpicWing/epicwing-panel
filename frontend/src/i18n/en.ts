@@ -358,7 +358,7 @@ export default {
     emailHint: "The person needs an existing account on this panel.",
     selectUser: "User",
     selectUserHint: "Only people with a panel account who do not have access yet are listed.",
-    searchUsers: "Enter full email address",
+    searchUsers: "Search by email",
     searchHint: "Type the full email address of the user to find them.",
     noMatch: "No user found for this address. The user must exist, must not be an admin and must not have access to this server yet.",
     noCandidates: "No users available. Create a normal (non-admin) account under Admin > Users first.",

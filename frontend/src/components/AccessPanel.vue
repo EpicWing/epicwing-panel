@@ -317,11 +317,11 @@ const linkButton = "rounded px-2 py-1 text-xs text-ink-300 transition hover:bg-i
           {{
             candidatesLoading
               ? t("access.loadingUsers")
-              : search.trim().length < 3
-                ? t("access.searchHint")
-                : candidates.length === 0
-                  ? t("access.noMatch")
-                  : t("access.selectUserHint")
+              : candidates.length > 0
+                ? t("access.selectUserHint")
+                : search.trim().length < 3
+                  ? t("access.searchHint")
+                  : t("access.noMatch")
           }}
         </p>
       </div>
