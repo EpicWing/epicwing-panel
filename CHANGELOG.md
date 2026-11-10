@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Installer: Ubuntu 24.04 works now, next to Debian 13. Newer Ubuntu releases are accepted, but not tested
+- Panel installer: on Ubuntu, needrestart no longer stops apt with a question. A warning shows when ufw is on and may block ports 80 and 443
+- Node installer: a warning shows on systems that are not Debian or Ubuntu. The installer stops when Docker comes from snap
+- Bug report template: the example system is now Debian 13 or Ubuntu 24.04
+- The version numbers in the frontend and the backend were still 0.2.1-beta. They are 0.2.3-beta now
+
 ## 0.2.2-beta (2026-11-09)
 
 - Server list: no colored edge on the cards, click the address to copy it, quieter labels, softer hover, more padding. The status glow is only on the status dot
