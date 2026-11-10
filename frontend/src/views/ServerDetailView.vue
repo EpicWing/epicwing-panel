@@ -482,6 +482,8 @@ const ACCEPT_RULES: AcceptRule[] = [
 ];
 
 const acceptDismissed = ref<string[]>([]);
+// Id of the rule whose file still says "not accepted" (set by checkAcceptFiles).
+const acceptFromFile = ref<string | null>(null);
 const acceptBusy = ref(false);
 const acceptError = ref("");
 
@@ -492,7 +494,12 @@ const acceptRule = computed<AcceptRule | null>(() => {
     .slice(-60)
     .map((line) => line.segments.map((segment) => segment.text).join(""))
     .join("\n");
-  return ACCEPT_RULES.find((rule) => !acceptDismissed.value.includes(rule.id) && rule.detect.test(tail)) ?? null;
+  return (
+    ACCEPT_RULES.find(
+      (rule) =>
+        !acceptDismissed.value.includes(rule.id) && (rule.detect.test(tail) || acceptFromFile.value === rule.id),
+    ) ?? null
+  );
 });
 
 async function acceptAndStart(rule: AcceptRule): Promise<void> {
@@ -525,6 +532,38 @@ async function acceptAndStart(rule: AcceptRule): Promise<void> {
     acceptBusy.value = false;
   }
 }
+
+// The console tail can miss the message (page opened after the stop, lost websocket frame).
+// So a stopped server also gets its accept files checked: if one still says "not accepted",
+// the dialog opens.
+async function checkAcceptFiles(): Promise<void> {
+  const current = server.value;
+  acceptFromFile.value = null;
+  if (!current || !["offline", "error"].includes(current.status)) return;
+  for (const rule of ACCEPT_RULES) {
+    try {
+      const chunk = await api<{ data: string }>(
+        `/servers/${current.id}/files/content?path=${encodeURIComponent(rule.file)}&offset=0&length=8192`,
+      );
+      const text = new TextDecoder().decode(Uint8Array.from(atob(chunk.data), (c) => c.charCodeAt(0)));
+      const stillStopped =
+        server.value?.id === current.id && ["offline", "error"].includes(server.value?.status ?? "");
+      if (stillStopped && rule.from.test(text)) {
+        acceptFromFile.value = rule.id;
+        return;
+      }
+    } catch {
+      // No such file (not this kind of server) or no access: nothing to offer.
+    }
+  }
+}
+
+watch(
+  () => [server.value?.id, server.value?.status],
+  () => {
+    void checkAcceptFiles();
+  },
+);
 
 let statusTimer: number | undefined;
 
