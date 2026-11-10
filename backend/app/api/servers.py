@@ -592,6 +592,9 @@ def _report_failure(
 async def _recreate_container(db: Session, server: Server) -> None:
     """Creates the container again from the current state (variables, ports, image).
     The data folder stays, only the container is replaced."""
+    # A new run starts with an empty console. Clearing here (and not when the container
+    # exits) keeps the last lines of a crashed run visible until the next start.
+    await hub.publish_clear(lifecycle.container_name(server.id))
     out = _outs(db, [server])[0]
     node = db.get(Node, server.node_id)
     spec = lifecycle.build_spec(
@@ -625,7 +628,6 @@ async def perform_power(db: Session, server: Server, action: str) -> None:
         async def work() -> None:
             if action == "restart":
                 await _agent(server, "container.stop", stop_params)
-                pass  # Die Konsole wird beim Beenden des Containers geleert (agentlink/frames.py)
                 _set_status(db, server, "starting")
                 await _recreate_container(db, server)
                 await _agent(server, "container.start")
