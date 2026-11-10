@@ -26,4 +26,4 @@ body:
     id: os
     attributes:
       label: Operating system
-      placeholder: Debian 13
+      placeholder: Debian 13 or Ubuntu 24.04
