@@ -441,6 +441,36 @@ def test_access_candidates_only_exact_email(client, db_session, world):
     assert search("member@example.test") == []
 
 
+def test_access_candidates_panel_admin_can_browse(client, db_session, world):
+    from datetime import datetime, timezone
+
+    disabled = _user(db_session, "disabled@example.test")
+    disabled.disabled_at = datetime.now(timezone.utc)
+    db_session.commit()
+    headers = _login(client, world.admin)
+    url = world.url + "/access/candidates"
+
+    def search(q=None):
+        params = {"q": q} if q is not None else {}
+        response = client.get(url, params=params, headers=headers)
+        assert response.status_code == 200, response.text
+        return [row["email"] for row in response.json()]
+
+    # A panel admin sees the list without any search term.
+    everyone = search()
+    assert "stranger@example.test" in everyone
+    assert "member@example.test" in everyone
+    # Owner, admins and disabled accounts are never offered.
+    assert "owner@example.test" not in everyone
+    assert world.admin.email not in everyone
+    assert "disabled@example.test" not in everyone
+    # A part of the address is enough and the case does not matter.
+    assert search("STRANG") == ["stranger@example.test"]
+    # Members drop out of the list after they were added.
+    _grant(db_session, world, world.member)
+    assert "member@example.test" not in search()
+
+
 def test_backup_view_does_not_allow_changes(client, db_session, world):
     _grant(db_session, world, world.member, P.BACKUPS_VIEW)
     headers = _login(client, world.member)
