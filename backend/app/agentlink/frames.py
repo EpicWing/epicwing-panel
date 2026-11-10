@@ -100,9 +100,6 @@ async def handle_frame(db: Session, node_id: uuid.UUID, raw: str) -> bool:
             if status in ("running", "starting"):
                 hub.clear_install(state.name)
         await run_in_threadpool(startup_ready.register, db, node_id, state.name, state.state)
-        if state.state == "exited" and _owns_container(db, node_id, state.name):
-            # Container beendet: Konsole leeren, danach folgt die Daemon-Zeile vom Agent
-            await hub.publish_clear(state.name)
         if state.state != "running":
             stats_history.clear(state.name)
         if startup_ready.watcher.watching(state.name):
