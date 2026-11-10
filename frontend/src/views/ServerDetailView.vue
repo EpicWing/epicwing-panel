@@ -199,8 +199,16 @@ function pushHistory(key: keyof typeof history.value, value: number): void {
 
 // rx and tx share one scale (floor 1 KiB/s) so an idle connection stays flat.
 function scalePeak(key: string, values: number[]): number {
-  if (key === "ram" && server.value && server.value.memory_mb > 0) return Math.max(server.value.memory_mb * 1024 * 1024, ...values);
-  if (key !== "rx" && key !== "tx") return Math.max(...values, 1);
+  const top = Math.max(0, ...values);
+  if (key === "ram") {
+    const limit = (server.value?.memory_mb ?? 0) * 1024 * 1024;
+    if (values.length === 0 && limit > 0) return limit;
+    // Follow the data, not the memory limit, so a small process stays visible.
+    const peak = Math.max(top * 1.25, 32 * 1024 * 1024);
+    return limit > 0 ? Math.max(Math.min(peak, limit), top) : peak;
+  }
+  if (key === "cpu") return Math.max(top * 1.25, 0.2);
+  if (key !== "rx" && key !== "tx") return Math.max(top, 1);
   return Math.max(...history.value.rx, ...history.value.tx, 1024);
 }
 
@@ -390,6 +398,7 @@ interface HistorySample {
   disk_used_bytes: number;
   network_rx_bytes: number;
   network_tx_bytes: number;
+  started_at?: string | null;
 }
 
 function handleFrame(frame: ConsoleFrame): void {
@@ -436,6 +445,15 @@ function handleFrame(frame: ConsoleFrame): void {
       for (const key of Object.keys(next) as (keyof typeof next)[]) next[key] = next[key].slice(-60);
       history.value = next;
       const last = samples[samples.length - 1];
+      // Show the numbers and the uptime right away, not only with the next stats frame.
+      metrics.value = {
+        cpu: last.cpu_percent,
+        ram: last.memory_used_bytes,
+        disk: last.disk_used_bytes,
+        rx: next.rx[next.rx.length - 1] ?? 0,
+        tx: next.tx[next.tx.length - 1] ?? 0,
+      };
+      if (last.started_at) startedAt.value = last.started_at;
       previousNetwork = { rx: last.network_rx_bytes, tx: last.network_tx_bytes, at: Date.now() };
     }
   }

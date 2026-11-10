@@ -19,7 +19,7 @@ def test_ring_buffer_keeps_only_the_latest_samples():
     snap = stats_history.snapshot("a")
     assert len(snap) == stats_history.HISTORY_SAMPLES
     assert snap[-1]["cpu_percent"] == 99
-    assert "started_at" not in snap[-1]
+    assert snap[-1]["started_at"] == "x"
     stats_history.clear("a")
     assert stats_history.snapshot("a") == []
 
