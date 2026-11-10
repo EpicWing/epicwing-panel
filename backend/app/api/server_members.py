@@ -283,9 +283,10 @@ def list_candidates(
     from app import models as orm
     from app.models.server import ServerMember as Member
 
-    del access  # only for the permission check
+    # Panel admins may browse all users, everyone else needs the exact email address
+    see_all = access.is_admin
     term = q.strip()[:100]
-    if len(term) < CANDIDATE_MIN_QUERY:
+    if len(term) < CANDIDATE_MIN_QUERY and not see_all:
         return []
     owner_id = db.execute(
         sa.select(orm.Server.owner_id).where(orm.Server.id == server_id)
@@ -298,6 +299,10 @@ def list_candidates(
         orm.User.id != owner_id,
     )
     # Nur exakter Treffer, damit keine E-Mail-Adressen durchsucht oder aufgelistet werden
-    query = query.where(orm.User.email == term.lower())
+    if see_all:
+        if term:
+            query = query.where(orm.User.email.icontains(term, autoescape=True))
+    else:
+        query = query.where(orm.User.email == term.lower())
     rows = db.execute(query.order_by(orm.User.email).limit(CANDIDATE_LIMIT)).all()
     return [{"id": str(row.id), "email": row.email} for row in rows]
