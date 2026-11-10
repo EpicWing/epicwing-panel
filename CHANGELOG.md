@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 0.2.4-beta (2026-11-10)
+
+- Server console: the output of a stopped server stays until the next start, so the reason for a quick crash is still visible. Before, it was cleared as soon as the container exited
+- Servers that stop because the Minecraft EULA is not accepted show a dialog with an "Accept and start" button
+- Access: panel admins see all eligible users when they add a user to a server and can filter by part of the email address. Other users still need the full email address. The dialog explains this now, instead of saying that no users are available
+- Server page: CPU, RAM and uptime show right after a reload, not only with the next update
+- Charts: the RAM and CPU charts follow the data instead of the memory limit and a fixed 1 percent, so small processes stay visible
+
 ## 0.2.3-beta (2026-11-10)
 
 - Installer: Ubuntu 24.04 works now, next to Debian 13. Newer Ubuntu releases are accepted, but not tested
