@@ -83,6 +83,17 @@ if [ -n "$URL" ]; then
   esac
 fi
 
+# os-release in einer Subshell lesen, damit keine Variablen des Skripts ueberschrieben werden
+OS_ID="$(. /etc/os-release 2>/dev/null; echo "${ID:-}")"
+OS_NAME="$(. /etc/os-release 2>/dev/null; echo "${PRETTY_NAME:-unknown system}")"
+case "$OS_ID" in
+  debian|ubuntu) ;;
+  *) echo "Warning: made for Debian and Ubuntu (found $OS_NAME)." >&2 ;;
+esac
+# Docker aus Snap kommt mit dem Datenverzeichnis nicht klar (Snap-Sandbox)
+if command -v snap >/dev/null 2>&1 && snap list docker >/dev/null 2>&1; then
+  die "Docker from snap is not supported. Install docker.io or Docker CE from the official repository."
+fi
 for cmd in systemctl docker curl runuser useradd usermod install sha256sum; do
   command -v "$cmd" >/dev/null 2>&1 || die "Required command not found: $cmd"
 done

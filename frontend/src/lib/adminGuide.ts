@@ -39,7 +39,7 @@ export const guide: GuideGroup[] = [
         icon: "package",
         title: "Install the panel",
         summary:
-          "Run the installer on a fresh Debian 13 machine. It sets up PostgreSQL, nginx, the backend, the frontend, a TLS certificate and the first admin account.",
+          "Run the installer on a fresh Debian 13 or Ubuntu 24.04 machine. It sets up PostgreSQL, nginx, the backend, the frontend, a TLS certificate and the first admin account.",
         steps: [
           "Create an A record for your domain that points to the machine. Port 80 must be open, because Let's Encrypt needs it.",
           "Run the command below as root.",

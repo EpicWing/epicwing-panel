@@ -52,13 +52,13 @@ Add images to docs/assets/ and remove this comment, for example:
 
 ## Requirements
 
-- **Panel:** a fresh Debian 13 (x86_64) server with a domain or an IP, ports 80 and 443 open
-- **Node:** Debian 13 (x86_64) with Docker already installed, and the enrollment token from the admin area
+- **Panel:** a fresh Debian 13 or Ubuntu 24.04 (x86_64) server with a domain or an IP, ports 80 and 443 open
+- **Node:** Debian 13 or Ubuntu 24.04 (x86_64) with Docker already installed (not the snap package), and the enrollment token from the admin area
 - Everything else (PostgreSQL, nginx, TLS, the agent) is set up by the installer
 
 ## Installation
 
-Tested on Debian 13 (x86_64). On a fresh machine, as root:
+Tested on Debian 13 and Ubuntu 24.04 (x86_64). On a fresh machine, as root:
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/EpicWing/epicwing-panel/main/scripts/install.sh)
@@ -110,7 +110,7 @@ Minecraft (Vanilla, Paper, Purpur, Fabric), Unturned and a static website. Ptero
 
 - **DDoS:** EpicWing only detects and reports unusual traffic. It blocks nothing, so use
   your provider's protection or a firewall for that.
-- Tested on Debian 13 (x86_64) with systemd and Docker only. The installer also accepts Ubuntu 24.04 or newer, but that is not tested.
+- Tested on Debian 13 and Ubuntu 24.04 (x86_64) with systemd and Docker only. The installer also accepts newer Ubuntu releases, but those are not tested.
 - The panel runs as a single process. Schedules, rate limits and action locks
   are kept in memory, so do not run several workers.
 - Backups are stored on the node. There is no S3 or cross-node storage yet.

@@ -4,14 +4,14 @@ The short version is in the [README](../README.md). This page has the details.
 
 # Installation
 
-Tested on Debian 13 with systemd. You need Python 3.11 or newer (tested with 3.13), Node.js 20 or newer,
+Tested on Debian 13 and Ubuntu 24.04 with systemd. You need Python 3.11 or newer (tested with 3.13), Node.js 20 or newer,
 PostgreSQL 16 or newer and a reverse proxy (nginx) with a TLS certificate. Nodes need Docker.
 The paths below are examples, adjust them to your setup.
 
 ## Quick install
 
 The installer sets up PostgreSQL, nginx, the backend, the frontend, a systemd service,
-TLS and the first administrator on a fresh machine. It is tested on Debian 13 (x86_64) only.
+TLS and the first administrator on a fresh machine. It is tested on Debian 13 and Ubuntu 24.04 (x86_64).
 Run it once as root, from a checkout or an extracted release archive:
 
 ```bash
