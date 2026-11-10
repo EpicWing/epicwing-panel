@@ -9,6 +9,8 @@
 - Access: panel admins see all eligible users when they add a user to a server and can filter by part of the email address. Other users still need the full email address. The dialog explains this now, instead of saying that no users are available
 - Server page: CPU, RAM and uptime show right after a reload, not only with the next update
 - Charts: the RAM and CPU charts follow the data instead of the memory limit and a fixed 1 percent, so small processes stay visible
+- Update the panel with `bash <(curl -fsSL https://raw.githubusercontent.com/EpicWing/epicwing-panel/main/scripts/install.sh) update panel`. It makes a database backup first. This release has no new database migration
+- Nodes: the agent has no changes, so no node update is needed
 
 ## 0.2.3-beta (2026-11-10)
 
