@@ -19,7 +19,8 @@ _samples: dict[str, deque[dict[str, Any]]] = {}
 
 def record(name: str, payload: dict[str, Any]) -> None:
     buffer = _samples.setdefault(name, deque(maxlen=HISTORY_SAMPLES))
-    buffer.append({"t": int(time.time() * 1000), **{key: payload[key] for key in KEYS}})
+    sample = {key: payload[key] for key in KEYS}
+    buffer.append({"t": int(time.time() * 1000), "started_at": payload.get("started_at"), **sample})
 
 
 def snapshot(name: str) -> list[dict[str, Any]]:
