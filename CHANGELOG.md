@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.2.3-beta (2026-11-10)
+
 - Installer: Ubuntu 24.04 works now, next to Debian 13. Newer Ubuntu releases are accepted, but not tested
 - Panel installer: on Ubuntu, needrestart no longer stops apt with a question. A warning shows when ufw is on and may block ports 80 and 443
 - Node installer: a warning shows on systems that are not Debian or Ubuntu. The installer stops when Docker comes from snap
