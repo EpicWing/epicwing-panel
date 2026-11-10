@@ -442,10 +442,10 @@ def test_access_candidates_only_exact_email(client, db_session, world):
 
 
 def test_access_candidates_panel_admin_can_browse(client, db_session, world):
-    from datetime import datetime, timezone
+    from datetime import UTC, datetime
 
     disabled = _user(db_session, "disabled@example.test")
-    disabled.disabled_at = datetime.now(timezone.utc)
+    disabled.disabled_at = datetime.now(UTC)
     db_session.commit()
     headers = _login(client, world.admin)
     url = world.url + "/access/candidates"
