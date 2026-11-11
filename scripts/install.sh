@@ -11,13 +11,13 @@
 # Set EPICWING_SHA256 to check the downloaded archive against a checksum.
 set -euo pipefail
 
-VERSION="v0.2.4-beta"
+VERSION="v0.2.5"
 REPO="EpicWing/epicwing-panel"
 ARCHIVE_URL="https://github.com/$REPO/archive/refs/tags/$VERSION.tar.gz"
 AGENT_BASE_URL="https://github.com/$REPO/releases/download/$VERSION/epicwing-agent-linux-"
 # One checksum per CPU type: sha256sum epicwing-agent-linux-<arch>
-AGENT_SHA256_AMD64="e58f118ac33e20bd70e8a43dad558226cea9a8b5ff496b0b2d2656f39f135f93"
-AGENT_SHA256_ARM64="8764b328bb2c3facce90e5db17aa830c1e8ffef6a426f923ad1b7b0056b3ea6b"
+AGENT_SHA256_AMD64=""
+AGENT_SHA256_ARM64=""
 
 # Paths used by install-panel.sh
 APP_USER="epicwing"
