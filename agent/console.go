@@ -180,14 +180,27 @@ func (c *consoleManager) watchLoop(ctx context.Context, name string, w *consoleW
 	defer c.forget(name, w)
 	var since time.Time
 	history := false
+	var missingSince time.Time
 	for ctx.Err() == nil {
 		state, _, err := c.containers.Status(ctx, name)
 		if err != nil {
-			if ctx.Err() == nil {
-				log.Printf("console of %s ends: %v", name, err)
+			if ctx.Err() != nil {
+				return
 			}
+			// A restart in the panel can recreate the container. Wait for the new one instead of ending the console.
+			if strings.Contains(strings.ToLower(err.Error()), "no such") {
+				if missingSince.IsZero() {
+					missingSince = time.Now()
+				}
+				if time.Since(missingSince) < 2*time.Minute {
+					sleepCtx(ctx, time.Second)
+					continue
+				}
+			}
+			log.Printf("console of %s ends: %v", name, err)
 			return
 		}
+		missingSince = time.Time{}
 		if state != "running" {
 			if !history {
 				since = time.Now()
