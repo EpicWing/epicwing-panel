@@ -136,7 +136,7 @@ Bug reports and pull requests are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md
 
 - Support: [support@epicwing.de](mailto:support@epicwing.de)
 - Abuse reports: [abuse@epicwing.de](mailto:abuse@epicwing.de)
-- General questions and other inquiries: [info@epicwing.de](mailto:info@epicwing.de)
+- General questions and other inquiries: [GitHub Discussions](https://github.com/EpicWing/epicwing-panel/discussions)
 - Community: [Discord server](https://discord.gg/tc7xtNPsmh)
 
 Bugs and feature requests belong in the [issue tracker](https://github.com/EpicWing/epicwing-panel/issues).
