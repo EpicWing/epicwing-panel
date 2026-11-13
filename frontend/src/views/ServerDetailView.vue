@@ -47,6 +47,7 @@ interface ServerData {
   egg_name: string;
   allocations: Allocation[];
   permissions?: string[];
+  live_disk_used_bytes?: number | null;
 }
 
 const route = useRoute();
@@ -734,7 +735,7 @@ onMounted(async () => {
           <div class="rounded-xl border border-ink-700 bg-ink-900 p-4"><p class="text-xs uppercase text-ink-400">IP address</p><button type="button" class="mt-2 flex w-full cursor-pointer items-center gap-2 text-left" title="Click to copy" @click="copyIp"><span class="min-w-0 truncate font-mono text-lg font-semibold">{{ server.allocations[0]?.ip }}:{{ server.allocations[0]?.port }}</span><span class="shrink-0 text-xs text-accent-500" aria-live="polite">{{ ipCopied ? "Copied" : "" }}</span></button></div>
           <div class="rounded-xl border border-ink-700 bg-ink-900 p-4"><p class="text-xs uppercase text-ink-400">CPU usage</p><p class="mt-2 text-xl font-semibold">{{ server?.status === 'running' || server?.status === 'starting' ? metrics.cpu.toFixed(1) + '%' : 'Offline' }}</p></div>
           <div class="rounded-xl border border-ink-700 bg-ink-900 p-4"><p class="text-xs uppercase text-ink-400">RAM usage</p><p class="mt-2 text-xl font-semibold">{{ server?.status === 'running' || server?.status === 'starting' ? formatBytes(metrics.ram) : 'Offline' }}</p></div>
-          <div class="rounded-xl border border-ink-700 bg-ink-900 p-4"><p class="text-xs uppercase text-ink-400">Storage usage</p><p class="mt-2 text-xl font-semibold">{{ formatBytes(metrics.disk) }}</p></div>
+          <div class="rounded-xl border border-ink-700 bg-ink-900 p-4"><p class="text-xs uppercase text-ink-400">Storage usage</p><p class="mt-2 text-xl font-semibold">{{ formatBytes(metrics.disk || server?.live_disk_used_bytes || 0) }}</p></div>
         </div>
 
         <p v-if="active === 'home' && server.status === 'new'" class="rounded-xl border border-warn/40 bg-warn/10 px-4 py-3 text-sm text-ink-100">This server has not been installed yet. Open Settings and choose Install Server to set it up.</p>
