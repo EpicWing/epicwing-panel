@@ -180,4 +180,21 @@ async def handle_frame(db: Session, node_id: uuid.UUID, raw: str) -> bool:
         ):
             await hub.publish(node_id, stats.name, {"type": "status", "status": "running"})
         return True
+    if kind == "disk":
+        # Disk size of a stopped container: only for the server list, no history, no detector.
+        name, value = data.get("name"), data.get("disk_used_bytes")
+        if (
+            isinstance(name, str)
+            and isinstance(value, int)
+            and not isinstance(value, bool)
+            and value >= 0
+            and _owns_container(db, node_id, name)
+        ):
+            current = registry.server_stats.get(name)
+            if current is None:
+                registry.server_stats[name] = {"disk_used_bytes": value}
+                registry.register_stats(node_id, name)
+            else:
+                current["disk_used_bytes"] = value
+        return True
     return False

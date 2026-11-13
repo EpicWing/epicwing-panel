@@ -99,7 +99,14 @@ func (c *consoleManager) statsAllLoop(ctx context.Context) {
 
 func (c *consoleManager) sampleStats(ctx context.Context, name string) {
 	state, _, err := c.containers.Status(ctx, name)
-	if err != nil || state != "running" {
+	if err != nil {
+		return
+	}
+	if state != "running" {
+		// Stopped: only the disk size, and only when the cache has expired.
+		if c.diskDue(name) {
+			c.send(map[string]any{"type": "disk", "name": name, "disk_used_bytes": c.diskUsage(name)})
+		}
 		return
 	}
 	out, err := runDocker(ctx, "stats", "--no-stream", "--format", "{{.CPUPerc}}|{{.MemUsage}}|{{.NetIO}}", name)
@@ -138,7 +145,7 @@ func (c *consoleManager) sampleStats(ctx context.Context, name string) {
 	c.send(frame)
 }
 
-func (c *consoleManager) diskUsage(name string) int64 {
+func (c *consoleManager) measureDisk(name string) int64 {
 	path := c.containers.dataPath(name)
 	output, err := exec.Command("du", "-sb", path).Output()
 	if err != nil {
