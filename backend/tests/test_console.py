@@ -140,6 +140,8 @@ def test_control_characters_are_not_forwarded(client, setup, fake):
 def test_offline_node_gives_an_error_message(client, setup, fake):
     fake.offline = True
     with client.websocket_connect(_url(setup, _ticket(client, setup))) as browser:
+        # The known status arrives first, then the error from the agent.
+        assert browser.receive_json()["type"] == "status"
         message = browser.receive_json()
     assert message["type"] == "error"
     assert "offline" in message["message"]

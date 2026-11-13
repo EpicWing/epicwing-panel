@@ -156,10 +156,19 @@ async def console_socket(websocket: WebSocket, server_id: uuid.UUID, db: DbSessi
     if ServerPermission.CONSOLE_VIEW.value not in allowed:
         await websocket.close(code=protocol.WS_POLICY_VIOLATION)
         return
-    node_id, _status, server_name = found
+    node_id, status, server_name = found
     await websocket.accept()
 
     name = lifecycle.container_name(server_id)
+    # Send what we already know before talking to the agent, so the page
+    # shows numbers right away even when the agent is slow or offline.
+    try:
+        await websocket.send_json({"type": "status", "status": status})
+        samples = stats_history.snapshot(name)
+        if samples:
+            await websocket.send_json({"type": "history", "samples": samples})
+    except (WebSocketDisconnect, RuntimeError):
+        return
     try:
         await hub.subscribe(name, node_id, websocket)
     except (AgentOffline, TimeoutError, ConsoleError) as exc:
@@ -179,11 +188,6 @@ async def console_socket(websocket: WebSocket, server_id: uuid.UUID, db: DbSessi
             ip=ip,
             details={"name": server_name},
         )
-        current = await run_in_threadpool(_load, db, server_id)
-        await websocket.send_json({"type": "status", "status": current[1] if current else ""})
-        samples = stats_history.snapshot(name)
-        if samples:
-            await websocket.send_json({"type": "history", "samples": samples})
         lock = asyncio.Lock()
 
         async def has(permission: ServerPermission) -> bool:
