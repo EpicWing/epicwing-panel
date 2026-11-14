@@ -7,6 +7,7 @@ import { api, ApiError } from "../api/client";
 import AppLayout from "../components/AppLayout.vue";
 import ServerCard, { type ServerItem } from "../components/ServerCard.vue";
 import { auth } from "../stores/auth";
+import { formatCpu } from "../lib/cpu";
 
 const { t } = useI18n();
 const router = useRouter();
@@ -53,7 +54,7 @@ function toCard(s: ApiServer): ServerItem {
     name: s.name,
     address: main ? `${main.ip}:${main.port}` : "–",
     status,
-    cpu: s.live_cpu_percent == null ? `${s.cpus} cores` : `${s.live_cpu_percent.toFixed(1)}%`,
+    cpu: s.live_cpu_percent == null ? `${s.cpus} cores` : formatCpu(s.live_cpu_percent),
     ram: formatBytes(s.live_memory_used_bytes) ?? formatSize(s.memory_mb),
     storage: formatBytes(s.live_disk_used_bytes) ?? formatSize(s.disk_mb),
   };
