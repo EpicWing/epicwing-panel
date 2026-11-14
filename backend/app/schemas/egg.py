@@ -134,6 +134,7 @@ class EggVariableIn(CleanedFields):
     description: str = ""
     user_editable: bool = True
     user_viewable: bool = True
+    secret: bool = False
     rules: str = "nullable|string"
 
     @model_validator(mode="after")
@@ -160,6 +161,7 @@ class EggVariableOut(BaseModel):
     description: str
     user_editable: bool
     user_viewable: bool
+    secret: bool = False
     rules: str
 
 

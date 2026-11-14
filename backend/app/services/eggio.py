@@ -88,6 +88,7 @@ def _variable(raw: dict[str, Any], env: str, warnings: list[str]) -> dict[str, A
         "description": _line(raw.get("description"), 255),
         "user_editable": _flag(raw.get("user_editable"), True),
         "user_viewable": _flag(raw.get("user_viewable"), True),
+        "secret": _flag(raw.get("secret"), False),
         "rules": rules,
     }
 
@@ -206,6 +207,7 @@ def export_egg(egg: Any, variables: list[Any]) -> dict[str, Any]:
                 "default_value": v.default_value,
                 "user_viewable": v.user_viewable,
                 "user_editable": v.user_editable,
+                "secret": getattr(v, "secret", False),
                 "rules": v.rules,
                 "field_type": "text",
             }

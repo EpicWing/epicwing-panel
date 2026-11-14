@@ -8,6 +8,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    false,
     func,
     true,
 )
@@ -65,6 +66,8 @@ class EggVariable(Base):
     description: Mapped[str] = mapped_column(String(255), default="")
     user_editable: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
     user_viewable: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    # Secret values (tokens) are stored encrypted and never returned by the API.
+    secret: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     # Rules in Pterodactyl style, for example required|integer|between:1,100.
     rules: Mapped[str] = mapped_column(
         String(512), default="nullable|string", server_default="nullable|string"
