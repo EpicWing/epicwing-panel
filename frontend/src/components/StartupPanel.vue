@@ -13,6 +13,8 @@ interface StartupVariable {
   value: string;
   user_editable: boolean;
   user_viewable: boolean;
+  secret: boolean;
+  secret_set: boolean;
 }
 
 interface StartupData {
@@ -37,6 +39,7 @@ const saving = ref(false);
 const saved = ref(false);
 const error = ref("");
 const fieldErrors = ref<Record<string, string>>({});
+const clearing = ref<Record<string, boolean>>({});
 
 const running = computed(() => props.status === "running" || props.status === "starting");
 
@@ -46,7 +49,8 @@ const dirty = computed(() => {
   return (
     startup.value !== current.startup ||
     image.value !== current.image ||
-    current.variables.some((v) => values.value[v.env_variable] !== v.value)
+    current.variables.some((v) => values.value[v.env_variable] !== v.value) ||
+    Object.values(clearing.value).some(Boolean)
   );
 });
 
@@ -76,6 +80,7 @@ function apply(fresh: StartupData): void {
   startup.value = fresh.startup;
   image.value = fresh.image;
   values.value = Object.fromEntries(fresh.variables.map((v) => [v.env_variable, v.value]));
+  clearing.value = {};
 }
 
 async function load(): Promise<void> {
@@ -106,11 +111,14 @@ async function save(): Promise<void> {
   const body: Record<string, unknown> = {};
   if (startup.value !== current.startup) body.startup = startup.value;
   if (image.value !== current.image) body.image = image.value;
-  const changed = Object.fromEntries(
+  const changed: Record<string, string> = Object.fromEntries(
     current.variables
       .filter((v) => v.user_editable && values.value[v.env_variable] !== v.value)
       .map((v) => [v.env_variable, values.value[v.env_variable]]),
   );
+  for (const v of current.variables) {
+    if (v.secret && v.user_editable && clearing.value[v.env_variable]) changed[v.env_variable] = "";
+  }
   if (Object.keys(changed).length) body.variables = changed;
   try {
     await api(`/servers/${props.serverId}`, { method: "PATCH", body });
@@ -237,6 +245,25 @@ onMounted(load);
             >
               <option v-for="choice in choices(variable)" :key="choice" :value="choice">{{ choice }}</option>
             </select>
+            <div v-else-if="variable.secret" class="mt-3">
+              <input
+                v-model="values[variable.env_variable]"
+                type="password"
+                autocomplete="new-password"
+                :readonly="!variable.user_editable"
+                :placeholder="clearing[variable.env_variable] ? 'Will be removed on save' : variable.secret_set ? 'Saved. Type to replace.' : 'Not set'"
+                spellcheck="false"
+                class="w-full rounded-lg border border-ink-700 bg-ink-950 px-3 py-2 font-mono text-xs text-ink-100 outline-none focus:border-accent-500 read-only:opacity-50"
+                @input="clearing[variable.env_variable] = false"
+              />
+              <button
+                v-if="variable.user_editable && variable.secret_set && !clearing[variable.env_variable]"
+                class="mt-2 text-xs text-ink-400 transition hover:text-bad"
+                @click="values[variable.env_variable] = ''; clearing[variable.env_variable] = true"
+              >
+                Remove saved value
+              </button>
+            </div>
             <input
               v-else
               v-model="values[variable.env_variable]"

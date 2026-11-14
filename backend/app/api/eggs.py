@@ -186,6 +186,7 @@ def _variable_rows(egg_id: uuid.UUID, variables: list[EggVariableIn]) -> list[Eg
             description=v.description,
             user_editable=v.user_editable,
             user_viewable=v.user_viewable,
+            secret=v.secret,
             rules=v.rules,
         )
         for v in variables
