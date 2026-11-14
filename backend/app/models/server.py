@@ -88,7 +88,8 @@ class ServerVariable(Base):
         ForeignKey("servers.id", ondelete="CASCADE"), primary_key=True
     )
     env_variable: Mapped[str] = mapped_column(String(64), primary_key=True)
-    value: Mapped[str] = mapped_column(String(1024), default="")
+    # Secret values are stored encrypted, which is longer than the plain text.
+    value: Mapped[str] = mapped_column(String(8192), default="")
 
 
 class ServerMember(Base):
