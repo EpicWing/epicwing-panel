@@ -95,6 +95,9 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         await asyncio.to_thread(_seed_eggs_if_empty)
         tasks.append(asyncio.create_task(scheduler_loop()))
         tasks.append(asyncio.create_task(auto_restart.loop()))
+        from app.api.backups import remote_loop
+
+        tasks.append(asyncio.create_task(remote_loop()))
         tasks.append(asyncio.create_task(ddos_store.store_loop(ddos_store.load())))
     try:
         yield

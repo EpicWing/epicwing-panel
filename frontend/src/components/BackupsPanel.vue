@@ -15,6 +15,9 @@ interface Backup {
   created_by: string | null;
   created_at: string;
   completed_at: string | null;
+  local: boolean;
+  remote_state: string | null;
+  remote_error: string | null;
 }
 
 interface TargetServer {
@@ -89,7 +92,7 @@ function statusClass(s: string): string {
 
 function schedule() {
   window.clearTimeout(timer);
-  if (alive && rows.value.some((r) => r.status === "running")) {
+  if (alive && rows.value.some((r) => r.status === "running" || r.remote_state === "uploading")) {
     timer = window.setTimeout(load, 3000);
   }
 }
@@ -133,6 +136,23 @@ async function toggleLock(b: Backup) {
   error.value = "";
   try {
     await api(`${base()}/${b.id}`, { method: "PATCH", body: { is_locked: !b.is_locked } });
+    await load();
+  } catch (e) {
+    error.value = message(e);
+  }
+}
+
+function place(b: Backup): { label: string; cls: string } {
+  if (b.remote_state === "uploading") return { label: "Uploading", cls: "bg-warn/10 text-warn" };
+  if (b.remote_state === "failed") return { label: "Upload failed", cls: "bg-bad/10 text-bad" };
+  if (b.remote_state === "ok") return { label: b.local ? "Cloud + local" : "Cloud", cls: "bg-ok/10 text-ok" };
+  return { label: "Local", cls: "bg-ink-800 text-ink-300" };
+}
+
+async function retryUpload(b: Backup) {
+  error.value = "";
+  try {
+    await api(`${base()}/${b.id}/upload`, { method: "POST" });
     await load();
   } catch (e) {
     error.value = message(e);
@@ -298,15 +318,30 @@ onBeforeUnmount(() => {
             <p class="mt-1 text-xs text-ink-400">
               <span :class="statusClass(b.status)">{{ b.status }}</span>
               <span v-if="b.status === 'ok'"> · {{ size(b.size_bytes) }}</span>
+              <span
+                v-if="b.status === 'ok'"
+                class="ml-1.5 rounded px-1.5 py-0.5 text-[11px] font-medium"
+                :class="place(b).cls"
+              >{{ place(b).label }}</span>
               · {{ when(b.created_at) }}
             </p>
             <p v-if="b.error" class="mt-1 text-xs text-bad">{{ b.error }}</p>
+            <p v-if="b.remote_state === 'failed' && b.remote_error" class="mt-1 text-xs text-bad">
+              Upload: {{ b.remote_error }}
+            </p>
             <p v-if="restoring === b.id" class="mt-1 text-xs text-ink-300">Restoring...</p>
           </div>
           <div class="flex flex-wrap gap-2">
             <a v-if="can('backups.download') && b.status === 'ok'" :href="`/api${base()}/${b.id}/download`" download class="inline-block rounded-md border border-ink-700 px-3 py-1.5 text-xs text-ink-300 transition hover:border-accent-500">Download</a>
             <button
-              v-if="can('backups.download') && b.status === 'ok'"
+              v-if="can('backups.create') && b.remote_state === 'failed'"
+              :class="ghostClass"
+              @click="retryUpload(b)"
+            >
+              Retry upload
+            </button>
+            <button
+              v-if="can('backups.download') && b.status === 'ok' && b.local"
               :class="ghostClass"
               @click="openTransfer(b)"
             >
@@ -327,7 +362,7 @@ onBeforeUnmount(() => {
             <button
               v-if="can('backups.delete')"
               :class="dangerClass"
-              :disabled="b.is_locked || b.status === 'running'"
+              :disabled="b.is_locked || b.status === 'running' || b.remote_state === 'uploading'"
               @click="remove(b)"
             >
               Delete

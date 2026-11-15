@@ -13,6 +13,7 @@ from sqlalchemy import (
     UniqueConstraint,
     false,
     func,
+    true,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -141,3 +142,10 @@ class ServerBackup(Base):
     error: Mapped[str | None] = mapped_column(String(1024))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Copy in the object storage: None (no copy), uploading, ok or failed.
+    remote_state: Mapped[str | None] = mapped_column(String(16))
+    remote_key: Mapped[str | None] = mapped_column(String(512))
+    remote_upload_id: Mapped[str | None] = mapped_column(String(1024))
+    remote_error: Mapped[str | None] = mapped_column(String(1024))
+    # False when the archive is only in the object storage.
+    local: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())

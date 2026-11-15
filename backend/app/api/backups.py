@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import logging
 import secrets
 import uuid
 from collections import deque
@@ -8,15 +9,15 @@ from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.responses import StreamingResponse
+from fastapi.responses import RedirectResponse, Response, StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.agentlink import protocol
 from app.agentlink.commands import AgentOffline, broker
 from app.api.servers import FILES_BLOCKED, _conflict, _exclusive, _not_found, _send
-from app.db import get_db
+from app.db import get_db, get_engine
 from app.models import Server
 from app.models.server import ServerBackup
 from app.security.server_access import (
@@ -25,7 +26,7 @@ from app.security.server_access import (
     effective_permissions,
     server_access,
 )
-from app.services import audit, lifecycle
+from app.services import audit, lifecycle, s3
 
 router = APIRouter(prefix="/servers", tags=["backups"])
 
@@ -38,6 +39,22 @@ BackupsDownload = Annotated[ServerAccess, Depends(server_access(ServerPermission
 
 MAX_LISTED = 200
 REFRESH_LIMIT = 5
+
+log = logging.getLogger(__name__)
+
+# Object storage. The list of upload links must fit into one message to the node.
+PART_MIN = 64 * 1024 * 1024
+PART_MAX = 5 * 1024 * 1024 * 1024
+MAX_PARTS = 1000
+LINK_SECONDS = 12 * 3600
+DOWNLOAD_LINK_SECONDS = 600
+REMOTE_INTERVAL = 15
+FETCH_POLL_SECONDS = 3
+FETCH_POLLS = LINK_SECONDS // FETCH_POLL_SECONDS
+
+# Restores that first download the archive from the object storage.
+_fetching: dict[uuid.UUID, asyncio.Task[None]] = {}
+_fetch_errors: dict[uuid.UUID, str] = {}
 
 # Turns the error texts of the agent into clean status codes.
 BACKUP_ERRORS = (
@@ -128,6 +145,9 @@ class BackupOut(BaseModel):
     created_by: uuid.UUID | None
     created_at: datetime
     completed_at: datetime | None
+    local: bool
+    remote_state: str | None
+    remote_error: str | None
 
 
 class BackupList(BaseModel):
@@ -194,6 +214,191 @@ async def _refresh(db: Session, server: Server, backup: ServerBackup) -> None:
     else:
         return
     db.commit()
+    if state == "ok":
+        await _start_upload(db, server, backup)
+
+
+def _remote_key(config: s3.S3Config, backup: ServerBackup) -> str:
+    return s3.object_key(config, "backups", str(backup.server_id), f"{backup.id}.tar.gz")
+
+
+def _part_size(size: int) -> int:
+    need = -(-max(size, 1) // MAX_PARTS)
+    return min(max(PART_MIN, need), PART_MAX)
+
+
+def _remote_failed(backup: ServerBackup, error: str) -> None:
+    backup.remote_state = "failed"
+    backup.remote_error = error[:1024]
+    backup.remote_upload_id = None
+
+
+async def _abort(config: s3.S3Config, backup: ServerBackup) -> None:
+    if backup.remote_key and backup.remote_upload_id:
+        try:
+            await asyncio.to_thread(
+                s3.abort_multipart, config, backup.remote_key, backup.remote_upload_id
+            )
+        except s3.S3Error:
+            log.warning("could not abort the upload of backup %s", backup.id)
+    backup.remote_upload_id = None
+
+
+async def _start_upload(db: Session, server: Server, backup: ServerBackup) -> None:
+    """Starts the upload of a finished backup, when the object storage is on."""
+    config = s3.load_config(db)
+    if not config.ready or backup.status != "ok" or not backup.local:
+        return
+    if backup.remote_state is not None:
+        return
+    part = _part_size(backup.size_bytes)
+    count = max(1, -(-backup.size_bytes // part))
+    if count > MAX_PARTS:
+        _remote_failed(backup, "The backup is too large for the object storage.")
+        db.commit()
+        return
+    key = _remote_key(config, backup)
+    try:
+        upload_id = await asyncio.to_thread(s3.create_multipart, config, key)
+    except s3.S3Error as exc:
+        _remote_failed(backup, str(exc))
+        db.commit()
+        return
+    urls = [s3.presign_part(config, key, upload_id, n, LINK_SECONDS) for n in range(1, count + 1)]
+    backup.remote_key = key
+    backup.remote_upload_id = upload_id
+    backup.remote_state = "uploading"
+    backup.remote_error = None
+    db.commit()
+    try:
+        result = await _send(
+            server, "backup.upload", _params(server, backup, part_size=part, urls=urls)
+        )
+        failed = None if result.ok else result.error or "The node did not start the upload."
+    except HTTPException as exc:
+        failed = str(exc.detail)
+    if failed:
+        await _abort(config, backup)
+        _remote_failed(backup, failed)
+        db.commit()
+
+
+async def _refresh_upload(db: Session, server: Server, backup: ServerBackup) -> None:
+    """Finishes or cancels a running upload, once the node reports a result."""
+    if backup.remote_state != "uploading":
+        return
+    try:
+        result = await _send(server, "backup.status", _params(server, backup, kind="upload"))
+    except HTTPException:
+        return
+    data = (result.data or {}) if result.ok else {}
+    state = data.get("state")
+    if state == "running":
+        return
+    config = s3.load_config(db)
+    if state == "ok" and backup.remote_key and backup.remote_upload_id:
+        etags = [str(tag) for tag in data.get("etags") or []]
+        try:
+            await asyncio.to_thread(
+                s3.complete_multipart, config, backup.remote_key, backup.remote_upload_id, etags
+            )
+        except s3.S3Error as exc:
+            await _abort(config, backup)
+            _remote_failed(backup, str(exc))
+            db.commit()
+            return
+        backup.remote_state = "ok"
+        backup.remote_upload_id = None
+        backup.remote_error = None
+        db.commit()
+        if not config.keep_local:
+            try:
+                deleted = await _send(server, "backup.delete", _params(server, backup))
+            except HTTPException:
+                return
+            if deleted.ok:
+                backup.local = False
+                db.commit()
+        return
+    await _abort(config, backup)
+    _remote_failed(backup, str(data.get("error") or result.error or "The upload failed."))
+    db.commit()
+
+
+async def _advance_all() -> None:
+    with Session(get_engine(), expire_on_commit=False) as db:
+        rows = list(
+            db.scalars(
+                select(ServerBackup)
+                .where(
+                    or_(ServerBackup.status == "running", ServerBackup.remote_state == "uploading")
+                )
+                .limit(50)
+            )
+        )
+        for backup in rows:
+            server = db.get(Server, backup.server_id)
+            if server is None:
+                continue
+            if backup.status == "running":
+                await _refresh(db, server, backup)
+            else:
+                await _refresh_upload(db, server, backup)
+
+
+async def remote_loop() -> None:
+    """Finishes backups and moves them to the object storage, also for scheduled backups."""
+    while True:
+        try:
+            await _advance_all()
+        except Exception:
+            log.exception("backup step failed")
+        await asyncio.sleep(REMOTE_INTERVAL)
+
+
+async def _fetch_then_restore(server_id: uuid.UUID, backup_id: uuid.UUID) -> None:
+    """Waits for the download from the object storage, then starts the restore."""
+    try:
+        for _ in range(FETCH_POLLS):
+            await asyncio.sleep(FETCH_POLL_SECONDS)
+            with Session(get_engine(), expire_on_commit=False) as db:
+                server = db.get(Server, server_id)
+                backup = db.get(ServerBackup, backup_id)
+                if server is None or backup is None:
+                    return
+                try:
+                    result = await _send(
+                        server, "backup.status", _params(server, backup, kind="fetch")
+                    )
+                except HTTPException:
+                    continue
+                data = (result.data or {}) if result.ok else {}
+                state = data.get("state")
+                if state == "running":
+                    continue
+                if state != "ok":
+                    error = data.get("error") or result.error
+                    _fetch_errors[backup_id] = str(error or "The download from the storage failed.")
+                    return
+                backup.local = True
+                db.commit()
+                if server.status != "offline":
+                    _fetch_errors[backup_id] = (
+                        "The server was started during the download. Stop it and restore again."
+                    )
+                    return
+                result = await _send(
+                    server, "backup.restore", _params(server, backup, sha256=backup.sha256 or "")
+                )
+                if not result.ok:
+                    _fetch_errors[backup_id] = result.error or "The restore failed."
+                return
+        _fetch_errors[backup_id] = "The download from the storage took too long."
+    except Exception:
+        log.exception("restore of backup %s failed", backup_id)
+        _fetch_errors[backup_id] = "The restore failed."
+    finally:
+        _fetching.pop(backup_id, None)
 
 
 def _audit(
@@ -222,8 +427,12 @@ async def list_backups(auth: BackupsView, db: DbSession) -> BackupList:
             .limit(MAX_LISTED)
         )
     )
+    # Only uploads that were already running: one started just now has nothing to report.
+    uploading = [r for r in rows if r.remote_state == "uploading"][:REFRESH_LIMIT]
     for row in [r for r in rows if r.status == "running"][:REFRESH_LIMIT]:
         await _refresh(db, server, row)
+    for row in uploading:
+        await _refresh_upload(db, server, row)
     return BackupList(limit=server.backup_limit, items=[BackupOut.model_validate(r) for r in rows])
 
 
@@ -293,6 +502,7 @@ async def create_backup(
 async def get_backup(backup_id: uuid.UUID, auth: BackupsView, db: DbSession) -> BackupOut:
     backup = _get_backup(db, auth.server, backup_id)
     await _refresh(db, auth.server, backup)
+    await _refresh_upload(db, auth.server, backup)
     return BackupOut.model_validate(backup)
 
 
@@ -312,6 +522,27 @@ def patch_backup(
     return BackupOut.model_validate(backup)
 
 
+@router.post("/{server_id}/backups/{backup_id}/upload")
+async def retry_upload(
+    backup_id: uuid.UUID, request: Request, auth: BackupsCreate, db: DbSession
+) -> BackupOut:
+    """Tries the upload to the object storage again."""
+    server = auth.server
+    backup = _get_backup(db, server, backup_id)
+    if not s3.load_config(db).ready:
+        raise _conflict("The object storage is not set up.")
+    if backup.status != "ok" or not backup.local or backup.remote_state not in (None, "failed"):
+        raise _conflict("This backup cannot be uploaded now.")
+    _check_available(server)
+    backup.remote_state = None
+    backup.remote_error = None
+    db.commit()
+    await _start_upload(db, server, backup)
+    _audit(db, request, auth, "upload", backup.name)
+    db.refresh(backup)
+    return BackupOut.model_validate(backup)
+
+
 @router.post("/{server_id}/backups/{backup_id}/restore", status_code=status.HTTP_202_ACCEPTED)
 async def restore_backup(
     backup_id: uuid.UUID, request: Request, auth: BackupsRestore, db: DbSession
@@ -323,6 +554,27 @@ async def restore_backup(
     backup = _get_backup(db, server, backup_id)
     if backup.status != "ok":
         raise _conflict("Only finished backups can be restored.")
+    if backup.id in _fetching:
+        raise _conflict("This backup is already being restored.")
+    if not backup.local:
+        if backup.remote_state != "ok" or not backup.remote_key:
+            raise _conflict("The backup file is not available.")
+        url = s3.presign_get(s3.load_config(db), backup.remote_key, LINK_SECONDS)
+        async with _exclusive(server.id):
+            fetched = _data(
+                await _send(
+                    server,
+                    "backup.fetch",
+                    _params(server, backup, url=url, sha256=backup.sha256 or ""),
+                )
+            )
+        if fetched.get("state") != "ok":
+            _fetch_errors.pop(backup.id, None)
+            _fetching[backup.id] = asyncio.create_task(_fetch_then_restore(server.id, backup.id))
+            _audit(db, request, auth, "restore", backup.name)
+            return {"state": "running"}
+        backup.local = True
+        db.commit()
     async with _exclusive(server.id):
         result = await _send(
             server, "backup.restore", _params(server, backup, sha256=backup.sha256 or "")
@@ -337,6 +589,10 @@ async def restore_status(
     backup_id: uuid.UUID, auth: BackupsRestore, db: DbSession
 ) -> dict[str, str | None]:
     backup = _get_backup(db, auth.server, backup_id)
+    if backup.id in _fetch_errors:
+        return {"state": "failed", "error": _fetch_errors.pop(backup.id)}
+    if backup.id in _fetching:
+        return {"state": "running", "error": None}
     result = await _send(auth.server, "backup.status", _params(auth.server, backup, kind="restore"))
     data = _data(result)
     return {"state": str(data.get("state") or "unknown"), "error": data.get("error") or None}
@@ -356,6 +612,8 @@ async def transfer_backup(
     original = _get_backup(db, source, backup_id)
     if original.status != "ok":
         raise _conflict("Only finished backups can be transferred.")
+    if not original.local:
+        raise _conflict("This backup is only in the object storage. Restore or download it.")
     target = db.get(Server, body.target_server_id)
     if target is None:
         raise _not_found("Server not found.")
@@ -430,10 +688,21 @@ async def delete_backup(
     await _refresh(db, server, backup)
     if backup.status == "running":
         raise _conflict("Wait until the backup is finished.")
+    await _refresh_upload(db, server, backup)
+    if backup.remote_state == "uploading":
+        raise _conflict("Wait until the upload is finished.")
     name = backup.name
-    async with _exclusive(server.id):
-        result = await _send(server, "backup.delete", _params(server, backup))
-        _data(result)
+    if backup.remote_state == "ok" and backup.remote_key:
+        try:
+            await asyncio.to_thread(s3.delete_object, s3.load_config(db), backup.remote_key)
+        except s3.S3Error as exc:
+            raise HTTPException(
+                status.HTTP_502_BAD_GATEWAY, f"The object storage refused the delete: {exc}"
+            ) from None
+    if backup.local:
+        async with _exclusive(server.id):
+            result = await _send(server, "backup.delete", _params(server, backup))
+            _data(result)
     db.delete(backup)
     db.commit()
     _audit(db, request, auth, "delete", name)
@@ -513,10 +782,17 @@ async def _archive_chunks(
 @router.get("/{server_id}/backups/{backup_id}/download")
 async def download_backup(
     backup_id: uuid.UUID, request: Request, auth: BackupsDownload, db: DbSession
-) -> StreamingResponse:
+) -> Response:
     server = auth.server
-    _check_available(server)
     backup = _get_backup(db, server, backup_id)
+    if backup.status == "ok" and backup.remote_state == "ok" and backup.remote_key:
+        # Straight from the bucket: faster, and no load on the panel and the node.
+        url = s3.presign_get(
+            s3.load_config(db), backup.remote_key, DOWNLOAD_LINK_SECONDS, _download_name()
+        )
+        _audit(db, request, auth, "download", backup.name)
+        return RedirectResponse(url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+    _check_available(server)
     if backup.status != "ok":
         raise _conflict("Only finished backups can be downloaded.")
     # Plain values only: the streaming part must not touch database objects.
