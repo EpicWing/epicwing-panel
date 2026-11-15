@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, ConfigDict, ValidationError
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
@@ -23,7 +23,6 @@ router = APIRouter(prefix="/marketplace", tags=["marketplace"])
 
 DbSession = Annotated[Session, Depends(get_db)]
 
-MAX_PACKAGES = 50
 DEFAULT_NEST = "Marketplace"
 
 
@@ -36,6 +35,7 @@ class PackageOut(BaseModel):
     category: str
     repository: str
     license: str
+    tags: list[str]
     registry: str
     commit: str
     installable: bool
@@ -60,6 +60,7 @@ class InstalledOut(BaseModel):
 
 class CatalogOut(BaseModel):
     registries: list[str]
+    total: int
     packages: list[PackageOut]
     installed: list[InstalledOut]
     errors: list[str]
@@ -151,44 +152,65 @@ def _nest_for(db: Session, nest_id: uuid.UUID | None) -> Nest:
     return nest
 
 
+def _haystack(entry: IndexEntry) -> str:
+    return f"{entry.name} {entry.description} {' '.join(entry.tags)}".lower()
+
+
 @router.get("")
-def catalog(_auth: AdminAuth, db: DbSession) -> CatalogOut:
+def catalog(
+    _auth: AdminAuth,
+    db: DbSession,
+    q: Annotated[str, Query(max_length=64)] = "",
+    category: Annotated[str, Query(max_length=32)] = "",
+    limit: Annotated[int, Query(ge=1, le=100)] = 24,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    refresh: bool = False,
+) -> CatalogOut:
+    """One page of the catalog. Only the catalog file is loaded, never single packages."""
     records = {p.package_id: p for p in db.scalars(select(InstalledPackage))}
     registries = market.registries()
-    packages: list[PackageOut] = []
+    rows: list[tuple[str, IndexEntry]] = []
     errors: list[str] = []
     for registry in registries:
         try:
-            entries = market.fetch_catalog(registry)
+            rows.extend((registry, e) for e in market.fetch_catalog(registry, force=refresh))
         except market.MarketplaceError as exc:
             errors.append(f"{registry}: {exc}")
-            continue
-        for entry in entries[:MAX_PACKAGES]:
-            try:
-                manifest = market.fetch_manifest(entry)
-            except market.MarketplaceError as exc:
-                errors.append(f"{entry.id}: {exc}")
-                continue
-            have = records.get(manifest.id)
-            packages.append(
-                PackageOut(
-                    id=manifest.id,
-                    name=manifest.name,
-                    description=manifest.description,
-                    version=manifest.version,
-                    author=manifest.author,
-                    category=manifest.category,
-                    repository=manifest.repository,
-                    license=manifest.license,
-                    registry=registry,
-                    commit=entry.commit,
-                    installable=manifest.category in INSTALLABLE and manifest.egg is not None,
-                    installed=have is not None,
-                    update_available=have is not None and have.version != manifest.version,
-                )
+    needle = q.strip().lower()
+    if needle:
+        rows = [row for row in rows if needle in _haystack(row[1])]
+    if category:
+        rows = [row for row in rows if row[1].category == category]
+    rows.sort(key=lambda row: (row[1].name.lower(), row[1].id))
+    packages = []
+    for registry, entry in rows[offset : offset + limit]:
+        have = records.get(entry.id)
+        packages.append(
+            PackageOut(
+                id=entry.id,
+                name=entry.name,
+                description=entry.description,
+                version=entry.version,
+                author=entry.author,
+                category=entry.category,
+                repository=entry.repo,
+                license=entry.license,
+                tags=entry.tags,
+                registry=registry,
+                commit=entry.commit,
+                installable=entry.category in INSTALLABLE,
+                installed=have is not None,
+                update_available=have is not None and have.version != entry.version,
             )
+        )
     installed = [InstalledOut.model_validate(p) for p in records.values()]
-    return CatalogOut(registries=registries, packages=packages, installed=installed, errors=errors)
+    return CatalogOut(
+        registries=registries,
+        total=len(rows),
+        packages=packages,
+        installed=installed,
+        errors=errors,
+    )
 
 
 @router.post("/preview")

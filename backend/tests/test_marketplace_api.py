@@ -57,13 +57,20 @@ def manifest_body(egg_bytes, **changes):
     return body
 
 
+@pytest.fixture(autouse=True)
+def _fresh_catalog_cache():
+    mp._cache.clear()
+    yield
+    mp._cache.clear()
+
+
 @pytest.fixture
 def shop(monkeypatch):
     """A fake GitHub with one catalog and one package."""
     monkeypatch.setenv(mp.ENV_NAME, REPO)
     files: dict[str, bytes] = {}
 
-    def fake(url):
+    def fake(url, *_args, **_kwargs):
         if url not in files:
             raise mp.MarketplaceError("GitHub answered with status 404.")
         return files[url]
@@ -75,16 +82,25 @@ def shop(monkeypatch):
         files[mp.raw_url(REPO, ref, path)] = raw
 
     egg_bytes = json.dumps(EGG).encode()
+    manifest_bytes = json.dumps(manifest_body(egg_bytes)).encode()
     entry = {
         "id": "discord-bot-python",
         "repo": REPO,
         "commit": COMMIT,
         "path": f"{FOLDER}/manifest.json",
+        "manifest_sha256": hashlib.sha256(manifest_bytes).hexdigest(),
+        "name": "Marketplace Bot",
+        "description": "A bot",
+        "version": "1.0.0",
+        "author": "EpicWing",
+        "license": "MIT",
+        "category": "bot-template",
+        "tags": [],
     }
-    put("index.json", {"schema_version": 1, "packages": [entry]}, ref=mp.REGISTRY_REF)
-    put(f"{FOLDER}/manifest.json", manifest_body(egg_bytes))
+    put("index.json", {"schema_version": 2, "packages": [entry]}, ref=mp.REGISTRY_REF)
+    put(f"{FOLDER}/manifest.json", manifest_bytes)
     put(f"{FOLDER}/egg.json", egg_bytes)
-    return SimpleNamespace(put=put, egg_bytes=egg_bytes)
+    return SimpleNamespace(put=put, egg_bytes=egg_bytes, entry=entry)
 
 
 @pytest.fixture
@@ -122,11 +138,44 @@ def test_catalog_lists_the_package(client, headers, shop):
     assert package["commit"] == COMMIT
 
 
-def test_catalog_reports_a_broken_package_and_goes_on(client, headers, shop):
-    shop.put(f"{FOLDER}/manifest.json", {"schema_version": 1, "id": "oops"})
+def _put_index(shop, entries):
+    shop.put("index.json", {"schema_version": 2, "packages": entries}, ref=mp.REGISTRY_REF)
+
+
+def test_catalog_skips_a_broken_entry_and_goes_on(client, headers, shop):
+    broken = {**shop.entry, "id": "bad-bot", "commit": "main"}
+    _put_index(shop, [broken, shop.entry])
     body = client.get("/api/marketplace", headers=headers).json()
-    assert body["packages"] == []
-    assert len(body["errors"]) == 1
+    assert [p["id"] for p in body["packages"]] == ["discord-bot-python"]
+    assert body["total"] == 1
+
+
+def test_catalog_search_category_and_pages(client, headers, shop):
+    games = [
+        {**shop.entry, "id": f"game-{n}", "name": f"Game {n}", "category": "egg", "tags": ["game"]}
+        for n in range(5)
+    ]
+    _put_index(shop, [shop.entry, *games])
+
+    def get(**params):
+        return client.get("/api/marketplace", params=params, headers=headers).json()
+
+    page = get(limit=2, offset=0)
+    assert page["total"] == 6
+    assert [p["name"] for p in page["packages"]] == ["Game 0", "Game 1"]
+    assert [p["name"] for p in get(limit=2, offset=4)["packages"]] == ["Game 4", "Marketplace Bot"]
+    assert get(q="game")["total"] == 5
+    assert get(q="GAME 3")["total"] == 1
+    assert get(category="bot-template")["total"] == 1
+    assert get(q="zzz")["total"] == 0
+
+
+def test_broken_manifest_is_refused_on_preview(client, headers, shop):
+    shop.put(f"{FOLDER}/manifest.json", {"schema_version": 1, "id": "oops"})
+    ref = {"registry": REPO, "package_id": "discord-bot-python"}
+    response = client.post("/api/marketplace/preview", json=ref, headers=headers)
+    assert response.status_code == 502
+    assert "checksum" in response.json()["detail"]
 
 
 def test_preview_shows_the_egg_without_installing(client, headers, shop):
@@ -168,7 +217,14 @@ def test_unknown_package_is_not_found(client, headers, shop):
 
 
 def test_packages_that_are_not_eggs_cannot_be_installed(client, headers, shop):
-    shop.put(f"{FOLDER}/manifest.json", manifest_body(shop.egg_bytes, category="plugin", egg=None))
+    raw = json.dumps(manifest_body(shop.egg_bytes, category="plugin", egg=None)).encode()
+    shop.put(f"{FOLDER}/manifest.json", raw)
+    entry = {
+        **shop.entry,
+        "category": "plugin",
+        "manifest_sha256": hashlib.sha256(raw).hexdigest(),
+    }
+    _put_index(shop, [entry])
     assert _install(client, headers).status_code == 422
     assert _eggs(client, headers) == []
 

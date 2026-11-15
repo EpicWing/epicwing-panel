@@ -107,13 +107,27 @@ class Manifest(BaseModel):
         return self
 
 
+MAX_INDEX_PACKAGES = 20000
+TAG_RE = re.compile(r"[a-z0-9][a-z0-9-]{0,23}")
+
+
 class IndexEntry(BaseModel):
+    """One line of the catalog. It holds everything the list needs."""
+
     model_config = ConfigDict(extra="ignore")
 
     id: str
     repo: str
     commit: str
     path: str = "manifest.json"
+    manifest_sha256: str
+    name: str
+    description: str = ""
+    version: str
+    author: str
+    license: str
+    category: Category
+    tags: list[str] = Field(default_factory=list, max_length=8)
 
     @field_validator("id")
     @classmethod
@@ -144,9 +158,43 @@ class IndexEntry(BaseModel):
             raise ValueError("The manifest path is invalid.")
         return value
 
+    @field_validator("manifest_sha256")
+    @classmethod
+    def _sha(cls, value: str) -> str:
+        value = value.lower()
+        if not SHA256_RE.fullmatch(value):
+            raise ValueError("The SHA-256 checksum is invalid.")
+        return value
+
+    @field_validator("name", "author", "license")
+    @classmethod
+    def _short(cls, value: str) -> str:
+        value = clean_text(value, 64)
+        if not value:
+            raise ValueError("This field must not be empty.")
+        return value
+
+    @field_validator("description")
+    @classmethod
+    def _description(cls, value: str) -> str:
+        return clean_text(value, 255)
+
+    @field_validator("version")
+    @classmethod
+    def _version(cls, value: str) -> str:
+        if not VERSION_RE.fullmatch(value):
+            raise ValueError("The version must look like 1.2.3.")
+        return value
+
+    @field_validator("tags")
+    @classmethod
+    def _tags(cls, value: list[str]) -> list[str]:
+        return [t for t in (v.strip().lower() for v in value) if TAG_RE.fullmatch(t)]
+
 
 class Index(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    schema_version: Literal[1]
-    packages: list[IndexEntry] = Field(max_length=500)
+    schema_version: Literal[2]
+    # Entries are validated one by one by the service, so one bad entry does not hide the rest.
+    packages: list[dict] = Field(max_length=MAX_INDEX_PACKAGES)
