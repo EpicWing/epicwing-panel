@@ -51,6 +51,7 @@ interface Catalog {
   game_options: Facet[];
   loader_options: Facet[];
   version_options: Facet[];
+  category_options: Facet[];
   packages: PackageItem[];
   installed: InstalledItem[];
   errors: string[];
@@ -161,6 +162,12 @@ const TYPES = [
   { value: "database", label: "Databases", icon: "database", tone: "kind-database" },
   { value: "voice", label: "Voice", icon: "voice", tone: "kind-voice" },
 ];
+
+const TYPE_GROUPS = [
+  { label: "", values: [""] },
+  { label: "Server templates", values: ["game", "bot", "app", "database", "voice"] },
+  { label: "Server content", values: ["plugin", "mod", "modpack"] },
+].map((group) => ({ label: group.label, items: TYPES.filter((t) => group.values.includes(t.value)) }));
 
 const GAMES: Record<string, string> = {
   minecraft: "Minecraft",
@@ -279,6 +286,7 @@ const authorOptions = ref<Facet[]>([]);
 const gameOptions = ref<Facet[]>([]);
 const loaderOptions = ref<Facet[]>([]);
 const versionOptions = ref<Facet[]>([]);
+const categoryOptions = ref<Facet[]>([]);
 const total = ref(0);
 const firstLoad = ref(true);
 const loading = ref(false);
@@ -319,6 +327,11 @@ const authorChoices = computed(() => {
 });
 const visibleTags = computed(() => (showAllTags.value ? tagChoices.value : tagChoices.value.slice(0, 12)));
 const visibleAuthors = computed(() => (showAllAuthors.value ? authorChoices.value : authorChoices.value.slice(0, 6)));
+
+function typeCount(value: string): number {
+  if (!value) return categoryOptions.value.reduce((sum, f) => sum + f.count, 0);
+  return categoryOptions.value.find((f) => f.value === value)?.count ?? 0;
+}
 
 const activeFilters = computed(() => {
   const list: { key: string; label: string; clear: () => void }[] = [];
@@ -373,6 +386,7 @@ async function load(reset = true, refresh = false): Promise<void> {
     gameOptions.value = data.game_options;
     loaderOptions.value = data.loader_options;
     versionOptions.value = data.version_options;
+    categoryOptions.value = data.category_options;
     total.value = data.total;
     error.value = "";
   } catch (cause) {
@@ -565,23 +579,37 @@ onBeforeUnmount(() => {
 
         <div v-if="tab === 'discover'" class="tab-in grid gap-8 lg:grid-cols-[15rem_minmax(0,1fr)]">
           <aside class="space-y-7 lg:sticky lg:top-6 lg:self-start">
-            <section>
-              <h3 class="mb-2 px-1 text-[11px] font-medium uppercase tracking-wider text-ink-500">Type</h3>
-              <div class="flex gap-1 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
-                <button
-                  v-for="item in TYPES"
-                  :key="item.value"
-                  class="flex shrink-0 items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm transition"
-                  :class="category === item.value ? 'bg-ink-800 text-ink-100' : 'text-ink-400 hover:bg-ink-900 hover:text-ink-100'"
-                  @click="category = item.value"
-                >
-                  <span class="kind-tile flex h-7 w-7 items-center justify-center rounded-md" :class="item.tone">
-                    <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <path v-for="d in ICONS[item.icon]" :key="d" :d="d" />
-                    </svg>
-                  </span>
-                  {{ item.label }}
-                </button>
+            <section class="space-y-5">
+              <div v-for="group in TYPE_GROUPS" :key="group.label || 'all'">
+                <h3 v-if="group.label" class="mb-1.5 px-1 text-[11px] font-medium uppercase tracking-wider text-ink-500">
+                  {{ group.label }}
+                </h3>
+                <div class="flex gap-1 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
+                  <button
+                    v-for="item in group.items"
+                    :key="item.value"
+                    class="flex shrink-0 items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm transition"
+                    :class="
+                      category === item.value
+                        ? 'bg-ink-800 text-ink-100'
+                        : typeCount(item.value)
+                          ? 'text-ink-300 hover:bg-ink-900 hover:text-ink-100'
+                          : 'text-ink-500 hover:bg-ink-900 hover:text-ink-300'
+                    "
+                    @click="category = item.value"
+                  >
+                    <span
+                      class="kind-tile flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
+                      :class="[item.tone, { 'opacity-40': !typeCount(item.value) && category !== item.value }]"
+                    >
+                      <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path v-for="d in ICONS[item.icon]" :key="d" :d="d" />
+                      </svg>
+                    </span>
+                    <span class="flex-1 text-left">{{ item.label }}</span>
+                    <span class="pl-2 text-xs tabular-nums text-ink-500">{{ typeCount(item.value) }}</span>
+                  </button>
+                </div>
               </div>
             </section>
 
@@ -637,7 +665,7 @@ onBeforeUnmount(() => {
               </select>
             </section>
 
-            <section>
+            <section v-if="tagChoices.length">
               <div class="mb-2 flex items-center justify-between px-1">
                 <h3 class="text-[11px] font-medium uppercase tracking-wider text-ink-500">Tags</h3>
                 <button v-if="selectedTags.length" class="text-xs text-accent-400 hover:text-accent-300" @click="selectedTags = []">Reset</button>
@@ -697,7 +725,7 @@ onBeforeUnmount(() => {
             <section class="rounded-2xl border border-ink-700 bg-ink-900 p-4">
               <p class="text-sm font-semibold text-ink-100">Submit a template</p>
               <p class="mt-1 text-xs leading-5 text-ink-400">
-                Built an egg or bot template? Send it to us. We review every submission before it appears here.
+                Made a server template, plugin or mod? Send it to us. We review every submission before it appears here.
               </p>
               <a
                 :href="SUBMIT_URL"
@@ -850,7 +878,7 @@ onBeforeUnmount(() => {
 
                 <div class="mt-5 flex flex-1 items-end justify-between gap-3 border-t border-ink-700 pt-4">
                   <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-400">
-                    <span v-if="pkg.downloads !== null" class="flex items-center gap-1.5" :title="pkg.downloads + ' downloads in total'">
+                    <span v-if="pkg.downloads" class="flex items-center gap-1.5" :title="pkg.downloads + ' downloads in total'">
                       <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <path v-for="d in ICONS.download" :key="d" :d="d" />
                       </svg>
@@ -912,7 +940,7 @@ onBeforeUnmount(() => {
                 </div>
                 <div class="hidden shrink-0 items-center gap-5 text-xs text-ink-400 md:flex">
                   <span class="rounded-md bg-ink-800 px-2 py-0.5 text-[11px] font-medium text-ink-300">{{ kind(pkg.category).label }}</span>
-                  <span v-if="pkg.downloads !== null" class="flex w-16 items-center gap-1.5">
+                  <span v-if="pkg.downloads" class="flex w-16 items-center gap-1.5">
                     <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                       <path v-for="d in ICONS.download" :key="d" :d="d" />
                     </svg>
@@ -1017,7 +1045,7 @@ onBeforeUnmount(() => {
             <dl class="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-ink-700 bg-ink-700 sm:grid-cols-4">
               <div class="bg-ink-900 px-4 py-3">
                 <dt class="text-[11px] uppercase tracking-wider text-ink-500">Downloads</dt>
-                <dd class="mt-0.5 text-sm font-semibold text-ink-100">{{ target.downloads !== null ? count(target.downloads) : "–" }}</dd>
+                <dd class="mt-0.5 text-sm font-semibold text-ink-100">{{ target.downloads ? count(target.downloads) : "–" }}</dd>
               </div>
               <div class="bg-ink-900 px-4 py-3">
                 <dt class="text-[11px] uppercase tracking-wider text-ink-500">Version</dt>

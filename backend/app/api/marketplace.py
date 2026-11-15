@@ -77,6 +77,7 @@ class CatalogOut(BaseModel):
     game_options: list[Facet]
     loader_options: list[Facet]
     version_options: list[Facet]
+    category_options: list[Facet]
     packages: list[PackageOut]
     installed: list[InstalledOut]
     errors: list[str]
@@ -236,6 +237,8 @@ def catalog(
     needle = q.strip().lower()
     if needle:
         rows = [row for row in rows if needle in _haystack(row[1])]
+    # Counted before the type filter, so the sidebar shows every type.
+    category_options = _facets([e.category for _reg, e in rows])
     if category:
         wanted = LEGACY_CATEGORIES.get(category, category)
         rows = [row for row in rows if row[1].category == wanted]
@@ -295,6 +298,7 @@ def catalog(
         game_options=game_options,
         loader_options=loader_options,
         version_options=version_options,
+        category_options=category_options,
         packages=packages,
         installed=installed,
         errors=errors,

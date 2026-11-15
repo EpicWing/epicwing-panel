@@ -324,3 +324,13 @@ def test_old_category_names_still_work(client, headers, shop):
     body = client.get("/api/marketplace", params={"category": "game"}, headers=headers).json()
     assert [p["category"] for p in body["packages"]] == ["game"]
     assert _names(client, headers, category="egg") == ["Old Game"]
+
+
+def test_catalog_counts_every_type(client, headers, shop):
+    base = shop.entry
+    bot = {**base, "id": "one-bot", "name": "One Bot", "category": "bot"}
+    mod = {**base, "id": "one-mod", "name": "One Mod", "category": "mod", "game": "minecraft"}
+    _put_index(shop, [bot, mod])
+    body = client.get("/api/marketplace", params={"category": "bot"}, headers=headers).json()
+    assert body["total"] == 1
+    assert body["category_options"] == [{"value": "bot", "count": 1}, {"value": "mod", "count": 1}]
