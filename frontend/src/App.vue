@@ -2,6 +2,9 @@
 import { onBeforeUnmount, ref } from "vue";
 import { useRouter } from "vue-router";
 
+import CommandPalette from "./components/CommandPalette.vue";
+import { auth } from "./stores/auth";
+
 const router = useRouter();
 const busy = ref(false);
 let timer: number | undefined;
@@ -30,4 +33,5 @@ onBeforeUnmount(() => {
 <template>
   <div class="route-bar" :class="{ 'route-bar--on': busy }" aria-hidden="true" />
   <RouterView />
+  <CommandPalette v-if="auth.state.user" />
 </template>

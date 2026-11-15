@@ -103,6 +103,12 @@ const mobileLinks = computed(() => {
   return links;
 });
 
+const paletteKey = /Mac|iPhone|iPad/.test(navigator.userAgent) ? "⌘K" : "Ctrl K";
+
+function openPalette() {
+  window.dispatchEvent(new Event("epicwing:palette"));
+}
+
 async function logout() {
   try {
     await auth.logout();
@@ -170,6 +176,15 @@ async function logout() {
       </div>
 
       <div v-if="!props.minimal" class="space-y-3 border-t border-ink-700 p-4">
+        <button
+          type="button"
+          class="flex w-full items-center gap-2 rounded-md border border-ink-700 px-3 py-1.5 text-sm text-ink-400 transition hover:border-ink-600 hover:text-ink-100"
+          @click="openPalette"
+        >
+          <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m21 21-4.3-4.3M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z" /></svg>
+          <span class="flex-1 text-left">Search</span>
+          <kbd class="font-mono text-[11px] text-ink-500">{{ paletteKey }}</kbd>
+        </button>
         <RouterLink
           v-if="switchLink"
           :to="switchLink.to"
@@ -206,7 +221,10 @@ async function logout() {
               <span class="text-sm font-semibold">{{ panelState.name }}</span>
             </RouterLink>
           </div>
-          <button class="text-sm text-ink-300" @click="logout">{{ t("common.signOut") }}</button>
+          <div class="flex items-center gap-4">
+            <button type="button" class="text-ink-300" aria-label="Search" @click="openPalette"><svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m21 21-4.3-4.3M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z" /></svg></button>
+            <button class="text-sm text-ink-300" @click="logout">{{ t("common.signOut") }}</button>
+          </div>
         </div>
         <nav class="flex gap-4 overflow-x-auto px-4 pb-3 text-sm">
           <RouterLink
