@@ -9,12 +9,15 @@
   --color-ink-800: #17171a;
   --color-ink-700: #232327;
   --color-ink-600: #36363c;
+  --color-ink-500: #62626b;
   --color-ink-400: #85858f;
   --color-ink-300: #a6a6af;
+  --color-ink-200: #c9c9d0;
   --color-ink-100: #e8e8ec;
 
   --color-accent-500: #f5a524;
   --color-accent-400: #ffb94d;
+  --color-accent-300: #ffcb7a;
 
   --color-ok: #3fb950;
   --color-warn: #d9a21b;
@@ -352,8 +355,10 @@ body:has(.server-detail-shell) {
   --color-ink-800: #e9e9ee;
   --color-ink-700: #9c9ca9;
   --color-ink-600: #8a8a97;
+  --color-ink-500: #6b6b77;
   --color-ink-400: #484852;
   --color-ink-300: #33333c;
+  --color-ink-200: #24242b;
   --color-ink-100: #131318;
 
 
@@ -471,3 +476,25 @@ body:has(.server-detail-shell) {
   --chart-rx: #1a7f37;
   --chart-tx: #8250df;
 }
+
+/* Heller Modus: accent-300 als Text abdunkeln */
+:root[data-theme="light"] .text-accent-300,
+:root[data-theme="light"] .hover\:text-accent-300:hover {
+  color: #b36b00;
+}
+
+/* Marketplace: dezent eingefärbte Icon-Kacheln je Typ */
+.kind-tile {
+  background: color-mix(in srgb, var(--kind) 13%, transparent);
+  color: var(--kind);
+}
+.kind-game { --kind: #f5a524; }
+.kind-bot { --kind: #5b9bf0; }
+.kind-plugin { --kind: #b48ef0; }
+.kind-app { --kind: #39c5cf; }
+.kind-box { --kind: #85858f; }
+:root[data-theme="light"] .kind-game { --kind: #b36b00; }
+:root[data-theme="light"] .kind-bot { --kind: #0b5cad; }
+:root[data-theme="light"] .kind-plugin { --kind: #8250df; }
+:root[data-theme="light"] .kind-app { --kind: #0e7c86; }
+:root[data-theme="light"] .kind-box { --kind: #484852; }
