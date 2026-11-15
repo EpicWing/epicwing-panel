@@ -29,10 +29,11 @@ var (
 const bkMaxRunning = 2
 
 type bkState struct {
-	State  string `json:"state"` // running, ok, failed
-	Size   int64  `json:"size"`
-	SHA256 string `json:"sha256,omitempty"`
-	Error  string `json:"error,omitempty"`
+	State  string   `json:"state"` // running, ok, failed
+	Size   int64    `json:"size"`
+	SHA256 string   `json:"sha256,omitempty"`
+	Error  string   `json:"error,omitempty"`
+	ETags  []string `json:"etags,omitempty"`
 }
 
 type bkRegistry struct {
@@ -423,20 +424,23 @@ func bkWriteMeta(file string, st bkState) {
 }
 
 func bkStateMap(st bkState) map[string]any {
-	return map[string]any{"state": st.State, "size": st.Size, "sha256": st.SHA256, "error": st.Error}
+	return map[string]any{"state": st.State, "size": st.Size, "sha256": st.SHA256, "error": st.Error, "etags": st.ETags}
 }
 
 func (d *commandDispatcher) executeBackup(action string, raw json.RawMessage) (map[string]any, error) {
 	var p struct {
-		Name       string `json:"name"`
-		ID         string `json:"id"`
-		Ignored    string `json:"ignored"`
-		SHA256     string `json:"sha256"`
-		Kind       string `json:"kind"`
-		Offset     int64  `json:"offset"`
-		Length     int    `json:"length"`
-		SourceName string `json:"source_name"`
-		SourceID   string `json:"source_id"`
+		Name       string   `json:"name"`
+		ID         string   `json:"id"`
+		Ignored    string   `json:"ignored"`
+		SHA256     string   `json:"sha256"`
+		Kind       string   `json:"kind"`
+		Offset     int64    `json:"offset"`
+		Length     int      `json:"length"`
+		SourceName string   `json:"source_name"`
+		SourceID   string   `json:"source_id"`
+		PartSize   int64    `json:"part_size"`
+		URLs       []string `json:"urls"`
+		URL        string   `json:"url"`
 	}
 	if err := decodeParams(raw, &p); err != nil {
 		return nil, err
@@ -541,6 +545,58 @@ func (d *commandDispatcher) executeBackup(action string, raw json.RawMessage) (m
 			bkJobs.finish(p.Name, key, st)
 		}()
 		return map[string]any{"state": "running"}, nil
+	case "backup.upload":
+		if _, err := os.Stat(archive); err != nil {
+			return nil, errors.New("backup file not found")
+		}
+		if len(p.URLs) == 0 || len(p.URLs) > bkMaxParts {
+			return nil, errors.New("invalid number of upload links")
+		}
+		for _, u := range p.URLs {
+			if err := bkValidURL(u); err != nil {
+				return nil, err
+			}
+		}
+		key := "upload:" + p.ID
+		if err := bkTransfers.start(p.Name, key); err != nil {
+			return nil, err
+		}
+		go func() {
+			etags, err := bkUpload(archive, p.PartSize, p.URLs)
+			st := bkState{State: "ok", ETags: etags}
+			if err != nil {
+				st = bkState{State: "failed", Error: bkErrText(err)}
+				log.Printf("upload of backup %s of %s failed: %v", p.ID, p.Name, err)
+			}
+			bkTransfers.finish(p.Name, key, st)
+		}()
+		return map[string]any{"state": "running"}, nil
+	case "backup.fetch":
+		if err := bkValidURL(p.URL); err != nil {
+			return nil, err
+		}
+		if _, err := os.Stat(archive); err == nil {
+			return map[string]any{"state": "ok"}, nil
+		}
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			return nil, err
+		}
+		key := "fetch:" + p.ID
+		if err := bkTransfers.start(p.Name, key); err != nil {
+			return nil, err
+		}
+		go func() {
+			size, sum, err := bkFetch(p.URL, archive, p.SHA256)
+			st := bkState{State: "ok", Size: size, SHA256: sum}
+			if err != nil {
+				st = bkState{State: "failed", Error: bkErrText(err)}
+				log.Printf("download of backup %s of %s failed: %v", p.ID, p.Name, err)
+			} else {
+				bkWriteMeta(meta, st)
+			}
+			bkTransfers.finish(p.Name, key, st)
+		}()
+		return map[string]any{"state": "running"}, nil
 	case "backup.read":
 		return bkReadChunk(archive, p.Offset, p.Length)
 	case "backup.status":
@@ -550,6 +606,12 @@ func (d *commandDispatcher) executeBackup(action string, raw json.RawMessage) (m
 		}
 		if st, ok := bkJobs.get(kind + ":" + p.ID); ok {
 			return bkStateMap(st), nil
+		}
+		if st, ok := bkTransfers.get(kind + ":" + p.ID); ok {
+			return bkStateMap(st), nil
+		}
+		if kind == "upload" || kind == "fetch" {
+			return map[string]any{"state": "unknown", "error": "the agent restarted, the transfer was interrupted"}, nil
 		}
 		if kind == "restore" {
 			return map[string]any{"state": "unknown", "error": "the agent restarted, the result of the restore is unknown"}, nil
@@ -568,7 +630,7 @@ func (d *commandDispatcher) executeBackup(action string, raw json.RawMessage) (m
 		}
 		return nil, errors.New("backup not found")
 	case "backup.delete":
-		if bkJobs.isBusy(p.Name) {
+		if bkJobs.isBusy(p.Name) || bkTransfers.isBusy(p.Name) {
 			return nil, errors.New("a backup operation is running for this server")
 		}
 		for _, f := range []string{archive, archive + ".part", meta} {
