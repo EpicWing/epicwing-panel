@@ -19,6 +19,7 @@ interface VariableRow {
   description: string;
   user_editable: boolean;
   user_viewable: boolean;
+  secret: boolean;
   rules: string;
 }
 
@@ -170,6 +171,7 @@ function openEggForm(source?: EggItem, copy = false) {
         description: v.description,
         user_editable: v.user_editable,
         user_viewable: v.user_viewable,
+        secret: v.secret,
         rules: v.rules,
       })),
     };
@@ -195,6 +197,7 @@ function addVariable() {
     description: "",
     user_editable: true,
     user_viewable: true,
+    secret: false,
     rules: "nullable|string",
   });
 }
@@ -222,6 +225,7 @@ async function saveEgg() {
       description: v.description,
       user_editable: v.user_editable,
       user_viewable: v.user_viewable,
+      secret: v.secret,
       rules: v.rules,
     })),
   };
@@ -559,6 +563,10 @@ onMounted(() => void load());
                 <label class="flex items-center gap-2 text-sm text-ink-300">
                   <input v-model="variable.user_viewable" type="checkbox" />
                   {{ t("eggs.varViewable") }}
+                </label>
+                <label class="flex items-center gap-2 text-sm text-ink-300">
+                  <input v-model="variable.secret" type="checkbox" />
+                  Secret (stored encrypted)
                 </label>
                 <label class="flex items-center gap-2 text-sm text-ink-300">
                   <input v-model="variable.user_editable" type="checkbox" />

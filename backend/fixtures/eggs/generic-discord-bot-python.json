@@ -96,7 +96,8 @@
       "user_viewable": true,
       "user_editable": true,
       "rules": "nullable|string|max:255",
-      "field_type": "text"
+      "field_type": "text",
+      "secret": true
     },
     {
       "name": "Update on start",
@@ -126,7 +127,8 @@
       "user_viewable": true,
       "user_editable": true,
       "rules": "nullable|string|max:255",
-      "field_type": "text"
+      "field_type": "text",
+      "secret": true
     }
   ]
 }

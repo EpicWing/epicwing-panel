@@ -34,7 +34,7 @@ from app.security.server_access import (
     visible_servers,
 )
 from app.security.sessions import AuthContext
-from app.services import audit, lifecycle, node_limits, server_databases, transfer
+from app.services import audit, lifecycle, node_limits, secretvars, server_databases, transfer
 from app.services import rules as rule_engine
 from app.services import startup as startup_service
 from app.services.agent_errors import AgentFailure
@@ -103,7 +103,12 @@ def _get(db: Session, server_id: uuid.UUID) -> Server:
     return server
 
 
-def _outs(db: Session, servers: list[Server], viewer: User | None = None) -> list[ServerOut]:
+def _outs(
+    db: Session,
+    servers: list[Server],
+    viewer: User | None = None,
+    reveal_secrets: bool = False,
+) -> list[ServerOut]:
     if not servers:
         return []
     ids = [s.id for s in servers]
@@ -112,8 +117,22 @@ def _outs(db: Session, servers: list[Server], viewer: User | None = None) -> lis
     allocations: dict[uuid.UUID, list[AllocationRef]] = defaultdict(list)
     for a in db.scalars(select(Allocation).where(Allocation.server_id.in_(ids))):
         allocations[a.server_id].append(AllocationRef.model_validate(a))
+    secret_keys = {
+        (v.egg_id, v.env_variable)
+        for v in db.scalars(select(EggVariable).where(EggVariable.secret.is_(True)))
+    }
+    egg_of = {s.id: s.egg_id for s in servers}
     values: dict[uuid.UUID, dict[str, str]] = defaultdict(dict)
+    secrets_set: dict[uuid.UUID, list[str]] = defaultdict(list)
     for v in db.scalars(select(ServerVariable).where(ServerVariable.server_id.in_(ids))):
+        if (egg_of[v.server_id], v.env_variable) in secret_keys:
+            # Secrets never go into the normal output. Only code that builds the
+            # container asks for them with reveal_secrets=True.
+            if v.value:
+                secrets_set[v.server_id].append(v.env_variable)
+            if reveal_secrets:
+                values[v.server_id][v.env_variable] = secretvars.unseal(v.value)
+            continue
         values[v.server_id][v.env_variable] = v.value
     host_ram = {n.id: getattr(n, "ram_total_mb", None) for n in db.scalars(select(Node))}
     # With viewer, the own permissions are filled in. Then non-admins do not get the
@@ -143,6 +162,11 @@ def _outs(db: Session, servers: list[Server], viewer: User | None = None) -> lis
             for key, value in values.get(server.id, {}).items()
             if can_startup and (server.egg_id, key) not in hidden
         }
+        out.secrets_set = (
+            sorted(k for k in secrets_set.get(server.id, []) if (server.egg_id, k) not in hidden)
+            if can_startup
+            else []
+        )
         if not can_startup and hasattr(out, "startup"):
             out.startup = ""
         out.permissions = sorted(permissions.get(server.id, ()))
@@ -264,6 +288,8 @@ def create_server(
             raise _conflict("An allocation is already in use.")
     for variable in egg_variables:
         value = body.variables.get(variable.env_variable, variable.default_value)
+        if variable.secret:
+            value = secretvars.seal(value)
         db.add(ServerVariable(server_id=server.id, env_variable=variable.env_variable, value=value))
     try:
         db.commit()
@@ -330,6 +356,7 @@ def update_server(
     variables = data.pop("variables", None)
     if variables is not None:
         _check_values(_egg_variables(db, server.egg_id), variables)
+        secret_envs = {v.env_variable for v in _egg_variables(db, server.egg_id) if v.secret}
         rows = {
             v.env_variable: v
             for v in db.scalars(select(ServerVariable).where(ServerVariable.server_id == server.id))
@@ -345,7 +372,12 @@ def update_server(
                 key
                 for key, value in variables.items()
                 if key in locked
-                and value != (rows[key].value if key in rows else locked[key].default_value)
+                and value
+                != (
+                    (secretvars.unseal(rows[key].value) if key in secret_envs else rows[key].value)
+                    if key in rows
+                    else locked[key].default_value
+                )
             )
             if changed:
                 raise HTTPException(
@@ -353,10 +385,11 @@ def update_server(
                     f"These variables are locked: {', '.join(changed)}.",
                 )
         for key, value in variables.items():
+            stored = secretvars.seal(value) if key in secret_envs else value
             if key in rows:
-                rows[key].value = value
+                rows[key].value = stored
             else:
-                db.add(ServerVariable(server_id=server.id, env_variable=key, value=value))
+                db.add(ServerVariable(server_id=server.id, env_variable=key, value=stored))
     for field, value in data.items():
         setattr(server, field, value)
     db.commit()
@@ -513,8 +546,10 @@ async def install_server(
     out = _outs(db, [server])[0]
     node = db.get(Node, server.node_id)
     egg = db.get(Egg, server.egg_id)
+    # Only for the container spec. The returned output keeps the secrets hidden.
+    plain_variables = _outs(db, [server], reveal_secrets=True)[0].variables
     spec = lifecycle.build_spec(
-        server, out.allocations, out.variables, node.ram_total_mb if node else None
+        server, out.allocations, plain_variables, node.ram_total_mb if node else None
     )
     reinstall = server.status != "new"
 
@@ -532,7 +567,7 @@ async def install_server(
             install_spec = lifecycle.build_install_spec(
                 server,
                 out.allocations,
-                out.variables,
+                plain_variables,
                 node.ram_total_mb if node else None,
                 egg.install_script,
                 installer_image,
@@ -595,7 +630,7 @@ async def _recreate_container(db: Session, server: Server) -> None:
     # A new run starts with an empty console. Clearing here (and not when the container
     # exits) keeps the last lines of a crashed run visible until the next start.
     await hub.publish_clear(lifecycle.container_name(server.id))
-    out = _outs(db, [server])[0]
+    out = _outs(db, [server], reveal_secrets=True)[0]
     node = db.get(Node, server.node_id)
     spec = lifecycle.build_spec(
         server, out.allocations, out.variables, node.ram_total_mb if node else None
@@ -1068,6 +1103,8 @@ class StartupVariableOut(BaseModel):
     value: str
     user_editable: bool
     user_viewable: bool
+    secret: bool = False
+    secret_set: bool = False
 
 
 class StartupOut(BaseModel):
@@ -1091,7 +1128,9 @@ def get_startup(server_id: uuid.UUID, auth: StartupView, db: DbSession) -> Start
             description=v.description,
             rules=v.rules,
             default_value=v.default_value,
-            value=out.variables.get(v.env_variable, v.default_value),
+            value="" if v.secret else out.variables.get(v.env_variable, v.default_value),
+            secret=v.secret,
+            secret_set=v.env_variable in out.secrets_set,
             user_editable=v.user_editable,
             user_viewable=v.user_viewable,
         )
@@ -1133,7 +1172,7 @@ def _server_allocations(db: Session, server_id: uuid.UUID) -> list[Allocation]:
 
 
 def _spec_for(db: Session, server: Server) -> dict[str, Any]:
-    out = _outs(db, [server])[0]
+    out = _outs(db, [server], reveal_secrets=True)[0]
     node = db.get(Node, server.node_id)
     return lifecycle.build_spec(
         server, out.allocations, out.variables, node.ram_total_mb if node else None
