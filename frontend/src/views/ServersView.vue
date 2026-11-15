@@ -35,6 +35,12 @@ function formatSize(mb: number): string {
   return mb >= 1024 ? `${+(mb / 1024).toFixed(1)} GiB` : `${mb} MiB`;
 }
 
+// Very low but non-zero load would show as 0.0%, so it is shown as 0.1% instead.
+function formatCpu(value: number): string {
+  if (!(value > 0)) return "0.0%";
+  return `${Math.max(0.1, value).toFixed(1)}%`;
+}
+
 function formatBytes(bytes: number | null | undefined): string | null {
   if (bytes === null || bytes === undefined) return null;
   if (bytes < 1024) return `${bytes} B`;
@@ -53,9 +59,9 @@ function toCard(s: ApiServer): ServerItem {
     name: s.name,
     address: main ? `${main.ip}:${main.port}` : "–",
     status,
-    cpu: s.live_cpu_percent == null ? `${s.cpus} cores` : `${s.live_cpu_percent.toFixed(1)}%`,
+    cpu: s.live_cpu_percent == null ? `${s.cpus} cores` : formatCpu(s.live_cpu_percent),
     ram: formatBytes(s.live_memory_used_bytes) ?? formatSize(s.memory_mb),
-    storage: formatBytes(s.live_disk_used_bytes) ?? formatSize(s.disk_mb),
+    storage: formatBytes(s.live_disk_used_bytes) ?? (status === "offline" ? "" : formatSize(s.disk_mb)),
   };
 }
 
@@ -86,7 +92,10 @@ async function loadNodeCount(): Promise<void> {
 
 async function loadServers(): Promise<void> {
   try {
-    servers.value = (await api<ApiServer[]>("/servers")).map(toCard);
+    // Offline servers go last. The sort is stable, so the rest keeps its order.
+    servers.value = (await api<ApiServer[]>("/servers"))
+      .map(toCard)
+      .sort((a, b) => Number(a.status === "offline") - Number(b.status === "offline"));
     loadError.value = "";
   } catch (cause) {
     // Do not turn an authorization/backend failure into a misleading "no servers" state.

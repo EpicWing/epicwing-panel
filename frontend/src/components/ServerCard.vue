@@ -42,7 +42,7 @@ const stats = computed(() => {
   return [
     { label: t("servers.cpu"), value: off ? offline : props.server.cpu, pct: off ? undefined : props.server.cpuPct },
     { label: t("servers.ram"), value: off ? offline : props.server.ram, pct: off ? undefined : props.server.ramPct },
-    { label: t("servers.storage"), value: off ? offline : props.server.storage, pct: off ? undefined : props.server.diskPct },
+    { label: t("servers.storage"), value: off ? props.server.storage || offline : props.server.storage, pct: off ? undefined : props.server.diskPct },
   ];
 });
 

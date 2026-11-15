@@ -180,6 +180,12 @@ function shownError(): string {
   );
 }
 
+// Very low but non-zero load would show as 0.0%, so it is shown as 0.1% instead.
+function formatCpu(value: number): string {
+  if (!(value > 0)) return "0.0%";
+  return `${Math.max(0.1, value).toFixed(1)}%`;
+}
+
 function formatBytes(value: number): string {
   if (!value) return "0 B";
   const units = ["B", "KiB", "MiB", "GiB", "TiB"];
@@ -355,7 +361,7 @@ function axisLabel(key: string, fraction: number): string {
   const values = history.value[key as keyof typeof history.value] ?? [];
   const max = isOnline() && values.length > 0 ? scalePeak(key, values) : key === "cpu" ? 1 : key === "ram" && (server.value?.memory_mb ?? 0) > 0 ? scalePeak(key, []) : 0;
   const value = max * fraction;
-  if (key === "cpu") return `${value.toFixed(2)}%`;
+  if (key === "cpu") return formatCpu(value);
   if (value > 0) return formatBytes(value);
   return fraction === 0 ? formatBytes(0) : "";
 }
@@ -733,7 +739,7 @@ onMounted(async () => {
 
         <div v-if="active === 'home'" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <div class="rounded-xl border border-ink-700 bg-ink-900 p-4"><p class="text-xs uppercase text-ink-400">IP address</p><button type="button" class="mt-2 flex w-full cursor-pointer items-center gap-2 text-left" title="Click to copy" @click="copyIp"><span class="min-w-0 truncate font-mono text-lg font-semibold">{{ server.allocations[0]?.ip }}:{{ server.allocations[0]?.port }}</span><span class="shrink-0 text-xs text-accent-500" aria-live="polite">{{ ipCopied ? "Copied" : "" }}</span></button></div>
-          <div class="rounded-xl border border-ink-700 bg-ink-900 p-4"><p class="text-xs uppercase text-ink-400">CPU usage</p><p class="mt-2 text-xl font-semibold">{{ server?.status === 'running' || server?.status === 'starting' ? metrics.cpu.toFixed(1) + '%' : 'Offline' }}</p></div>
+          <div class="rounded-xl border border-ink-700 bg-ink-900 p-4"><p class="text-xs uppercase text-ink-400">CPU usage</p><p class="mt-2 text-xl font-semibold">{{ server?.status === 'running' || server?.status === 'starting' ? formatCpu(metrics.cpu) : 'Offline' }}</p></div>
           <div class="rounded-xl border border-ink-700 bg-ink-900 p-4"><p class="text-xs uppercase text-ink-400">RAM usage</p><p class="mt-2 text-xl font-semibold">{{ server?.status === 'running' || server?.status === 'starting' ? formatBytes(metrics.ram) : 'Offline' }}</p></div>
           <div class="rounded-xl border border-ink-700 bg-ink-900 p-4"><p class="text-xs uppercase text-ink-400">Storage usage</p><p class="mt-2 text-xl font-semibold">{{ formatBytes(metrics.disk || server?.live_disk_used_bytes || 0) }}</p></div>
         </div>
@@ -752,7 +758,7 @@ onMounted(async () => {
 
         <section v-if="active === 'home'" class="grid gap-4 lg:grid-cols-3">
           <div v-for="chart in [
-            { key: 'cpu', title: 'CPU', value: (server.status === 'running' || server.status === 'starting') ? `${metrics.cpu.toFixed(1)}%` : 'Offline', color: 'var(--chart-cpu)' },
+            { key: 'cpu', title: 'CPU', value: (server.status === 'running' || server.status === 'starting') ? formatCpu(metrics.cpu) : 'Offline', color: 'var(--chart-cpu)' },
             { key: 'ram', title: 'RAM', value: (server.status === 'running' || server.status === 'starting') ? formatBytes(metrics.ram) : 'Offline', color: 'var(--chart-ram)' },
           ]" :key="chart.key" class="rounded-xl border border-ink-700 bg-ink-900 p-4">
             <div class="flex items-center justify-between"><p class="flex items-center gap-2 text-xs uppercase tracking-wider text-ink-400"><span class="h-2 w-2 rounded-full" :style="{ backgroundColor: chart.color }"></span>{{ chart.title }}</p><p class="font-mono text-sm">{{ chart.value }}</p></div>

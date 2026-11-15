@@ -1,0 +1,9 @@
+(function () {
+  try {
+    var c = localStorage.getItem("epicwing-theme");
+    var light = c === "light" || (c === "system" && window.matchMedia("(prefers-color-scheme: light)").matches);
+    document.documentElement.dataset.theme = light ? "light" : "dark";
+    document.querySelector('meta[name="theme-color"]').setAttribute("content", light ? "#dcdce2" : "#09090a");
+    document.querySelector('meta[name="color-scheme"]').setAttribute("content", light ? "light" : "dark");
+  } catch (e) {}
+})();

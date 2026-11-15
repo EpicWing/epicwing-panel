@@ -1,4 +1,9 @@
 <script setup lang="ts">
+// Very low but non-zero load would show as 0.0, so it is shown as 0.1 instead.
+function cpuText(value: number): string {
+  if (!(value > 0)) return "0.0";
+  return Math.max(0.1, value).toFixed(1);
+}
 import { installCommand } from "../lib/nodeInstall";
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
@@ -151,7 +156,7 @@ const usage = computed(() => {
       text:
         cpu === null
           ? "–"
-          : `${cpu.toFixed(1)} % · ${t("nodeDetail.cores", { count: n.cpu_total ?? "?" })}`,
+          : `${cpuText(cpu)} % · ${t("nodeDetail.cores", { count: n.cpu_total ?? "?" })}`,
       percent: cpu ?? 0,
     },
     {
