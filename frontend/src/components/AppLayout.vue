@@ -224,7 +224,7 @@ async function logout() {
         <div class="page-in w-full px-4 py-6 lg:px-8" :class="wide ? 'mx-auto max-w-[2400px]' : 'mx-auto max-w-[2000px]'">
           <div v-if="!hideHeader" class="mb-5 flex items-end justify-between gap-4">
             <div>
-              <h1 :class="hero ? 'text-4xl font-bold tracking-tight lg:text-5xl' : 'text-3xl font-semibold tracking-tight'">{{ title }}</h1>
+              <h1 :class="hero ? 'text-3xl font-semibold tracking-tight' : 'text-3xl font-semibold tracking-tight'">{{ title }}</h1>
               <p v-if="subtitle" class="mt-1 text-sm text-ink-400">{{ subtitle }}</p>
             </div>
             <slot name="actions" />

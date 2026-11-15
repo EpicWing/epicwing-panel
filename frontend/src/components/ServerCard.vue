@@ -26,13 +26,13 @@ const tone = computed(
     ({
       running: {
         text: "text-ok",
-        dot: "bg-ok shadow-[0_0_8px_2px] shadow-ok/60 animate-pulse",
+        dot: "bg-ok",
       },
       starting: {
         text: "text-warn",
-        dot: "bg-warn shadow-[0_0_8px_2px] shadow-warn/60 animate-pulse",
+        dot: "bg-warn animate-pulse",
       },
-      offline: { text: "text-bad", dot: "bg-bad shadow-[0_0_8px_2px] shadow-bad/50" },
+      offline: { text: "text-bad", dot: "bg-bad" },
     })[props.server.status],
 );
 
@@ -68,7 +68,7 @@ async function copyAddress() {
 
 <template>
   <div
-    class="relative cursor-pointer overflow-hidden rounded-2xl border border-ink-700 bg-ink-800 transition duration-200 hover:-translate-y-0.5 hover:border-ink-600 hover:shadow-lg hover:shadow-black/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/50"
+    class="relative cursor-pointer overflow-hidden rounded-xl border border-ink-700 bg-ink-800 transition hover:border-ink-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/50"
     :class="
       layout === 'list'
         ? 'flex flex-wrap items-center justify-between gap-x-8 gap-y-4 px-5 py-4'

@@ -54,10 +54,10 @@ const links: HelpLink[] = [
   { key: "support", label: t("admin.linkSupport"), url: HELP_URLS.support },
 ].filter((link) => link.url);
 const linkClass: Record<string, string> = {
-  discord: "bg-amber-500 text-ink-950 hover:bg-amber-400",
-  docs: "bg-blue-600 text-white hover:bg-blue-500",
-  github: "bg-blue-600 text-white hover:bg-blue-500",
-  support: "bg-green-600 text-white hover:bg-green-500",
+  discord: "border border-ink-700 bg-ink-900 text-ink-100 hover:border-ink-600 hover:bg-ink-800",
+  docs: "border border-ink-700 bg-ink-900 text-ink-100 hover:border-ink-600 hover:bg-ink-800",
+  github: "border border-ink-700 bg-ink-900 text-ink-100 hover:border-ink-600 hover:bg-ink-800",
+  support: "border border-ink-700 bg-ink-900 text-ink-100 hover:border-ink-600 hover:bg-ink-800",
 };
 
 const linkIcons: Record<string, string> = {

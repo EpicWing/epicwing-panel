@@ -1136,7 +1136,7 @@ watch(blocked, (value) => {
     </div>
     <Teleport to="body">
       <div v-if="dialog && dialogText" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" @mousedown.self="closeDialog">
-        <form role="dialog" aria-modal="true" :aria-label="dialogText.title" class="w-full max-w-lg rounded-2xl border border-ink-700 bg-ink-900 p-6 shadow-2xl" @submit.prevent="submitDialog" @keydown.esc="closeDialog">
+        <form role="dialog" aria-modal="true" :aria-label="dialogText.title" class="w-full max-w-lg rounded-xl border border-ink-700 bg-ink-900 p-6 shadow-2xl" @submit.prevent="submitDialog" @keydown.esc="closeDialog">
           <div class="flex items-start justify-between gap-4">
             <h3 class="text-xl font-semibold text-ink-100">{{ dialogText.title }}</h3>
             <button type="button" class="flex h-8 w-8 items-center justify-center rounded-md text-ink-400 hover:bg-ink-800 hover:text-ink-100" aria-label="Close" @click="closeDialog">

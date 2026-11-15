@@ -716,7 +716,7 @@ onMounted(async () => {
     <div v-if="server">
       <main class="min-w-0 space-y-3">
         <div v-if="acceptRule && active === 'home' && permissions.includes('files.write')" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true">
-          <div class="w-full max-w-md rounded-2xl border border-ink-700 bg-ink-900 p-6 shadow-2xl shadow-black/50">
+          <div class="w-full max-w-md rounded-xl border border-ink-700 bg-ink-900 p-6 shadow-2xl shadow-black/50">
             <h2 class="text-xl font-semibold text-ink-100">{{ acceptRule.title }}</h2>
             <p class="mt-3 text-sm text-ink-300">{{ acceptRule.text }}</p>
             <a v-if="acceptRule.link" :href="acceptRule.link" target="_blank" rel="noopener noreferrer" class="mt-3 inline-block text-sm text-ink-200 underline hover:text-ink-100">Read the full text</a>

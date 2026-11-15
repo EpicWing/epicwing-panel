@@ -540,12 +540,12 @@ onBeforeUnmount(() => {
           <div v-for="n in 5" :key="n" class="skeleton h-8" />
         </div>
         <div class="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
-          <div v-for="n in 6" :key="n" class="skeleton h-56 !rounded-2xl" />
+          <div v-for="n in 6" :key="n" class="skeleton h-56 !rounded-xl" />
         </div>
       </div>
 
-      <div v-else-if="registries.length === 0" class="rounded-2xl border border-ink-700 bg-ink-900 p-10 text-center">
-        <div class="kind-tile kind-box mx-auto flex h-14 w-14 items-center justify-center rounded-2xl">
+      <div v-else-if="registries.length === 0" class="rounded-xl border border-ink-700 bg-ink-900 p-10 text-center">
+        <div class="kind-tile kind-box mx-auto flex h-14 w-14 items-center justify-center rounded-xl">
           <svg viewBox="0 0 24 24" class="h-7 w-7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path v-for="d in ICONS.box" :key="d" :d="d" />
           </svg>
@@ -722,7 +722,7 @@ onBeforeUnmount(() => {
                 {{ showAllAuthors ? "Show less" : "Show all " + authorChoices.length }}
               </button>
             </section>
-            <section class="rounded-2xl border border-ink-700 bg-ink-900 p-4">
+            <section class="rounded-xl border border-ink-700 bg-ink-900 p-4">
               <p class="text-sm font-semibold text-ink-100">Submit a template</p>
               <p class="mt-1 text-xs leading-5 text-ink-400">
                 Made a server template, plugin or mod? Send it to us. We review every submission before it appears here.
@@ -830,7 +830,7 @@ onBeforeUnmount(() => {
 
             <div
               v-if="!loading && items.length === 0"
-              class="rounded-2xl border border-dashed border-ink-700 px-6 py-14 text-center"
+              class="rounded-xl border border-dashed border-ink-700 px-6 py-14 text-center"
             >
               <p class="text-ink-100">Nothing found</p>
               <p class="mt-1 text-sm text-ink-400">Try another word or loosen the filters.</p>
@@ -843,7 +843,7 @@ onBeforeUnmount(() => {
                 :key="pkg.registry + pkg.id"
                 role="button"
                 tabindex="0"
-                class="group flex cursor-pointer flex-col rounded-2xl border border-ink-700 bg-ink-900 p-5 transition hover:border-ink-600 hover:bg-ink-800/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/50"
+                class="group flex cursor-pointer flex-col rounded-xl border border-ink-700 bg-ink-900 p-5 transition hover:border-ink-600 hover:bg-ink-800/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/50"
                 @click="open(pkg)"
                 @keydown.enter.self="open(pkg)"
               >
@@ -914,7 +914,7 @@ onBeforeUnmount(() => {
 
             <div
               v-else-if="items.length"
-              class="divide-y divide-ink-700 overflow-hidden rounded-2xl border border-ink-700 bg-ink-900"
+              class="divide-y divide-ink-700 overflow-hidden rounded-xl border border-ink-700 bg-ink-900"
               :class="{ 'opacity-60': loading }"
             >
               <article
@@ -985,12 +985,12 @@ onBeforeUnmount(() => {
         </div>
 
         <section v-else class="tab-in">
-          <div v-if="installed.length === 0" class="rounded-2xl border border-dashed border-ink-700 px-6 py-14 text-center">
+          <div v-if="installed.length === 0" class="rounded-xl border border-dashed border-ink-700 px-6 py-14 text-center">
             <p class="text-ink-100">Nothing installed yet</p>
             <p class="mt-1 text-sm text-ink-400">Templates you install show up here.</p>
             <button class="mt-4 text-sm text-accent-400 hover:text-accent-300" @click="tab = 'discover'">Browse templates</button>
           </div>
-          <div v-else class="divide-y divide-ink-700 overflow-hidden rounded-2xl border border-ink-700 bg-ink-900">
+          <div v-else class="divide-y divide-ink-700 overflow-hidden rounded-xl border border-ink-700 bg-ink-900">
             <article v-for="item in installed" :key="item.id" class="flex items-center gap-4 px-5 py-4">
               <div class="kind-tile flex h-11 w-11 shrink-0 items-center justify-center rounded-xl" :class="kind(item.category).tone">
                 <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -1022,11 +1022,11 @@ onBeforeUnmount(() => {
           role="dialog"
           aria-modal="true"
           :aria-label="target.name"
-          class="flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-ink-700 bg-ink-900 shadow-2xl"
+          class="flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-ink-700 bg-ink-900 shadow-2xl"
         >
           <div class="p-6 pb-0">
             <div class="flex items-start gap-4">
-              <div class="kind-tile flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl" :class="kind(target.category).tone">
+              <div class="kind-tile flex h-16 w-16 shrink-0 items-center justify-center rounded-xl" :class="kind(target.category).tone">
                 <svg viewBox="0 0 24 24" class="h-8 w-8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path v-for="d in ICONS[kind(target.category).icon]" :key="d" :d="d" />
                 </svg>

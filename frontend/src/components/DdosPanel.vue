@@ -235,7 +235,7 @@ function onMove(event: MouseEvent): void {
       <div class="rounded-xl border border-ink-700 bg-ink-900 p-4">
         <p class="text-sm text-ink-400">Status</p>
         <p class="mt-2 flex items-center gap-2 text-xl font-semibold">
-          <span class="h-2.5 w-2.5 rounded-full shadow-[0_0_10px_currentColor]" :class="LEVELS[level].dot"></span>
+          <span class="h-2.5 w-2.5 rounded-full" :class="LEVELS[level].dot"></span>
           {{ LEVELS[level].label }}
         </p>
         <p class="mt-1 text-xs text-ink-400">{{ LEVELS[level].hint }}</p>

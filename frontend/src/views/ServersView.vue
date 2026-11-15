@@ -162,9 +162,9 @@ onBeforeUnmount(() => {
 
     <p v-if="showDemo" class="mb-4 text-xs text-ink-400">{{ t("servers.demoNotice") }}</p>
 
-    <div v-if="loadError" class="mb-4 rounded-lg border border-red-900/70 bg-red-950/30 px-4 py-3 text-sm text-red-200">
+    <div v-if="loadError" class="mb-4 rounded-lg border border-bad/30 bg-bad/10 px-4 py-3 text-sm text-bad">
       <p class="font-medium">Could not load the server list.</p>
-      <p class="mt-1 text-red-300/80">{{ loadError }}</p>
+      <p class="mt-1 text-ink-300">{{ loadError }}</p>
     </div>
 
     <div
