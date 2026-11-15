@@ -158,7 +158,7 @@ export const guide: GuideGroup[] = [
         icon: "egg",
         title: "Nests and eggs",
         summary:
-          "An egg says what a server runs: the image, the start command, the variables and the install script. A nest is a group of eggs. Six eggs are included: Minecraft (Vanilla, Paper, Purpur, Fabric), Unturned and a static website.",
+          "An egg says what a server runs: the image, the start command, the variables and the install script. A nest is a group of eggs. Eight eggs are included: Discord bots (Python, Node.js), Unturned, Minecraft (Vanilla, Paper, Purpur, Fabric) and a static website. More come from the marketplace.",
         steps: [
           "To add an egg, press Import egg and choose an egg file in Pterodactyl JSON format.",
           "To keep a copy or share an egg, press Export.",

@@ -5,7 +5,7 @@ import base64
 import posixpath
 import uuid
 from collections import Counter
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -13,10 +13,10 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
-from app.api.eggs import _insert_egg
+from app.api.eggs import _insert_egg, _variable_rows
 from app.api.servers import FILES_BLOCKED, _conflict, _send
 from app.db import get_db
-from app.models import Egg, InstalledPackage, Nest, Server
+from app.models import Egg, EggVariable, InstalledPackage, Nest, Server, ServerPackage
 from app.schemas.egg import EggCreate
 from app.schemas.marketplace import (
     DEFAULT_TARGETS,
@@ -75,6 +75,7 @@ class InstalledOut(BaseModel):
     egg_id: uuid.UUID | None
     installed_at: datetime
     warnings: list[str] = []
+    latest_version: str | None = None
 
 
 class Facet(BaseModel):
@@ -255,6 +256,8 @@ def catalog(
             rows.extend((registry, e) for e in market.fetch_catalog(registry, force=refresh))
         except market.MarketplaceError as exc:
             errors.append(f"{registry}: {exc}")
+    # Newest version per package, before any filter, for the Installed tab.
+    latest = {e.id: e.version for _reg, e in rows}
     needle = q.strip().lower()
     if needle:
         rows = [row for row in rows if needle in _haystack(row[1])]
@@ -311,7 +314,11 @@ def catalog(
                 update_available=have is not None and have.version != entry.version,
             )
         )
-    installed = [InstalledOut.model_validate(p) for p in records.values()]
+    installed = []
+    for record in records.values():
+        out = InstalledOut.model_validate(record)
+        out.latest_version = latest.get(record.package_id)
+        installed.append(out)
     return CatalogOut(
         registries=registries,
         total=len(rows),
@@ -398,6 +405,74 @@ def install(body: InstallIn, request: Request, auth: AdminAuth, db: DbSession) -
     db.commit()
     out = InstalledOut.model_validate(record)
     out.warnings = warnings
+    return out
+
+
+def _locate(record: InstalledPackage) -> tuple[str, IndexEntry]:
+    """The catalog and the current entry of an installed package."""
+    for registry in market.registries():
+        try:
+            entries = market.fetch_catalog(registry)
+        except market.MarketplaceError:
+            continue
+        for entry in entries:
+            if entry.id == record.package_id and entry.repo.lower() == record.repository.lower():
+                return registry, entry
+    raise HTTPException(
+        status.HTTP_404_NOT_FOUND, "The package is no longer in an allowed catalog."
+    )
+
+
+@router.post("/installed/{record_id}/update")
+def update_package(
+    record_id: uuid.UUID, request: Request, auth: AdminAuth, db: DbSession
+) -> InstalledOut:
+    """Brings the egg of a package to the version in the catalog.
+
+    Existing servers keep their image and start command. New servers and reinstalls
+    use the new version. The values of the servers stay, they are stored per server.
+    """
+    record = db.get(InstalledPackage, record_id)
+    if record is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Package not found.")
+    registry, current = _locate(record)
+    if current.version == record.version and current.commit == record.commit:
+        raise HTTPException(status.HTTP_409_CONFLICT, "This package is already up to date.")
+    egg = db.get(Egg, record.egg_id) if record.egg_id else None
+    if egg is None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "The egg of this package was deleted. Remove the package and install it again.",
+        )
+    entry, manifest = _load(registry, current.id)
+    fields, config, warnings = _prepare(entry, manifest)
+    update = _egg_create(egg.nest_id, fields, warnings)
+    egg.description = update.description
+    egg.docker_image = update.docker_image
+    egg.startup = update.startup
+    egg.stop_command = update.stop_command
+    egg.install_script = update.install_script
+    egg.config = config
+    db.execute(delete(EggVariable).where(EggVariable.egg_id == egg.id))
+    db.add_all(_variable_rows(egg.id, update.variables))
+    old_version = record.version
+    record.version = manifest.version
+    record.commit = entry.commit
+    record.name = manifest.name
+    db.commit()
+    audit.record(
+        db,
+        "marketplace.update",
+        actor_id=auth.user.id,
+        target_type="marketplace_package",
+        target_id=str(record.id),
+        ip=audit.client_ip(request),
+        details={"package": record.package_id, "from": old_version, "to": record.version},
+    )
+    db.commit()
+    out = InstalledOut.model_validate(record)
+    out.warnings = warnings
+    out.latest_version = record.version
     return out
 
 
@@ -494,6 +569,24 @@ async def install_to_server(
         raise HTTPException(
             status.HTTP_502_BAD_GATEWAY, f"The file could not be put in place: {error}"
         )
+    record = db.scalar(
+        select(ServerPackage).where(
+            ServerPackage.server_id == server.id, ServerPackage.package_id == entry.id
+        )
+    )
+    if record is not None and record.path != target:
+        # The new version has another file name: the old file goes.
+        await _file_op(server, "file.delete", path=record.path)
+    if record is None:
+        record = ServerPackage(server_id=server.id, package_id=entry.id)
+        db.add(record)
+    record.registry = body.registry
+    record.name = manifest.name
+    record.version = manifest.version
+    record.category = manifest.category
+    record.path = target
+    record.sha256 = manifest.file.sha256
+    record.installed_at = datetime.now(UTC)
     audit.record(
         db,
         "server.plugin.install",
@@ -505,3 +598,74 @@ async def install_to_server(
     )
     db.commit()
     return ServerInstallOut(path=target, size=len(data))
+
+
+FilesRead = Annotated[ServerAccess, Depends(server_access(ServerPermission.FILES_READ))]
+
+
+class ServerPackageOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    package_id: str
+    registry: str
+    name: str
+    version: str
+    category: str
+    path: str
+    installed_at: datetime
+    latest_version: str | None = None
+
+
+@router.get("/servers/{server_id}")
+def server_packages(access: FilesRead, db: DbSession) -> list[ServerPackageOut]:
+    """The plugins and mods of a server, with the newest version from the catalog."""
+    rows = list(
+        db.scalars(
+            select(ServerPackage)
+            .where(ServerPackage.server_id == access.server.id)
+            .order_by(ServerPackage.name)
+        )
+    )
+    allowed = set(market.registries())
+    latest: dict[tuple[str, str], str] = {}
+    for registry in {row.registry for row in rows} & allowed:
+        try:
+            for entry in market.fetch_catalog(registry):
+                latest[(registry, entry.id)] = entry.version
+        except market.MarketplaceError:
+            continue
+    out = []
+    for row in rows:
+        item = ServerPackageOut.model_validate(row)
+        item.latest_version = latest.get((row.registry, row.package_id))
+        out.append(item)
+    return out
+
+
+@router.delete("/servers/{server_id}/{record_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_server_package(
+    record_id: uuid.UUID, request: Request, access: FilesWrite, db: DbSession
+) -> None:
+    """Deletes the file of a plugin or mod and forgets it."""
+    server = access.server
+    row = db.get(ServerPackage, record_id)
+    if row is None or row.server_id != server.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Plugin not found.")
+    if server.status in FILES_BLOCKED:
+        raise _conflict("Install the server first.")
+    error = await _file_op(server, "file.delete", path=row.path)
+    if error and not any(text in error.lower() for text in ("no such", "not exist", "not found")):
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"The file could not be deleted: {error}")
+    name, path = row.name, row.path
+    db.delete(row)
+    audit.record(
+        db,
+        "server.plugin.remove",
+        actor_id=access.user.id,
+        target_type="server",
+        target_id=str(server.id),
+        ip=audit.client_ip(request),
+        details={"name": name, "path": path},
+    )
+    db.commit()

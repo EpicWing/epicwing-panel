@@ -334,3 +334,28 @@ def test_catalog_counts_every_type(client, headers, shop):
     body = client.get("/api/marketplace", params={"category": "bot"}, headers=headers).json()
     assert body["total"] == 1
     assert body["category_options"] == [{"value": "bot", "count": 1}, {"value": "mod", "count": 1}]
+
+
+def test_update_brings_the_egg_to_the_new_version(client, headers, shop):
+    assert _install(client, headers).status_code == 201
+    new_egg = json.dumps({**EGG, "startup": "python3 {{MAIN_FILE}}"}).encode()
+    manifest = json.dumps(manifest_body(new_egg, version="1.1.0")).encode()
+    shop.put(f"{FOLDER}/manifest.json", manifest)
+    shop.put(f"{FOLDER}/egg.json", new_egg)
+    entry = {
+        **shop.entry,
+        "version": "1.1.0",
+        "manifest_sha256": hashlib.sha256(manifest).hexdigest(),
+    }
+    _put_index(shop, [entry])
+    mp._cache.clear()
+
+    [installed] = client.get("/api/marketplace", headers=headers).json()["installed"]
+    assert (installed["version"], installed["latest_version"]) == ("1.0.0", "1.1.0")
+    url = f"/api/marketplace/installed/{installed['id']}/update"
+    response = client.post(url, headers=headers)
+    assert response.status_code == 200, response.text
+    assert response.json()["version"] == "1.1.0"
+    [egg] = [e for e in _eggs(client, headers) if e["id"] == installed["egg_id"]]
+    assert egg["startup"] == "python3 {{MAIN_FILE}}"
+    assert client.post(url, headers=headers).status_code == 409

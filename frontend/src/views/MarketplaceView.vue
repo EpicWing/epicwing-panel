@@ -37,6 +37,7 @@ interface InstalledItem {
   commit: string;
   egg_id: string | null;
   installed_at: string;
+  latest_version: string | null;
 }
 
 interface Facet {
@@ -171,16 +172,18 @@ const TYPE_GROUPS = [
 ].map((group) => ({ label: group.label, items: TYPES.filter((t) => group.values.includes(t.value)) }));
 
 const GAMES: Record<string, string> = {
-  minecraft: "Minecraft",
-  rust: "Rust",
-  gmod: "Garry's Mod",
+  "7dtd": "7 Days to Die",
   ark: "ARK",
   cs2: "Counter-Strike 2",
-  valheim: "Valheim",
+  gmod: "Garry's Mod",
+  minecraft: "Minecraft",
   palworld: "Palworld",
-  terraria: "Terraria",
+  rust: "Rust",
   satisfactory: "Satisfactory",
-  "7dtd": "7 Days to Die",
+  scpsl: "SCP: Secret Laboratory",
+  terraria: "Terraria",
+  unturned: "Unturned",
+  valheim: "Valheim",
 };
 
 const LOADERS: Record<string, string> = {
@@ -198,6 +201,15 @@ const LOADERS: Record<string, string> = {
   waterfall: "Waterfall",
   oxide: "Oxide",
   carbon: "Carbon",
+  exiled: "EXILED",
+  labapi: "LabAPI",
+  rocketmod: "RocketMod",
+  openmod: "OpenMod",
+  bepinex: "BepInEx",
+  tmodloader: "tModLoader",
+  counterstrikesharp: "CounterStrikeSharp",
+  metamod: "Metamod",
+  sourcemod: "SourceMod",
 };
 
 function pretty(map: Record<string, string>, value: string): string {
@@ -504,6 +516,21 @@ async function install(): Promise<void> {
     await load(true);
   } catch (cause) {
     detailsError.value = message(cause);
+  } finally {
+    busy.value = false;
+  }
+}
+
+async function update(item: InstalledItem): Promise<void> {
+  busy.value = true;
+  error.value = "";
+  notice.value = "";
+  try {
+    await api(`/marketplace/installed/${item.id}/update`, { method: "POST" });
+    notice.value = `${item.name} was updated to v${item.latest_version}. New servers and reinstalls use the new version.`;
+    await load(true);
+  } catch (cause) {
+    error.value = message(cause);
   } finally {
     busy.value = false;
   }
@@ -1038,6 +1065,14 @@ onBeforeUnmount(() => {
                   {{ kind(item.category).label }} · <span class="font-mono">v{{ item.version }}</span><template v-if="day(item.installed_at)"> · installed {{ day(item.installed_at) }}</template>
                 </p>
               </div>
+              <button
+                v-if="item.latest_version && item.latest_version !== item.version"
+                class="shrink-0 rounded-lg bg-accent-500 px-4 py-1.5 text-sm font-semibold text-ink-950 transition hover:bg-accent-400 disabled:opacity-40"
+                :disabled="busy"
+                @click="update(item)"
+              >
+                Update to v{{ item.latest_version }}
+              </button>
               <button
                 class="shrink-0 rounded-lg border border-ink-700 px-4 py-1.5 text-sm text-ink-300 transition hover:border-bad/50 hover:text-bad disabled:opacity-40"
                 :disabled="busy"

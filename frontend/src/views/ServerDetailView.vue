@@ -17,6 +17,7 @@ import BackupLimitField from "../components/BackupLimitField.vue";
 import AutoRestartField from "../components/AutoRestartField.vue";
 import ResourcesField from "../components/ResourcesField.vue";
 import PortsPanel from "../components/PortsPanel.vue";
+import PluginsPanel from "../components/PluginsPanel.vue";
 import StartupPanel from "../components/StartupPanel.vue";
 import { type ConsoleFrame, useServerConsole } from "../composables/useServerConsole";
 import { auth } from "../stores/auth";
@@ -68,7 +69,7 @@ let previousNetwork: { rx: number; tx: number; at: number } | null = null;
 
 const groups = [
   { title: "Overview", items: [["home", "Home"], ["activity", "Timeline"]] },
-  { title: "Manage", items: [["files", "Files"], ["startup", "Launch"], ["networking", "Ports"], ["ddos", "DDoS"], ["schedules", "Automations"]] },
+  { title: "Manage", items: [["files", "Files"], ["plugins", "Plugins"], ["startup", "Launch"], ["networking", "Ports"], ["ddos", "DDoS"], ["schedules", "Automations"]] },
   { title: "Data", items: [["databases", "Databases"], ["backups", "Backups"]] },
   { title: "Admin", items: [["users", "Access"], ["settings", "Settings"]] },
 ] as const;
@@ -76,6 +77,7 @@ const groups = [
 // Which permission a tab needs. Tabs that are not listed are always shown.
 const TAB_PERMISSION: Record<string, string> = {
   files: "files.read",
+  plugins: "files.read",
   startup: "startup.view",
   networking: "allocations.view",
   schedules: "schedules.view",
@@ -104,6 +106,7 @@ const NAV_ICONS: Record<string, string> = {
   home: "M3 11l9-8 9 8 M5 10v10h14V10 M10 20v-6h4v6",
   activity: "M22 12h-4l-3 9L9 3l-3 9H2",
   files: "M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9l-.8-1.2A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z",
+  plugins: "M21 8 12 3 3 8v8l9 5 9-5z M3 8l9 5 9-5 M12 13v8",
   startup: "M5 3l14 9-14 9V3z",
   networking: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z M2 12h20 M12 2a15 15 0 0 1 0 20 M12 2a15 15 0 0 0 0 20",
   schedules: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z M12 6v6l4 2",
@@ -780,6 +783,7 @@ onMounted(async () => {
 
         <div v-else :key="active" class="tab-in">
           <FilesPanel v-if="active === 'files'" :server-id="server.id" :status="server.status" />
+          <PluginsPanel v-else-if="active === 'plugins'" :server-id="server.id" :permissions="permissions" />
           <DatabasesPanel v-else-if="active === 'databases'" :server-id="server.id" :permissions="permissions" />
 
           <BackupsPanel v-else-if="active === 'backups'" :server-id="server.id" :status="server.status" :permissions="permissions" />

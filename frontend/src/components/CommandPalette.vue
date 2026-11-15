@@ -52,6 +52,12 @@ const ADMIN_PAGES = [
   { label: "Guide", to: "/admin/guide", keywords: "help docs" },
 ];
 
+const HELP_LINKS = [
+  { label: "EpicWing on GitHub", url: "https://github.com/EpicWing/epicwing-panel", keywords: "source code repository issues epicwing" },
+  { label: "Documentation", url: "https://github.com/EpicWing/epicwing-panel#readme", keywords: "docs help readme guide" },
+  { label: "Discord community", url: "https://discord.gg/tc7xtNPsmh", keywords: "support chat help" },
+];
+
 const router = useRouter();
 const { setTheme } = useTheme();
 
@@ -102,6 +108,15 @@ const items = computed<Item[]>(() => {
         run: () => go(`/admin/nodes/${node.id}`),
       });
     }
+  }
+  for (const link of HELP_LINKS) {
+    list.push({
+      id: "help:" + link.url,
+      group: "Help",
+      label: link.label,
+      keywords: link.keywords,
+      run: () => void window.open(link.url, "_blank", "noopener"),
+    });
   }
   list.push(
     { id: "theme:dark", group: "Action", label: "Dark theme", keywords: "appearance", run: () => setTheme("dark") },

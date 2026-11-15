@@ -108,3 +108,42 @@ def test_servers_without_install_are_refused(client, server, broker, shop):
     _plugin(shop)
     assert _install(client, server).status_code == 409
     assert broker.calls == []
+
+
+def _packages(client, server):
+    response = client.get(f"/api/marketplace/servers/{server.id}", headers=server.headers)
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def test_installed_plugins_are_listed_and_removed(client, ready, broker, shop):
+    _plugin(shop)
+    _install(client, ready)
+    [row] = _packages(client, ready)
+    assert (row["name"], row["path"], row["latest_version"]) == (
+        "LuckPerms",
+        "plugins/LuckPerms-5.4.jar",
+        "1.0.0",
+    )
+    broker.calls.clear()
+    response = client.delete(
+        f"/api/marketplace/servers/{ready.id}/{row['id']}", headers=ready.headers
+    )
+    assert response.status_code == 204, response.text
+    assert broker.calls[0][0] == "file.delete"
+    assert broker.calls[0][1]["path"] == "plugins/LuckPerms-5.4.jar"
+    assert _packages(client, ready) == []
+
+
+def test_a_new_file_name_replaces_the_old_file(client, ready, broker, shop):
+    _plugin(shop)
+    _install(client, ready)
+    market_tests.mp._cache.clear()
+    _plugin(shop, name="LuckPerms-5.5.jar")
+    broker.calls.clear()
+    response = _install(client, ready)
+    assert response.json()["path"] == "plugins/LuckPerms-5.5.jar"
+    deleted = [params["path"] for action, params in broker.calls if action == "file.delete"]
+    assert "plugins/LuckPerms-5.4.jar" in deleted
+    [row] = _packages(client, ready)
+    assert row["path"] == "plugins/LuckPerms-5.5.jar"
