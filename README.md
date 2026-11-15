@@ -97,6 +97,8 @@ Minecraft (Vanilla, Paper, Purpur, Fabric), Unturned and a static website. Ptero
 - Notifications through Discord and email
 - Traffic guard: detection of unusual incoming traffic and console floods with alerts
 - In-panel guide for administrators
+- Marketplace for server templates from reviewed catalogs
+- Import from Pterodactyl and Pelican, passwords keep working ([guide](docs/MIGRATING.md))
 
 ## Documentation
 

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Import from Pterodactyl and Pelican: `python -m app.cli import-pterodactyl` copies users, nodes, allocations, eggs, servers, server variables and subusers. Servers keep their UUID. Dry run by default, see [docs/MIGRATING.md](docs/MIGRATING.md)
+- Login accepts bcrypt password hashes from Pterodactyl and Pelican and replaces them with argon2 at the first login
+- Marketplace: install server templates from reviewed catalogs, with types (game servers, plugins, mods, modpacks, bots, apps, databases, voice), search, sorting, tags, authors, game, loader and version filters, grid and list view
+- UI: no staggered page animation, no glowing status dots, no lifting cards, neutral help links, one card radius
+- Colors `ink-500`, `ink-200` and `accent-300` are defined now. Before, texts with these classes showed in full brightness
+
 ## 0.2.4-beta (2026-11-10)
 
 - Server console: the output of a stopped server stays until the next start, so the reason for a quick crash is still visible. Before, it was cleared as soon as the container exited
