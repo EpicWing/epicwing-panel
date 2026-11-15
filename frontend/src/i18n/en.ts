@@ -55,6 +55,7 @@ export default {
     locations: "Locations",
     allServers: "All Servers",
     eggs: "Nests & Eggs",
+    marketplace: "Marketplace",
     users: "Users",
     databaseHosts: "Database Hosts",
     adminPanel: "Admin panel",

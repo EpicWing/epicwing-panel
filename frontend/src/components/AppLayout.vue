@@ -53,6 +53,7 @@ const sections = computed<NavSection[]>(() => {
         items: [
           { label: t("nav.allServers"), to: "/admin/servers", icon: "servers" },
           { label: t("nav.eggs"), to: "/admin/eggs", icon: "egg" },
+          { label: t("nav.marketplace"), to: "/admin/marketplace", icon: "egg" },
         ],
       },
       {

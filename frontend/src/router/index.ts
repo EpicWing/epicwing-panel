@@ -17,6 +17,7 @@ const ServerDetailView = () => import("../views/ServerDetailView.vue");
 const AdminDatabasesView = () => import("../views/AdminDatabasesView.vue");
 const AdminGuideView = () => import("../views/AdminGuideView.vue");
 const AdminActivityView = () => import("../views/AdminActivityView.vue");
+const MarketplaceView = () => import("../views/MarketplaceView.vue");
 
 const ApiKeysView = () => import("../views/ApiKeysView.vue");
 const SshKeysView = () => import("../views/SshKeysView.vue");
@@ -94,6 +95,12 @@ const router = createRouter({
       path: "/admin/activity",
       name: "admin-activity",
       component: AdminActivityView,
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
+    {
+      path: "/admin/marketplace",
+      name: "marketplace",
+      component: MarketplaceView,
       meta: { requiresAuth: true, requiresAdmin: true },
     },
     { path: "/nodes", redirect: "/admin/nodes" },
