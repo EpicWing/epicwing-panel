@@ -1,6 +1,7 @@
 """Marketplace: browse packages from allowed GitHub catalogs and install them as eggs."""
 
 import uuid
+from collections import Counter
 from datetime import datetime
 from typing import Annotated
 
@@ -13,7 +14,7 @@ from app.api.eggs import _insert_egg
 from app.db import get_db
 from app.models import Egg, InstalledPackage, Nest, Server
 from app.schemas.egg import EggCreate
-from app.schemas.marketplace import INSTALLABLE, IndexEntry, Manifest
+from app.schemas.marketplace import INSTALLABLE, LEGACY_CATEGORIES, IndexEntry, Manifest
 from app.security.permissions import AdminAuth
 from app.services import audit, eggio
 from app.services import marketplace as market
@@ -36,6 +37,11 @@ class PackageOut(BaseModel):
     repository: str
     license: str
     tags: list[str]
+    game: str | None
+    loaders: list[str]
+    game_versions: list[str]
+    downloads: int | None
+    updated_at: str | None
     registry: str
     commit: str
     installable: bool
@@ -58,9 +64,19 @@ class InstalledOut(BaseModel):
     warnings: list[str] = []
 
 
+class Facet(BaseModel):
+    value: str
+    count: int
+
+
 class CatalogOut(BaseModel):
     registries: list[str]
     total: int
+    tag_options: list[Facet]
+    author_options: list[Facet]
+    game_options: list[Facet]
+    loader_options: list[Facet]
+    version_options: list[Facet]
     packages: list[PackageOut]
     installed: list[InstalledOut]
     errors: list[str]
@@ -152,8 +168,42 @@ def _nest_for(db: Session, nest_id: uuid.UUID | None) -> Nest:
     return nest
 
 
+MAX_FACETS = 60
+
+
 def _haystack(entry: IndexEntry) -> str:
-    return f"{entry.name} {entry.description} {' '.join(entry.tags)}".lower()
+    return f"{entry.name} {entry.description} {entry.author} {' '.join(entry.tags)}".lower()
+
+
+def _by_name(row: tuple[str, IndexEntry]) -> tuple[str, str]:
+    return (row[1].name.lower(), row[1].id)
+
+
+def _by_downloads(row: tuple[str, IndexEntry]) -> int:
+    return row[1].downloads or 0
+
+
+def _by_date(row: tuple[str, IndexEntry]) -> str:
+    return row[1].updated_at or ""
+
+
+SORT_KEYS = {"name": _by_name, "popular": _by_downloads, "newest": _by_date}
+
+
+def _version_key(value: str) -> tuple[tuple[int, int | str], ...]:
+    parts = value.replace("+", ".").replace("-", ".").split(".")
+    return tuple((0, int(p)) if p.isdigit() else (1, p) for p in parts)
+
+
+def _version_facets(values: list[str]) -> list[Facet]:
+    counts = Counter(values)
+    ranked = sorted(counts, key=_version_key, reverse=True)
+    return [Facet(value=v, count=counts[v]) for v in ranked[:MAX_FACETS]]
+
+
+def _facets(values: list[str]) -> list[Facet]:
+    ranked = sorted(Counter(values).items(), key=lambda item: (-item[1], item[0].lower()))
+    return [Facet(value=value, count=count) for value, count in ranked[:MAX_FACETS]]
 
 
 @router.get("")
@@ -162,6 +212,13 @@ def catalog(
     db: DbSession,
     q: Annotated[str, Query(max_length=64)] = "",
     category: Annotated[str, Query(max_length=32)] = "",
+    tag: Annotated[list[str] | None, Query(max_length=8)] = None,
+    author: Annotated[str, Query(max_length=64)] = "",
+    game: Annotated[str, Query(max_length=32)] = "",
+    loader: Annotated[str, Query(max_length=24)] = "",
+    version: Annotated[str, Query(max_length=24)] = "",
+    sort: Annotated[str, Query(pattern="^(newest|popular|name)$")] = "newest",
+    order: Annotated[str, Query(pattern="^(asc|desc)?$")] = "",
     limit: Annotated[int, Query(ge=1, le=100)] = 24,
     offset: Annotated[int, Query(ge=0)] = 0,
     refresh: bool = False,
@@ -180,8 +237,29 @@ def catalog(
     if needle:
         rows = [row for row in rows if needle in _haystack(row[1])]
     if category:
-        rows = [row for row in rows if row[1].category == category]
-    rows.sort(key=lambda row: (row[1].name.lower(), row[1].id))
+        wanted = LEGACY_CATEGORIES.get(category, category)
+        rows = [row for row in rows if row[1].category == wanted]
+    # The choices for the filters come from the rows before the tag and author filter,
+    # so the person can still change their mind.
+    tag_options = _facets([t for _reg, e in rows for t in set(e.tags)])
+    author_options = _facets([e.author for _reg, e in rows])
+    game_options = _facets([e.game for _reg, e in rows if e.game])
+    loader_options = _facets([x for _reg, e in rows for x in e.loaders])
+    version_options = _version_facets([x for _reg, e in rows for x in e.game_versions])
+    for wanted in {t.strip().lower() for t in tag or []}:
+        rows = [row for row in rows if wanted in row[1].tags]
+    if author.strip():
+        rows = [row for row in rows if row[1].author.lower() == author.strip().lower()]
+    if game.strip():
+        rows = [row for row in rows if row[1].game == game.strip().lower()]
+    if loader.strip():
+        rows = [row for row in rows if loader.strip().lower() in row[1].loaders]
+    if version.strip():
+        rows = [row for row in rows if version.strip() in row[1].game_versions]
+    # Equal values keep the order by name, because Python's sort is stable.
+    rows.sort(key=_by_name)
+    descending = order == "desc" if order else sort != "name"
+    rows.sort(key=SORT_KEYS[sort], reverse=descending)
     packages = []
     for registry, entry in rows[offset : offset + limit]:
         have = records.get(entry.id)
@@ -196,6 +274,11 @@ def catalog(
                 repository=entry.repo,
                 license=entry.license,
                 tags=entry.tags,
+                game=entry.game,
+                loaders=entry.loaders,
+                game_versions=entry.game_versions,
+                downloads=entry.downloads,
+                updated_at=entry.updated_at,
                 registry=registry,
                 commit=entry.commit,
                 installable=entry.category in INSTALLABLE,
@@ -207,6 +290,11 @@ def catalog(
     return CatalogOut(
         registries=registries,
         total=len(rows),
+        tag_options=tag_options,
+        author_options=author_options,
+        game_options=game_options,
+        loader_options=loader_options,
+        version_options=version_options,
         packages=packages,
         installed=installed,
         errors=errors,

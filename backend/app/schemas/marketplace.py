@@ -14,9 +14,29 @@ SHA256_RE = re.compile(r"[0-9a-f]{64}")
 VERSION_RE = re.compile(r"\d{1,4}\.\d{1,4}\.\d{1,4}(?:-[0-9A-Za-z.-]{1,32})?")
 PATH_RE = re.compile(r"[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*")
 
-Category = Literal["egg", "bot-template", "plugin", "docker-template"]
-# These categories deliver an egg. The others are listed, but cannot be installed yet.
-INSTALLABLE: frozenset[str] = frozenset({"egg", "bot-template"})
+Category = Literal["game", "plugin", "mod", "modpack", "bot", "app", "database", "voice"]
+# Older names, still accepted so existing packages keep working.
+LEGACY_CATEGORIES = {"egg": "game", "bot-template": "bot", "docker-template": "app"}
+# These categories deliver an egg. The others add files to a server and cannot be installed yet.
+INSTALLABLE: frozenset[str] = frozenset({"game", "bot", "app", "database", "voice"})
+# Content for an existing server. It must name the game it is for.
+CONTENT: frozenset[str] = frozenset({"plugin", "mod", "modpack"})
+GAME_RE = re.compile(r"[a-z0-9][a-z0-9-]{0,31}")
+LOADER_RE = re.compile(r"[a-z0-9][a-z0-9-]{0,23}")
+GAME_VERSION_RE = re.compile(r"[0-9A-Za-z][0-9A-Za-z.+-]{0,23}")
+
+
+def legacy_category(value: object) -> object:
+    return LEGACY_CATEGORIES.get(value, value) if isinstance(value, str) else value
+
+
+def clean_list(values: list[str], pattern: re.Pattern[str], lower: bool = True) -> list[str]:
+    out: list[str] = []
+    for raw in values:
+        item = raw.strip().lower() if lower else raw.strip()
+        if pattern.fullmatch(item) and item not in out:
+            out.append(item)
+    return out
 
 
 def valid_repo(value: str) -> bool:
@@ -64,6 +84,9 @@ class Manifest(BaseModel):
     license: str
     # Which view a server of this package gets (planned, ignored by the panel for now).
     ui_profile: str | None = Field(default=None, max_length=32)
+    game: str | None = None
+    loaders: list[str] = Field(default_factory=list, max_length=16)
+    game_versions: list[str] = Field(default_factory=list, max_length=200)
     egg: FileRef | None = None
 
     @field_validator("id")
@@ -100,15 +123,43 @@ class Manifest(BaseModel):
             raise ValueError("The repository must be owner/name.")
         return value
 
+    @field_validator("category", mode="before")
+    @classmethod
+    def _category(cls, value: object) -> object:
+        return legacy_category(value)
+
+    @field_validator("game")
+    @classmethod
+    def _game(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip().lower()
+        if not GAME_RE.fullmatch(value):
+            raise ValueError("The game must use a-z, 0-9 and hyphens, like minecraft.")
+        return value
+
+    @field_validator("loaders")
+    @classmethod
+    def _loaders(cls, value: list[str]) -> list[str]:
+        return clean_list(value, LOADER_RE)
+
+    @field_validator("game_versions")
+    @classmethod
+    def _game_versions(cls, value: list[str]) -> list[str]:
+        return clean_list(value, GAME_VERSION_RE, lower=False)
+
     @model_validator(mode="after")
     def _check(self) -> Self:
         if self.category in INSTALLABLE and self.egg is None:
             raise ValueError("This category needs an egg file.")
+        if self.category in CONTENT and self.game is None:
+            raise ValueError("Plugins, mods and modpacks must name their game.")
         return self
 
 
 MAX_INDEX_PACKAGES = 20000
 TAG_RE = re.compile(r"[a-z0-9][a-z0-9-]{0,23}")
+DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 
 class IndexEntry(BaseModel):
@@ -128,6 +179,11 @@ class IndexEntry(BaseModel):
     license: str
     category: Category
     tags: list[str] = Field(default_factory=list, max_length=8)
+    game: str | None = None
+    loaders: list[str] = Field(default_factory=list, max_length=16)
+    game_versions: list[str] = Field(default_factory=list, max_length=200)
+    downloads: int | None = Field(default=None, ge=0, le=10**12)
+    updated_at: str | None = None
 
     @field_validator("id")
     @classmethod
@@ -185,6 +241,34 @@ class IndexEntry(BaseModel):
         if not VERSION_RE.fullmatch(value):
             raise ValueError("The version must look like 1.2.3.")
         return value
+
+    @field_validator("updated_at")
+    @classmethod
+    def _updated(cls, value: str | None) -> str | None:
+        if value is not None and not DATE_RE.fullmatch(value):
+            raise ValueError("The date must look like 2026-01-31.")
+        return value
+
+    @field_validator("category", mode="before")
+    @classmethod
+    def _category(cls, value: object) -> object:
+        return legacy_category(value)
+
+    @field_validator("game", mode="before")
+    @classmethod
+    def _game(cls, value: object) -> str | None:
+        text = value.strip().lower() if isinstance(value, str) else ""
+        return text if GAME_RE.fullmatch(text) else None
+
+    @field_validator("loaders")
+    @classmethod
+    def _loaders(cls, value: list[str]) -> list[str]:
+        return clean_list(value, LOADER_RE)
+
+    @field_validator("game_versions")
+    @classmethod
+    def _game_versions(cls, value: list[str]) -> list[str]:
+        return clean_list(value, GAME_VERSION_RE, lower=False)
 
     @field_validator("tags")
     @classmethod

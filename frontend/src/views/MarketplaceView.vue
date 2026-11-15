@@ -14,6 +14,9 @@ interface PackageItem {
   repository: string;
   license: string;
   tags: string[];
+  game: string | null;
+  loaders: string[];
+  game_versions: string[];
   downloads: number | null;
   updated_at: string | null;
   registry: string;
@@ -45,6 +48,9 @@ interface Catalog {
   total: number;
   tag_options: Facet[];
   author_options: Facet[];
+  game_options: Facet[];
+  loader_options: Facet[];
+  version_options: Facet[];
   packages: PackageItem[];
   installed: InstalledItem[];
   errors: string[];
@@ -108,22 +114,87 @@ const ICONS: Record<string, string[]> = {
   grid: ["M3 3h7v7H3z", "M14 3h7v7h-7z", "M14 14h7v7h-7z", "M3 14h7v7H3z"],
   list: ["M8 6h13", "M8 12h13", "M8 18h13", "M3 6h.01", "M3 12h.01", "M3 18h.01"],
   lock: ["M5 11h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2z", "M7 11V7a5 5 0 0 1 10 0v4"],
+  mod: [
+    "M19.44 7.85c-.05.32.06.65.29.88l1.57 1.57a2.4 2.4 0 0 1 0 3.4l-1.61 1.62a.98.98 0 0 1-.84.27c-.47-.07-.8-.48-.97-.92a2.5 2.5 0 1 0-3.21 3.21c.44.17.85.5.92.97a.98.98 0 0 1-.27.84l-1.61 1.61a2.4 2.4 0 0 1-3.41 0l-1.57-1.57a1.03 1.03 0 0 0-.88-.29c-.49.07-.84.5-1.02.97a2.5 2.5 0 1 1-3.24-3.24c.47-.18.9-.53.97-1.02a1.03 1.03 0 0 0-.29-.88l-1.57-1.57a2.4 2.4 0 0 1 0-3.4l1.53-1.53c.24-.24.58-.35.92-.3.51.08.88.53 1.07 1.01a2.5 2.5 0 1 0 3.26-3.26c-.48-.19-.93-.56-1.01-1.07-.05-.34.06-.68.3-.92l1.53-1.53a2.4 2.4 0 0 1 3.4 0l1.57 1.57c.23.23.56.34.88.29.49-.07.84-.5 1.02-.97a2.5 2.5 0 1 1 3.24 3.24c-.47.18-.9.53-.97 1.02z",
+  ],
+  modpack: [
+    "M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z",
+    "m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65",
+    "m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65",
+  ],
+  web: [
+    "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z",
+    "M2 12h20",
+    "M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z",
+  ],
+  database: [
+    "M12 8c4.97 0 9-1.34 9-3s-4.03-3-9-3-9 1.34-9 3 4.03 3 9 3z",
+    "M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5",
+    "M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3",
+  ],
+  voice: ["M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z", "M19 10v2a7 7 0 0 1-14 0v-2", "M12 19v3"],
 };
 
 const KINDS: Record<string, Kind> = {
+  game: { label: "Game", icon: "game", tone: "kind-game" },
+  plugin: { label: "Plugin", icon: "plugin", tone: "kind-plugin" },
+  mod: { label: "Mod", icon: "mod", tone: "kind-mod" },
+  modpack: { label: "Modpack", icon: "modpack", tone: "kind-modpack" },
+  bot: { label: "Bot", icon: "bot", tone: "kind-bot" },
+  app: { label: "App", icon: "web", tone: "kind-app" },
+  database: { label: "Database", icon: "database", tone: "kind-database" },
+  voice: { label: "Voice", icon: "voice", tone: "kind-voice" },
+  // Older names, still stored for packages installed before the split.
   egg: { label: "Game", icon: "game", tone: "kind-game" },
   "bot-template": { label: "Bot", icon: "bot", tone: "kind-bot" },
-  plugin: { label: "Plugin", icon: "plugin", tone: "kind-plugin" },
-  "docker-template": { label: "App", icon: "app", tone: "kind-app" },
+  "docker-template": { label: "App", icon: "web", tone: "kind-app" },
 };
 
 const TYPES = [
-  { value: "", label: "All types", icon: "box", tone: "kind-box" },
-  { value: "egg", label: "Games", icon: "game", tone: "kind-game" },
-  { value: "bot-template", label: "Bots", icon: "bot", tone: "kind-bot" },
+  { value: "", label: "All", icon: "box", tone: "kind-box" },
+  { value: "game", label: "Game servers", icon: "game", tone: "kind-game" },
   { value: "plugin", label: "Plugins", icon: "plugin", tone: "kind-plugin" },
-  { value: "docker-template", label: "Apps", icon: "app", tone: "kind-app" },
+  { value: "mod", label: "Mods", icon: "mod", tone: "kind-mod" },
+  { value: "modpack", label: "Modpacks", icon: "modpack", tone: "kind-modpack" },
+  { value: "bot", label: "Bots", icon: "bot", tone: "kind-bot" },
+  { value: "app", label: "Apps & Web", icon: "web", tone: "kind-app" },
+  { value: "database", label: "Databases", icon: "database", tone: "kind-database" },
+  { value: "voice", label: "Voice", icon: "voice", tone: "kind-voice" },
 ];
+
+const GAMES: Record<string, string> = {
+  minecraft: "Minecraft",
+  rust: "Rust",
+  gmod: "Garry's Mod",
+  ark: "ARK",
+  cs2: "Counter-Strike 2",
+  valheim: "Valheim",
+  palworld: "Palworld",
+  terraria: "Terraria",
+  satisfactory: "Satisfactory",
+  "7dtd": "7 Days to Die",
+};
+
+const LOADERS: Record<string, string> = {
+  paper: "Paper",
+  spigot: "Spigot",
+  bukkit: "Bukkit",
+  purpur: "Purpur",
+  folia: "Folia",
+  fabric: "Fabric",
+  forge: "Forge",
+  neoforge: "NeoForge",
+  quilt: "Quilt",
+  velocity: "Velocity",
+  bungeecord: "BungeeCord",
+  waterfall: "Waterfall",
+  oxide: "Oxide",
+  carbon: "Carbon",
+};
+
+function pretty(map: Record<string, string>, value: string): string {
+  return map[value] ?? value.charAt(0).toUpperCase() + value.slice(1);
+}
 
 const SORTS = [
   { value: "newest", label: "Newest" },
@@ -132,6 +203,29 @@ const SORTS = [
 ];
 
 const VIEW_KEY = "epicwing.marketplace.view";
+
+const SUBMIT_MAIL = "support@epicwing.de";
+const SUBMIT_BODY = [
+  "Template name:",
+  "Type (Game / Bot / Plugin / App):",
+  "Short description (1-2 sentences):",
+  "Version:",
+  "License:",
+  "Source repository (link, if any):",
+  "Docker image:",
+  "Your name and GitHub or Discord (optional):",
+  "",
+  "Please attach:",
+  "- the egg export (.json)",
+  "- an icon, PNG 256x256 (optional)",
+  "",
+  "[ ] I made this template or have the right to publish it.",
+  "[ ] The install script only does what is needed to set up the server.",
+].join("\n");
+const SUBMIT_URL =
+  "mailto:" + SUBMIT_MAIL +
+  "?subject=" + encodeURIComponent("Marketplace submission: ") +
+  "&body=" + encodeURIComponent(SUBMIT_BODY);
 
 function kind(value: string): Kind {
   return KINDS[value] ?? { label: value, icon: "box", tone: "kind-box" };
@@ -182,6 +276,9 @@ const registries = ref<string[]>([]);
 const errors = ref<string[]>([]);
 const tagOptions = ref<Facet[]>([]);
 const authorOptions = ref<Facet[]>([]);
+const gameOptions = ref<Facet[]>([]);
+const loaderOptions = ref<Facet[]>([]);
+const versionOptions = ref<Facet[]>([]);
 const total = ref(0);
 const firstLoad = ref(true);
 const loading = ref(false);
@@ -197,6 +294,9 @@ const sort = ref("newest");
 const order = ref("");
 const selectedTags = ref<string[]>([]);
 const author = ref("");
+const game = ref("");
+const loader = ref("");
+const gameVersion = ref("");
 const perPage = ref(24);
 const showAllTags = ref(false);
 const showAllAuthors = ref(false);
@@ -229,6 +329,9 @@ const activeFilters = computed(() => {
     list.push({ key: "type", label, clear: () => (category.value = "") });
   }
   if (author.value) list.push({ key: "author", label: "by " + author.value, clear: () => (author.value = "") });
+  if (game.value) list.push({ key: "game", label: pretty(GAMES, game.value), clear: () => (game.value = "") });
+  if (loader.value) list.push({ key: "loader", label: pretty(LOADERS, loader.value), clear: () => (loader.value = "") });
+  if (gameVersion.value) list.push({ key: "version", label: gameVersion.value, clear: () => (gameVersion.value = "") });
   for (const tag of selectedTags.value) list.push({ key: "tag:" + tag, label: "#" + tag, clear: () => toggleTag(tag) });
   return list;
 });
@@ -253,6 +356,9 @@ async function load(reset = true, refresh = false): Promise<void> {
   if (search.value.trim()) params.set("q", search.value.trim());
   if (category.value) params.set("category", category.value);
   if (author.value) params.set("author", author.value);
+  if (game.value) params.set("game", game.value);
+  if (loader.value) params.set("loader", loader.value);
+  if (gameVersion.value) params.set("version", gameVersion.value);
   for (const tag of selectedTags.value) params.append("tag", tag);
   if (refresh) params.set("refresh", "true");
   try {
@@ -264,6 +370,9 @@ async function load(reset = true, refresh = false): Promise<void> {
     errors.value = data.errors;
     tagOptions.value = data.tag_options;
     authorOptions.value = data.author_options;
+    gameOptions.value = data.game_options;
+    loaderOptions.value = data.loader_options;
+    versionOptions.value = data.version_options;
     total.value = data.total;
     error.value = "";
   } catch (cause) {
@@ -291,6 +400,9 @@ function clearAll(): void {
   search.value = "";
   category.value = "";
   author.value = "";
+  game.value = "";
+  loader.value = "";
+  gameVersion.value = "";
   selectedTags.value = [];
 }
 
@@ -391,7 +503,7 @@ watch(search, () => {
 watch(sort, () => {
   order.value = "";
 });
-watch([sort, order, category, author, perPage, selectedTags], () => void load(true));
+watch([sort, order, category, author, game, loader, gameVersion, perPage, selectedTags], () => void load(true));
 onMounted(() => {
   void load(true);
   document.addEventListener("keydown", onKey);
@@ -473,6 +585,58 @@ onBeforeUnmount(() => {
               </div>
             </section>
 
+            <section v-if="gameOptions.length || game">
+              <div class="mb-2 flex items-center justify-between px-1">
+                <h3 class="text-[11px] font-medium uppercase tracking-wider text-ink-500">Game</h3>
+                <button v-if="game" class="text-xs text-accent-400 hover:text-accent-300" @click="game = ''">Reset</button>
+              </div>
+              <div class="space-y-0.5">
+                <button
+                  v-for="item in gameOptions"
+                  :key="item.value"
+                  class="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm transition"
+                  :class="game === item.value ? 'bg-ink-800 text-ink-100' : 'text-ink-400 hover:bg-ink-900 hover:text-ink-100'"
+                  @click="game = game === item.value ? '' : item.value"
+                >
+                  <span class="flex-1 truncate">{{ pretty(GAMES, item.value) }}</span>
+                  <span class="text-xs text-ink-500">{{ item.count }}</span>
+                </button>
+              </div>
+            </section>
+
+            <section v-if="loaderOptions.length || loader">
+              <div class="mb-2 flex items-center justify-between px-1">
+                <h3 class="text-[11px] font-medium uppercase tracking-wider text-ink-500">Loader</h3>
+                <button v-if="loader" class="text-xs text-accent-400 hover:text-accent-300" @click="loader = ''">Reset</button>
+              </div>
+              <div class="flex flex-wrap gap-1.5">
+                <button
+                  v-for="item in loaderOptions"
+                  :key="item.value"
+                  class="rounded-full border px-2.5 py-1 text-xs transition"
+                  :class="
+                    loader === item.value
+                      ? 'border-accent-500/60 bg-accent-500/10 text-accent-400'
+                      : 'border-ink-700 text-ink-300 hover:border-ink-600 hover:text-ink-100'
+                  "
+                  @click="loader = loader === item.value ? '' : item.value"
+                >
+                  {{ pretty(LOADERS, item.value) }}<span class="ml-1.5 text-ink-500">{{ item.count }}</span>
+                </button>
+              </div>
+            </section>
+
+            <section v-if="versionOptions.length || gameVersion">
+              <h3 class="mb-2 px-1 text-[11px] font-medium uppercase tracking-wider text-ink-500">Game version</h3>
+              <select
+                v-model="gameVersion"
+                class="w-full rounded-lg border border-ink-700 bg-ink-900 px-3 py-2 text-sm text-ink-100 outline-none focus:border-accent-500"
+              >
+                <option value="">All versions</option>
+                <option v-for="item in versionOptions" :key="item.value" :value="item.value">{{ item.value }} ({{ item.count }})</option>
+              </select>
+            </section>
+
             <section>
               <div class="mb-2 flex items-center justify-between px-1">
                 <h3 class="text-[11px] font-medium uppercase tracking-wider text-ink-500">Tags</h3>
@@ -529,6 +693,18 @@ onBeforeUnmount(() => {
               >
                 {{ showAllAuthors ? "Show less" : "Show all " + authorChoices.length }}
               </button>
+            </section>
+            <section class="rounded-2xl border border-ink-700 bg-ink-900 p-4">
+              <p class="text-sm font-semibold text-ink-100">Submit a template</p>
+              <p class="mt-1 text-xs leading-5 text-ink-400">
+                Built an egg or bot template? Send it to us. We review every submission before it appears here.
+              </p>
+              <a
+                :href="SUBMIT_URL"
+                class="mt-3 flex items-center justify-center rounded-lg border border-ink-700 px-3 py-2 text-sm text-ink-100 transition hover:border-accent-500 hover:text-accent-400"
+              >
+                Email {{ SUBMIT_MAIL }}
+              </a>
             </section>
           </aside>
 
@@ -686,6 +862,7 @@ onBeforeUnmount(() => {
                       </svg>
                       {{ ago(pkg.updated_at) }}
                     </span>
+                    <span v-if="pkg.game" class="text-ink-300">{{ pretty(GAMES, pkg.game) }}<template v-if="pkg.loaders.length"> · {{ pkg.loaders.slice(0, 2).map((l) => pretty(LOADERS, l)).join(", ") }}</template></span>
                     <span class="font-mono text-ink-500">v{{ pkg.version }}</span>
                   </div>
                   <span v-if="pkg.installed" class="flex shrink-0 items-center gap-1.5 rounded-lg bg-ok/10 px-3 py-1.5 text-xs font-medium text-ok">
@@ -877,6 +1054,23 @@ onBeforeUnmount(() => {
           <div class="min-h-0 flex-1 overflow-y-auto p-6">
             <div v-if="modalTab === 'overview'" class="space-y-5">
               <p class="text-sm leading-6 text-ink-300">{{ target.description || "No description." }}</p>
+
+              <dl v-if="target.game" class="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-3">
+                <div>
+                  <dt class="text-[11px] uppercase tracking-wider text-ink-500">Game</dt>
+                  <dd class="mt-0.5 text-ink-100">{{ pretty(GAMES, target.game) }}</dd>
+                </div>
+                <div v-if="target.loaders.length">
+                  <dt class="text-[11px] uppercase tracking-wider text-ink-500">Loaders</dt>
+                  <dd class="mt-0.5 text-ink-100">{{ target.loaders.map((l) => pretty(LOADERS, l)).join(", ") }}</dd>
+                </div>
+                <div v-if="target.game_versions.length">
+                  <dt class="text-[11px] uppercase tracking-wider text-ink-500">Versions</dt>
+                  <dd class="mt-0.5 font-mono text-ink-100">
+                    {{ target.game_versions.slice(0, 4).join(", ") }}<template v-if="target.game_versions.length > 4"> +{{ target.game_versions.length - 4 }}</template>
+                  </dd>
+                </div>
+              </dl>
 
               <div v-if="target.tags.length" class="flex flex-wrap gap-1.5">
                 <span v-for="tag in target.tags" :key="tag" class="rounded-full border border-ink-700 px-2.5 py-1 text-xs text-ink-300">{{ tag }}</span>

@@ -254,3 +254,68 @@ def test_remove_is_refused_while_a_server_uses_the_egg(client, user, headers, sh
     response = client.delete(f"/api/marketplace/installed/{record['id']}", headers=headers)
     assert response.status_code == 409
     assert len(_eggs(client, headers)) == 1
+
+
+def _names(client, headers, **params):
+    body = client.get("/api/marketplace", params=params, headers=headers).json()
+    return [p["name"] for p in body["packages"]]
+
+
+def test_catalog_sort_filter_and_facets(client, headers, shop):
+    base = shop.entry
+    a = {**base, "id": "a-bot", "name": "A Bot", "author": "Ann", "downloads": 10,
+         "updated_at": "2026-01-01", "tags": ["admin", "tools"]}
+    b = {**base, "id": "b-bot", "name": "B Bot", "author": "Bob", "downloads": 500,
+         "updated_at": "2026-03-01", "tags": ["tools"]}
+    c = {**base, "id": "c-bot", "name": "C Bot", "author": "Bob",
+         "updated_at": "2026-02-01", "tags": []}
+    _put_index(shop, [a, b, c])
+
+    assert _names(client, headers, sort="popular") == ["B Bot", "A Bot", "C Bot"]
+    assert _names(client, headers, sort="newest") == ["B Bot", "C Bot", "A Bot"]
+    assert _names(client, headers, sort="newest", order="asc") == ["A Bot", "C Bot", "B Bot"]
+    assert _names(client, headers, sort="name") == ["A Bot", "B Bot", "C Bot"]
+    assert _names(client, headers, sort="name", order="desc") == ["C Bot", "B Bot", "A Bot"]
+    assert _names(client, headers, tag=["tools"]) == ["B Bot", "A Bot"]
+    assert _names(client, headers, tag=["admin", "tools"]) == ["A Bot"]
+    assert _names(client, headers, author="BOB") == ["B Bot", "C Bot"]
+
+    body = client.get("/api/marketplace", params={"author": "Ann"}, headers=headers).json()
+    assert body["tag_options"] == [{"value": "tools", "count": 2}, {"value": "admin", "count": 1}]
+    assert body["author_options"] == [{"value": "Bob", "count": 2}, {"value": "Ann", "count": 1}]
+    [package] = body["packages"]
+    assert package["downloads"] == 10
+    assert package["updated_at"] == "2026-01-01"
+
+
+def test_catalog_refuses_an_unknown_sort(client, headers, shop):
+    response = client.get("/api/marketplace", params={"sort": "random"}, headers=headers)
+    assert response.status_code == 422
+
+
+def test_catalog_game_loader_and_version(client, headers, shop):
+    base = shop.entry
+    paper = {**base, "id": "essentials", "name": "Essentials", "category": "plugin",
+             "game": "minecraft", "loaders": ["paper", "Spigot"], "game_versions": ["1.21", "1.20.6"]}
+    fabric = {**base, "id": "sodium", "name": "Sodium", "category": "mod",
+              "game": "minecraft", "loaders": ["fabric"], "game_versions": ["1.21"]}
+    oxide = {**base, "id": "kits", "name": "Kits", "category": "plugin",
+             "game": "rust", "loaders": ["oxide"]}
+    _put_index(shop, [paper, fabric, oxide])
+
+    assert _names(client, headers, game="minecraft", sort="name") == ["Essentials", "Sodium"]
+    assert _names(client, headers, loader="spigot") == ["Essentials"]
+    assert _names(client, headers, version="1.20.6") == ["Essentials"]
+    assert _names(client, headers, category="plugin", game="rust") == ["Kits"]
+
+    body = client.get("/api/marketplace", params={"category": "plugin"}, headers=headers).json()
+    assert body["game_options"] == [{"value": "minecraft", "count": 1}, {"value": "rust", "count": 1}]
+    assert body["version_options"][0] == {"value": "1.21", "count": 1}
+    assert all(p["installable"] is False for p in body["packages"])
+
+
+def test_old_category_names_still_work(client, headers, shop):
+    _put_index(shop, [{**shop.entry, "id": "old-game", "name": "Old Game", "category": "egg"}])
+    body = client.get("/api/marketplace", params={"category": "game"}, headers=headers).json()
+    assert [p["category"] for p in body["packages"]] == ["game"]
+    assert _names(client, headers, category="egg") == ["Old Game"]

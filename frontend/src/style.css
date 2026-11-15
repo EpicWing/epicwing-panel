@@ -498,3 +498,12 @@ body:has(.server-detail-shell) {
 :root[data-theme="light"] .kind-plugin { --kind: #8250df; }
 :root[data-theme="light"] .kind-app { --kind: #0e7c86; }
 :root[data-theme="light"] .kind-box { --kind: #484852; }
+
+.kind-mod { --kind: #4cc38a; }
+.kind-modpack { --kind: #f0687a; }
+.kind-database { --kind: #8fa8c8; }
+.kind-voice { --kind: #e879c6; }
+:root[data-theme="light"] .kind-mod { --kind: #1a7f37; }
+:root[data-theme="light"] .kind-modpack { --kind: #c9304a; }
+:root[data-theme="light"] .kind-database { --kind: #4a6283; }
+:root[data-theme="light"] .kind-voice { --kind: #a3317f; }
