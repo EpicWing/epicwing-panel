@@ -46,6 +46,7 @@ const sections = computed<NavSection[]>(() => {
           { label: t("nav.nodes"), to: "/admin/nodes", icon: "nodes" },
           { label: t("nav.locations"), to: "/admin/locations", icon: "locations" },
           { label: t("nav.databaseHosts"), to: "/admin/databases", icon: "database" },
+          { label: t("nav.storage"), to: "/admin/storage", icon: "cloud" },
         ],
       },
       {
@@ -61,7 +62,6 @@ const sections = computed<NavSection[]>(() => {
         items: [
           { label: t("nav.users"), to: "/admin/users", icon: "users" },
           { label: t("nav.notifications"), to: "/admin/notifications", icon: "bell" },
-          { label: t("nav.storage"), to: "/admin/storage", icon: "cloud" },
           { label: t("nav.activity"), to: "/admin/activity", icon: "shield" },
           { label: t("nav.guide"), to: "/admin/guide", icon: "book" },
         ],

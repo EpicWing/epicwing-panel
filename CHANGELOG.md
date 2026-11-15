@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Backups in S3-compatible object storage (Admin → Infrastructure → Backup storage). Finished backups are uploaded in parts, restores download them first, downloads come straight from the bucket. The S3 keys stay in the panel, nodes only get presigned links that expire. Needs the new agent and the database migration 0027
 - Docs: ARM64 nodes (Raspberry Pi 4/5, Oracle Ampere) are listed as supported. Eggs need images for ARM, SteamCMD games are usually x86_64 only
 - Import from Pterodactyl and Pelican: `python -m app.cli import-pterodactyl` copies users, nodes, allocations, eggs, servers, server variables and subusers. Servers keep their UUID. Dry run by default, see [docs/MIGRATING.md](docs/MIGRATING.md)
 - Login accepts bcrypt password hashes from Pterodactyl and Pelican and replaces them with argon2 at the first login

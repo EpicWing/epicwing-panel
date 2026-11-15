@@ -93,7 +93,7 @@ Minecraft (Vanilla, Paper, Purpur, Fabric), Unturned and a static website. Ptero
 - Servers, nests and eggs (imports and exports Pterodactyl-format egg files)
 - Install, start, stop, restart, live console, auto restart
 - File manager with direct transfers, SFTP
-- Local backups, schedules, databases per server
+- Backups on the node or in S3-compatible storage (AWS, Cloudflare R2, Backblaze B2, Hetzner, Wasabi, MinIO), schedules, databases per server
 - Notifications through Discord and email
 - Traffic guard: detection of unusual incoming traffic and console floods with alerts
 - In-panel guide for administrators
@@ -115,7 +115,7 @@ Minecraft (Vanilla, Paper, Purpur, Fabric), Unturned and a static website. Ptero
 - Tested on Debian 13 and Ubuntu 24.04 (x86_64) with systemd and Docker only. The installer also accepts newer Ubuntu releases, but those are not tested.
 - The panel runs as a single process. Schedules, rate limits and action locks
   are kept in memory, so do not run several workers.
-- Backups are stored on the node. There is no S3 or cross-node storage yet.
+- Backups between nodes can only be moved through the object storage, not copied directly.
 - No built-in web hosting features (domains, vhosts, TLS). A site or app can run as a
   container if you have an egg for it, but you set up the reverse proxy and certificates yourself.
 - On ARM64 nodes, only eggs with ARM images run. Minecraft works, most SteamCMD games
