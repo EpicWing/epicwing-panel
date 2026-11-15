@@ -1,5 +1,6 @@
 import argparse
 import getpass
+import os
 import sys
 
 from sqlalchemy import select
@@ -123,7 +124,24 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("seed-eggs", help="Create the bundled eggs that are missing")
 
+    ptero = sub.add_parser(
+        "import-pterodactyl", help="Import users, nodes, eggs and servers from Pterodactyl"
+    )
+    ptero.add_argument(
+        "--source",
+        default=os.environ.get("PTERODACTYL_DB_URL"),
+        help="mysql+pymysql://user:password@host:3306/panel (or PTERODACTYL_DB_URL)",
+    )
+    ptero.add_argument("--apply", action="store_true", help="Save the import (default: dry run)")
+
     args = parser.parse_args(argv)
+    if args.command == "import-pterodactyl":
+        if not args.source:
+            print("Set --source or PTERODACTYL_DB_URL.", file=sys.stderr)
+            return 1
+        from app import ptero_import
+
+        return ptero_import.main(args.source, args.apply)
     if args.command == "seed-eggs":
         from app import seed_eggs
 
