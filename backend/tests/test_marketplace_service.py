@@ -224,7 +224,8 @@ def test_manifest_rules():
         with pytest.raises(ValueError):
             Manifest.model_validate(manifest_body(**changes))
     # Categories that cannot be installed yet need no egg.
-    assert Manifest.model_validate(manifest_body(category="plugin", egg=None)).egg is None
+    plugin = manifest_body(category="plugin", game="minecraft", egg=None)
+    assert Manifest.model_validate(plugin).egg is None
 
 
 def test_commit_must_be_a_full_hash():

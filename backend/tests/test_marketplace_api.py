@@ -217,11 +217,12 @@ def test_unknown_package_is_not_found(client, headers, shop):
 
 
 def test_packages_that_are_not_eggs_cannot_be_installed(client, headers, shop):
-    raw = json.dumps(manifest_body(shop.egg_bytes, category="plugin", egg=None)).encode()
+    body = manifest_body(shop.egg_bytes, category="plugin", game="minecraft", egg=None)
+    raw = json.dumps(body).encode()
     shop.put(f"{FOLDER}/manifest.json", raw)
     entry = {
         **shop.entry,
-        "category": "plugin",
+        "category": "plugin", "game": "minecraft",
         "manifest_sha256": hashlib.sha256(raw).hexdigest(),
     }
     _put_index(shop, [entry])
@@ -296,7 +297,8 @@ def test_catalog_refuses_an_unknown_sort(client, headers, shop):
 def test_catalog_game_loader_and_version(client, headers, shop):
     base = shop.entry
     paper = {**base, "id": "essentials", "name": "Essentials", "category": "plugin",
-             "game": "minecraft", "loaders": ["paper", "Spigot"], "game_versions": ["1.21", "1.20.6"]}
+             "game": "minecraft", "loaders": ["paper", "Spigot"],
+             "game_versions": ["1.21", "1.20.6"]}
     fabric = {**base, "id": "sodium", "name": "Sodium", "category": "mod",
               "game": "minecraft", "loaders": ["fabric"], "game_versions": ["1.21"]}
     oxide = {**base, "id": "kits", "name": "Kits", "category": "plugin",
@@ -309,7 +311,10 @@ def test_catalog_game_loader_and_version(client, headers, shop):
     assert _names(client, headers, category="plugin", game="rust") == ["Kits"]
 
     body = client.get("/api/marketplace", params={"category": "plugin"}, headers=headers).json()
-    assert body["game_options"] == [{"value": "minecraft", "count": 1}, {"value": "rust", "count": 1}]
+    assert body["game_options"] == [
+        {"value": "minecraft", "count": 1},
+        {"value": "rust", "count": 1},
+    ]
     assert body["version_options"][0] == {"value": "1.21", "count": 1}
     assert all(p["installable"] is False for p in body["packages"])
 
