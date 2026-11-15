@@ -56,6 +56,7 @@ export default {
     allServers: "All Servers",
     eggs: "Nests & Eggs",
     marketplace: "Marketplace",
+    storage: "Backup storage",
     users: "Users",
     databaseHosts: "Database Hosts",
     adminPanel: "Admin panel",

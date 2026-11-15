@@ -27,6 +27,7 @@ from app.api import (
 from app.api.admin_database_hosts import router as admin_database_hosts_router
 from app.api.admin_mail import router as admin_mail_router
 from app.api.admin_notifications import router as admin_notifications_router
+from app.api.admin_storage import router as admin_storage_router
 from app.api.api_keys import router as api_keys_router
 from app.api.marketplace import router as marketplace_router
 from app.api.password_reset import router as password_reset_router
@@ -102,6 +103,7 @@ def create_app() -> FastAPI:
     app.include_router(backups.router, prefix="/api")
     app.include_router(admin.router, prefix="/api")
     app.include_router(admin_mail_router, prefix="/api")
+    app.include_router(admin_storage_router, prefix="/api")
     app.include_router(admin_notifications_router, prefix="/api")
     app.include_router(schedules_router, prefix="/api")
     app.include_router(api_keys_router, prefix="/api")
