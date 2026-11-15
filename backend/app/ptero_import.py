@@ -124,15 +124,19 @@ def _egg_export(
     rules = []
     for v in variables:
         raw_rules = _json(v.get("rules"), v.get("rules"))
-        rules.append({
-            "name": v.get("name"),
-            "description": v.get("description") or "",
-            "env_variable": v.get("env_variable"),
-            "default_value": v.get("default_value") or "",
-            "user_viewable": bool(v.get("user_viewable", True)),
-            "user_editable": bool(v.get("user_editable", True)),
-            "rules": "|".join(raw_rules) if isinstance(raw_rules, list) else str(raw_rules or ""),
-        })
+        rules.append(
+            {
+                "name": v.get("name"),
+                "description": v.get("description") or "",
+                "env_variable": v.get("env_variable"),
+                "default_value": v.get("default_value") or "",
+                "user_viewable": bool(v.get("user_viewable", True)),
+                "user_editable": bool(v.get("user_editable", True)),
+                "rules": "|".join(raw_rules)
+                if isinstance(raw_rules, list)
+                else str(raw_rules or ""),
+            }
+        )
     return {
         "meta": {"version": "PTDL_v2"},
         "name": egg.get("name"),

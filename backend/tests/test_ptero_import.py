@@ -49,32 +49,54 @@ def source():
             if statement.strip():
                 conn.execute(text(statement))
         rows = [
-            ("INSERT INTO users VALUES (1, 'Admin@Example.com', :pw, 1, 1)",
-             {"pw": _laravel_hash("old-panel-password")}),
-            ("INSERT INTO users VALUES (2, 'friend@example.com', :pw, 0, 0)",
-             {"pw": _laravel_hash("friend-password")}),
+            (
+                "INSERT INTO users VALUES (1, 'Admin@Example.com', :pw, 1, 1)",
+                {"pw": _laravel_hash("old-panel-password")},
+            ),
+            (
+                "INSERT INTO users VALUES (2, 'friend@example.com', :pw, 0, 0)",
+                {"pw": _laravel_hash("friend-password")},
+            ),
             ("INSERT INTO locations VALUES (1, 'de')", {}),
-            ("INSERT INTO nodes VALUES (1, 'node-1', 'n1.example.com', 1, 8192, 0,"
-             " 100000, -1)", {}),
+            (
+                "INSERT INTO nodes VALUES (1, 'node-1', 'n1.example.com', 1, 8192, 0, 100000, -1)",
+                {},
+            ),
             ("INSERT INTO allocations VALUES (1, 1, '0.0.0.0', 25565, 1)", {}),
             ("INSERT INTO allocations VALUES (2, 1, '0.0.0.0', 25566, 1)", {}),
             ("INSERT INTO allocations VALUES (3, 1, '0.0.0.0', 25570, NULL)", {}),
             ("INSERT INTO nests VALUES (1, 'Minecraft')", {}),
-            ("INSERT INTO eggs VALUES (1, 1, 'Paper', 'Parent', :img, 'java -jar server.jar',"
-             " '{}', '{\"done\": \")! For help\"}', '{}', 'stop', NULL, 'echo install',"
-             " 'ghcr.io/ptero-eggs/installers:alpine', 'ash', NULL, '[\"eula\"]')",
-             {"img": json.dumps({"Java 21": "ghcr.io/ptero-eggs/yolks:java_21"})}),
-            ("INSERT INTO eggs VALUES (2, 1, 'Paper Copy', 'Child', :img, 'java -jar s.jar',"
-             " NULL, NULL, NULL, NULL, 1, NULL, NULL, NULL, 1, NULL)",
-             {"img": json.dumps(["ghcr.io/ptero-eggs/yolks:java_21"])}),
-            ("INSERT INTO egg_variables VALUES (1, 2, 'Version', '', 'MC_VERSION', 'latest', 1, 1,"
-             " 'required|string|max:20')", {}),
-            ("INSERT INTO servers VALUES (1, :uuid, 'Survival', 'Main', 1, 1, 2,"
-             " 'ghcr.io/ptero-eggs/yolks:java_21', 'java -Xmx{{SERVER_MEMORY}}M -jar s.jar',"
-             " 4096, 200, 20000, 3, 1)", {"uuid": SERVER_UUID}),
+            (
+                "INSERT INTO eggs VALUES (1, 1, 'Paper', 'Parent', :img, 'java -jar server.jar',"
+                " '{}', '{\"done\": \")! For help\"}', '{}', 'stop', NULL, 'echo install',"
+                " 'ghcr.io/ptero-eggs/installers:alpine', 'ash', NULL, '[\"eula\"]')",
+                {"img": json.dumps({"Java 21": "ghcr.io/ptero-eggs/yolks:java_21"})},
+            ),
+            (
+                "INSERT INTO eggs VALUES (2, 1, 'Paper Copy', 'Child', :img, 'java -jar s.jar',"
+                " NULL, NULL, NULL, NULL, 1, NULL, NULL, NULL, 1, NULL)",
+                {"img": json.dumps(["ghcr.io/ptero-eggs/yolks:java_21"])},
+            ),
+            (
+                "INSERT INTO egg_variables VALUES (1, 2, 'Version', '', 'MC_VERSION', 'latest',"
+                " 1, 1, 'required|string|max:20')",
+                {},
+            ),
+            (
+                "INSERT INTO servers VALUES (1, :uuid, 'Survival', 'Main', 1, 1, 2,"
+                " 'ghcr.io/ptero-eggs/yolks:java_21', 'java -Xmx{{SERVER_MEMORY}}M -jar s.jar',"
+                " 4096, 200, 20000, 3, 1)",
+                {"uuid": SERVER_UUID},
+            ),
             ("INSERT INTO server_variables VALUES (1, 1, 1, '1.21.1')", {}),
-            ("INSERT INTO subusers VALUES (1, 2, 1, :perms)",
-             {"perms": json.dumps(["control.console", "control.start", "file.read", "unknown.x"])}),
+            (
+                "INSERT INTO subusers VALUES (1, 2, 1, :perms)",
+                {
+                    "perms": json.dumps(
+                        ["control.console", "control.start", "file.read", "unknown.x"]
+                    )
+                },
+            ),
         ]
         for statement, params in rows:
             conn.execute(text(statement), params)

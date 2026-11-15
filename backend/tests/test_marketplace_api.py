@@ -222,7 +222,8 @@ def test_packages_that_are_not_eggs_cannot_be_installed(client, headers, shop):
     shop.put(f"{FOLDER}/manifest.json", raw)
     entry = {
         **shop.entry,
-        "category": "plugin", "game": "minecraft",
+        "category": "plugin",
+        "game": "minecraft",
         "manifest_sha256": hashlib.sha256(raw).hexdigest(),
     }
     _put_index(shop, [entry])
@@ -264,12 +265,32 @@ def _names(client, headers, **params):
 
 def test_catalog_sort_filter_and_facets(client, headers, shop):
     base = shop.entry
-    a = {**base, "id": "a-bot", "name": "A Bot", "author": "Ann", "downloads": 10,
-         "updated_at": "2026-01-01", "tags": ["admin", "tools"]}
-    b = {**base, "id": "b-bot", "name": "B Bot", "author": "Bob", "downloads": 500,
-         "updated_at": "2026-03-01", "tags": ["tools"]}
-    c = {**base, "id": "c-bot", "name": "C Bot", "author": "Bob",
-         "updated_at": "2026-02-01", "tags": []}
+    a = {
+        **base,
+        "id": "a-bot",
+        "name": "A Bot",
+        "author": "Ann",
+        "downloads": 10,
+        "updated_at": "2026-01-01",
+        "tags": ["admin", "tools"],
+    }
+    b = {
+        **base,
+        "id": "b-bot",
+        "name": "B Bot",
+        "author": "Bob",
+        "downloads": 500,
+        "updated_at": "2026-03-01",
+        "tags": ["tools"],
+    }
+    c = {
+        **base,
+        "id": "c-bot",
+        "name": "C Bot",
+        "author": "Bob",
+        "updated_at": "2026-02-01",
+        "tags": [],
+    }
     _put_index(shop, [a, b, c])
 
     assert _names(client, headers, sort="popular") == ["B Bot", "A Bot", "C Bot"]
@@ -295,8 +316,13 @@ def test_catalog_refuses_an_unknown_sort(client, headers, shop):
 
 
 def test_catalog_lists_server_templates_only(client, headers, shop):
-    plugin = {**shop.entry, "id": "essentials", "name": "Essentials", "category": "plugin",
-              "game": "minecraft"}
+    plugin = {
+        **shop.entry,
+        "id": "essentials",
+        "name": "Essentials",
+        "category": "plugin",
+        "game": "minecraft",
+    }
     _put_index(shop, [plugin, shop.entry])
     body = client.get("/api/marketplace", headers=headers).json()
     assert [p["id"] for p in body["packages"]] == ["discord-bot-python"]

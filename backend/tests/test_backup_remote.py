@@ -40,7 +40,11 @@ def storage(db_session, monkeypatch):
 
 def _uploading(db_session, server):
     return _add(
-        db_session, server, status="ok", remote_state="uploading", remote_key="k",
+        db_session,
+        server,
+        status="ok",
+        remote_state="uploading",
+        remote_key="k",
         remote_upload_id="u",
     )
 
@@ -120,7 +124,12 @@ def test_download_goes_straight_to_the_bucket(client, db_session, ready, broker,
 
 def test_restore_downloads_first(client, db_session, ready, broker, storage):
     backup_id = _add(
-        db_session, ready, status="ok", remote_state="ok", remote_key="k", local=False,
+        db_session,
+        ready,
+        status="ok",
+        remote_state="ok",
+        remote_key="k",
+        local=False,
         sha256="b" * 64,
     )
     broker.data["backup.fetch"] = {"state": "ok"}
