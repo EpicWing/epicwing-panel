@@ -29,6 +29,8 @@ INDEX_MAX_BYTES = 8 * 1024 * 1024
 TIMEOUT_SECONDS = 10
 INDEX_TIMEOUT_SECONDS = 30
 CACHE_SECONDS = 15 * 60
+CONTENT_MAX_BYTES = 100 * 1024 * 1024
+CONTENT_TIMEOUT_SECONDS = 120
 ENV_NAME = "EPICWING_MARKETPLACE_REGISTRIES"
 REGISTRY_REF = "main"
 
@@ -155,3 +157,17 @@ def fetch_egg(entry: IndexEntry, manifest: Manifest) -> dict[str, Any]:
     if not isinstance(egg, dict):
         raise MarketplaceError("The egg file is not an egg.")
     return egg
+
+
+def fetch_content(entry: IndexEntry, manifest: Manifest) -> bytes:
+    """The file of a plugin or mod, checked against its checksum."""
+    if manifest.file is None:
+        raise MarketplaceError("This package has no file.")
+    folder = posixpath.dirname(entry.path)
+    path = posixpath.join(folder, manifest.file.path) if folder else manifest.file.path
+    raw = fetch_bytes(
+        raw_url(entry.repo, entry.commit, path), CONTENT_MAX_BYTES, CONTENT_TIMEOUT_SECONDS
+    )
+    if hashlib.sha256(raw).hexdigest() != manifest.file.sha256:
+        raise MarketplaceError("The file does not match its checksum.")
+    return raw

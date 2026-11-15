@@ -21,6 +21,10 @@ LEGACY_CATEGORIES = {"egg": "game", "bot-template": "bot", "docker-template": "a
 INSTALLABLE: frozenset[str] = frozenset({"game", "bot", "app", "database", "voice"})
 # Content for an existing server. It must name the game it is for.
 CONTENT: frozenset[str] = frozenset({"plugin", "mod", "modpack"})
+# Content the panel can put into a server today: one file into one folder.
+SERVER_INSTALLABLE: frozenset[str] = frozenset({"plugin", "mod"})
+DEFAULT_TARGETS = {"plugin": "plugins", "mod": "mods"}
+FILE_NAME_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+-]{0,127}")
 GAME_RE = re.compile(r"[a-z0-9][a-z0-9-]{0,31}")
 LOADER_RE = re.compile(r"[a-z0-9][a-z0-9-]{0,23}")
 GAME_VERSION_RE = re.compile(r"[0-9A-Za-z][0-9A-Za-z.+-]{0,23}")
@@ -69,6 +73,29 @@ class FileRef(BaseModel):
         return value
 
 
+class ContentFile(FileRef):
+    """A file that is copied into a server, for example a plugin jar."""
+
+    name: str
+    # Folder inside the server. Empty: plugins/ for plugins, mods/ for mods.
+    target: str = ""
+
+    @field_validator("name")
+    @classmethod
+    def _name(cls, value: str) -> str:
+        if not FILE_NAME_RE.fullmatch(value) or value.endswith(".part"):
+            raise ValueError("The file name may only use letters, digits, dots, plus and hyphens.")
+        return value
+
+    @field_validator("target")
+    @classmethod
+    def _target(cls, value: str) -> str:
+        value = value.strip("/")
+        if value and not valid_path(value):
+            raise ValueError("The target folder is invalid.")
+        return value
+
+
 class Manifest(BaseModel):
     # Unknown fields are ignored, so newer packages still load in an older panel.
     model_config = ConfigDict(extra="ignore")
@@ -88,6 +115,7 @@ class Manifest(BaseModel):
     loaders: list[str] = Field(default_factory=list, max_length=16)
     game_versions: list[str] = Field(default_factory=list, max_length=200)
     egg: FileRef | None = None
+    file: ContentFile | None = None
 
     @field_validator("id")
     @classmethod
@@ -154,6 +182,8 @@ class Manifest(BaseModel):
             raise ValueError("This category needs an egg file.")
         if self.category in CONTENT and self.game is None:
             raise ValueError("Plugins, mods and modpacks must name their game.")
+        if self.category in SERVER_INSTALLABLE and self.file is None:
+            raise ValueError("Plugins and mods need a file.")
         return self
 
 

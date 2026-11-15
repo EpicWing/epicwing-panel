@@ -217,7 +217,7 @@ def test_unknown_package_is_not_found(client, headers, shop):
 
 
 def test_packages_that_are_not_eggs_cannot_be_installed(client, headers, shop):
-    body = manifest_body(shop.egg_bytes, category="plugin", game="minecraft", egg=None)
+    body = manifest_body(shop.egg_bytes, category="modpack", game="minecraft", egg=None)
     raw = json.dumps(body).encode()
     shop.put(f"{FOLDER}/manifest.json", raw)
     entry = {

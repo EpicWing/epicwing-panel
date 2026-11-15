@@ -1,5 +1,8 @@
 """Marketplace: browse packages from allowed GitHub catalogs and install them as eggs."""
 
+import asyncio
+import base64
+import posixpath
 import uuid
 from collections import Counter
 from datetime import datetime
@@ -11,12 +14,21 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.api.eggs import _insert_egg
+from app.api.servers import FILES_BLOCKED, _conflict, _send
 from app.db import get_db
 from app.models import Egg, InstalledPackage, Nest, Server
 from app.schemas.egg import EggCreate
-from app.schemas.marketplace import INSTALLABLE, LEGACY_CATEGORIES, IndexEntry, Manifest
+from app.schemas.marketplace import (
+    DEFAULT_TARGETS,
+    INSTALLABLE,
+    LEGACY_CATEGORIES,
+    SERVER_INSTALLABLE,
+    IndexEntry,
+    Manifest,
+)
 from app.security.permissions import AdminAuth
-from app.services import audit, eggio
+from app.security.server_access import ServerAccess, ServerPermission, server_access
+from app.services import audit, eggio, lifecycle
 from app.services import marketplace as market
 from app.services import startup as startup_service
 
@@ -45,6 +57,7 @@ class PackageOut(BaseModel):
     registry: str
     commit: str
     installable: bool
+    server_installable: bool
     installed: bool
     update_available: bool
 
@@ -126,6 +139,14 @@ def _load(registry: str, package_id: str) -> tuple[IndexEntry, Manifest]:
         return entry, market.fetch_manifest(entry)
     except market.MarketplaceError as exc:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from None
+
+
+def _target_path(manifest: Manifest) -> str:
+    """Where a plugin or mod lands in the server, for example plugins/LuckPerms.jar."""
+    if manifest.file is None:
+        raise HTTPException(422, "This package has no file.")
+    folder = manifest.file.target or DEFAULT_TARGETS.get(manifest.category, "plugins")
+    return f"{folder}/{manifest.file.name}"
 
 
 def _prepare(entry: IndexEntry, manifest: Manifest) -> tuple[dict, str, list[str]]:
@@ -285,6 +306,7 @@ def catalog(
                 registry=registry,
                 commit=entry.commit,
                 installable=entry.category in INSTALLABLE,
+                server_installable=entry.category in SERVER_INSTALLABLE,
                 installed=have is not None,
                 update_available=have is not None and have.version != entry.version,
             )
@@ -309,6 +331,23 @@ def catalog(
 def preview(body: PackageRef, _auth: AdminAuth) -> PreviewOut:
     """Shows what a package would install, without installing anything."""
     entry, manifest = _load(body.registry, body.package_id)
+    if manifest.category in SERVER_INSTALLABLE:
+        return PreviewOut(
+            name=manifest.name,
+            description=manifest.description,
+            version=manifest.version,
+            author=manifest.author,
+            license=manifest.license,
+            category=manifest.category,
+            repository=manifest.repository,
+            commit=entry.commit,
+            docker_image="",
+            startup="",
+            stop_command="",
+            install_script="",
+            variables=[],
+            warnings=[f"Copies {_target_path(manifest)} into the server you choose."],
+        )
     fields, _config, warnings = _prepare(entry, manifest)
     return PreviewOut(
         name=fields["name"],
@@ -388,3 +427,81 @@ def remove(record_id: uuid.UUID, request: Request, auth: AdminAuth, db: DbSessio
         ip=audit.client_ip(request),
         details={"name": name, "package": package_id},
     )
+
+
+FilesWrite = Annotated[ServerAccess, Depends(server_access(ServerPermission.FILES_WRITE))]
+# Decoded bytes per write. The base64 text must stay below the message limit of the node.
+WRITE_CHUNK = 448 * 1024
+
+
+class ServerInstallOut(BaseModel):
+    path: str
+    size: int
+
+
+async def _file_op(server: Server, action: str, **params: object) -> str | None:
+    """Runs a file command on the node. Returns the error text, or None when it worked."""
+    result = await _send(server, action, {"name": lifecycle.container_name(server.id), **params})
+    return None if result.ok else result.error or "The node refused the file operation."
+
+
+@router.post("/servers/{server_id}")
+async def install_to_server(
+    body: PackageRef, request: Request, access: FilesWrite, db: DbSession
+) -> ServerInstallOut:
+    """Copies a plugin or mod from a catalog into a server, checked against its checksum."""
+    server = access.server
+    if server.status in FILES_BLOCKED:
+        raise _conflict("Install the server first.")
+    entry, manifest = await asyncio.to_thread(_load, body.registry, body.package_id)
+    if manifest.category not in SERVER_INSTALLABLE or manifest.file is None:
+        raise HTTPException(422, "This package cannot be added to a server.")
+    try:
+        data = await asyncio.to_thread(market.fetch_content, entry, manifest)
+    except market.MarketplaceError as exc:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from None
+    target = _target_path(manifest)
+    current = ""
+    for part in posixpath.dirname(target).split("/"):
+        current = f"{current}/{part}" if current else part
+        error = await _file_op(server, "file.mkdir", path=current)
+        if error and "exist" not in error.lower():
+            raise HTTPException(
+                status.HTTP_502_BAD_GATEWAY, f"The folder could not be created: {error}"
+            )
+    staging = target + ".part"
+    for offset in range(0, max(len(data), 1), WRITE_CHUNK):
+        chunk = base64.b64encode(data[offset : offset + WRITE_CHUNK]).decode()
+        error = await _file_op(
+            server,
+            "file.write",
+            path=staging,
+            offset=offset,
+            data=chunk,
+            create=offset == 0,
+            truncate=offset == 0,
+        )
+        if error:
+            await _file_op(server, "file.delete", path=staging)
+            raise HTTPException(
+                status.HTTP_502_BAD_GATEWAY, f"The file could not be written: {error}"
+            )
+    # An older version of the same file is replaced. A missing file is fine.
+    await _file_op(server, "file.delete", path=target)
+    error = await _file_op(server, "file.rename", path=staging, to=target)
+    if error:
+        await _file_op(server, "file.delete", path=staging)
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY, f"The file could not be put in place: {error}"
+        )
+    audit.record(
+        db,
+        "server.plugin.install",
+        actor_id=access.user.id,
+        target_type="server",
+        target_id=str(server.id),
+        ip=audit.client_ip(request),
+        details={"package": entry.id, "version": entry.version, "path": target},
+    )
+    db.commit()
+    return ServerInstallOut(path=target, size=len(data))

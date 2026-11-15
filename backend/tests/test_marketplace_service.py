@@ -224,7 +224,7 @@ def test_manifest_rules():
         with pytest.raises(ValueError):
             Manifest.model_validate(manifest_body(**changes))
     # Categories that cannot be installed yet need no egg.
-    plugin = manifest_body(category="plugin", game="minecraft", egg=None)
+    plugin = manifest_body(category="modpack", game="minecraft", egg=None)
     assert Manifest.model_validate(plugin).egg is None
 
 

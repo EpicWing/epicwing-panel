@@ -22,6 +22,7 @@ interface PackageItem {
   registry: string;
   commit: string;
   installable: boolean;
+  server_installable: boolean;
   installed: boolean;
   update_available: boolean;
 }
@@ -292,6 +293,8 @@ const firstLoad = ref(true);
 const loading = ref(false);
 const loadingMore = ref(false);
 const busy = ref(false);
+const myServers = ref<{ id: string; name: string }[]>([]);
+const serverTarget = ref("");
 const error = ref("");
 const notice = ref("");
 
@@ -443,6 +446,8 @@ function open(pkg: PackageItem): void {
   modalTab.value = "overview";
   error.value = "";
   notice.value = "";
+  serverTarget.value = "";
+  if (pkg.server_installable) void loadServers();
   void loadDetails(pkg);
 }
 
@@ -451,6 +456,36 @@ function close(): void {
   target.value = null;
   details.value = null;
   detailsError.value = "";
+}
+
+async function loadServers(): Promise<void> {
+  if (myServers.value.length) return;
+  try {
+    myServers.value = await api<{ id: string; name: string }[]>("/servers");
+  } catch {
+    // The select stays empty, the error shows when installing.
+  }
+}
+
+async function installToServer(): Promise<void> {
+  const pkg = target.value;
+  if (!pkg || !serverTarget.value || busy.value) return;
+  busy.value = true;
+  detailsError.value = "";
+  try {
+    const result = await api<{ path: string; size: number }>(`/marketplace/servers/${serverTarget.value}`, {
+      method: "POST",
+      body: { registry: pkg.registry, package_id: pkg.id },
+    });
+    const name = myServers.value.find((s) => s.id === serverTarget.value)?.name ?? "the server";
+    busy.value = false;
+    notice.value = `${pkg.name} was added to ${name} as ${result.path}. Restart the server to load it.`;
+    close();
+  } catch (cause) {
+    detailsError.value = message(cause);
+  } finally {
+    busy.value = false;
+  }
 }
 
 async function install(): Promise<void> {
@@ -899,7 +934,7 @@ onBeforeUnmount(() => {
                     </svg>
                     Installed
                   </span>
-                  <span v-else-if="!pkg.installable" class="shrink-0 rounded-lg bg-ink-800 px-3 py-1.5 text-xs text-ink-400">Coming soon</span>
+                  <span v-else-if="!pkg.installable && !pkg.server_installable" class="shrink-0 rounded-lg bg-ink-800 px-3 py-1.5 text-xs text-ink-400">Coming soon</span>
                   <button
                     v-else
                     class="shrink-0 rounded-lg bg-accent-500 px-4 py-1.5 text-sm font-semibold text-ink-950 transition hover:bg-accent-400 disabled:opacity-40"
@@ -949,7 +984,7 @@ onBeforeUnmount(() => {
                   <span class="w-24 truncate">{{ ago(pkg.updated_at) }}</span>
                 </div>
                 <span v-if="pkg.installed" class="w-24 shrink-0 text-right text-xs font-medium text-ok">Installed</span>
-                <span v-else-if="!pkg.installable" class="w-24 shrink-0 text-right text-xs text-ink-500">Coming soon</span>
+                <span v-else-if="!pkg.installable && !pkg.server_installable" class="w-24 shrink-0 text-right text-xs text-ink-500">Coming soon</span>
                 <div v-else class="flex w-24 shrink-0 justify-end">
                   <button
                     class="rounded-lg bg-accent-500 px-4 py-1.5 text-sm font-semibold text-ink-950 transition hover:bg-accent-400 disabled:opacity-40"
@@ -1122,11 +1157,11 @@ onBeforeUnmount(() => {
               </div>
               <template v-if="details">
                 <p v-for="item in details.warnings" :key="item" class="rounded-lg border border-warn/30 bg-warn/10 px-3 py-2 text-xs text-warn">{{ item }}</p>
-                <div>
+                <div v-if="details.docker_image">
                   <p class="text-[11px] uppercase tracking-wider text-ink-500">Docker image</p>
                   <pre class="mt-1.5 overflow-x-auto rounded-lg bg-ink-950 px-3 py-2 font-mono text-xs text-ink-200">{{ details.docker_image }}</pre>
                 </div>
-                <div>
+                <div v-if="details.docker_image">
                   <p class="text-[11px] uppercase tracking-wider text-ink-500">Startup command</p>
                   <pre class="mt-1.5 overflow-x-auto whitespace-pre-wrap break-all rounded-lg bg-ink-950 px-3 py-2 font-mono text-xs text-ink-200">{{ details.startup || "(image default)" }}</pre>
                 </div>
@@ -1179,8 +1214,25 @@ onBeforeUnmount(() => {
               >
                 Cancel
               </button>
+              <template v-if="target.server_installable">
+                <select
+                  v-model="serverTarget"
+                  aria-label="Server"
+                  class="min-w-0 rounded-lg border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-ink-100 outline-none focus:border-accent-500"
+                >
+                  <option value="">Choose a server…</option>
+                  <option v-for="s in myServers" :key="s.id" :value="s.id">{{ s.name }}</option>
+                </select>
+                <button
+                  class="shrink-0 rounded-lg bg-accent-500 px-5 py-2 text-sm font-semibold text-ink-950 transition hover:bg-accent-400 disabled:opacity-40"
+                  :disabled="busy || !serverTarget"
+                  @click="installToServer"
+                >
+                  <span v-if="busy" class="spinner mr-1.5" />{{ busy ? "Installing…" : "Install to server" }}
+                </button>
+              </template>
               <button
-                v-if="target.installed"
+                v-else-if="target.installed"
                 class="flex items-center gap-1.5 rounded-lg bg-ok/10 px-5 py-2 text-sm font-medium text-ok"
                 disabled
               >
