@@ -53,7 +53,7 @@ Add images to docs/assets/ and remove this comment, for example:
 ## Requirements
 
 - **Panel:** a fresh Debian 13 or Ubuntu 24.04 (x86_64) server with a domain or an IP, ports 80 and 443 open
-- **Node:** Debian 13 or Ubuntu 24.04 (x86_64) with Docker already installed (not the snap package), and the enrollment token from the admin area
+- **Node:** Debian 13 or Ubuntu 24.04 (x86_64 or ARM64, e.g. Raspberry Pi 4/5 or Oracle Ampere) with Docker already installed (not the snap package), and the enrollment token from the admin area
 - Everything else (PostgreSQL, nginx, TLS, the agent) is set up by the installer
 
 ## Installation
@@ -118,6 +118,8 @@ Minecraft (Vanilla, Paper, Purpur, Fabric), Unturned and a static website. Ptero
 - Backups are stored on the node. There is no S3 or cross-node storage yet.
 - No built-in web hosting features (domains, vhosts, TLS). A site or app can run as a
   container if you have an egg for it, but you set up the reverse proxy and certificates yourself.
+- On ARM64 nodes, only eggs with ARM images run. Minecraft works, most SteamCMD games
+  (for example Unturned) are x86_64 only.
 - Only the Minecraft EULA is handled. When a server stops because it is not accepted,
   the console offers a dialog that links the EULA and sets `eula=true` after a click.
   The panel does not record who accepted.

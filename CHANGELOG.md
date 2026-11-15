@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Docs: ARM64 nodes (Raspberry Pi 4/5, Oracle Ampere) are listed as supported. Eggs need images for ARM, SteamCMD games are usually x86_64 only
 - Import from Pterodactyl and Pelican: `python -m app.cli import-pterodactyl` copies users, nodes, allocations, eggs, servers, server variables and subusers. Servers keep their UUID. Dry run by default, see [docs/MIGRATING.md](docs/MIGRATING.md)
 - Login accepts bcrypt password hashes from Pterodactyl and Pelican and replaces them with argon2 at the first login
 - Marketplace: install server templates from reviewed catalogs, with types (game servers, plugins, mods, modpacks, bots, apps, databases, voice), search, sorting, tags, authors, game, loader and version filters, grid and list view
