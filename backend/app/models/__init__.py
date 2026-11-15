@@ -3,7 +3,7 @@ from app.models.audit import AuditLog
 from app.models.database import DatabaseHost, ServerDatabase
 from app.models.ddos import DdosRollup, DdosSample
 from app.models.egg import Egg, EggVariable, Nest
-from app.models.marketplace import InstalledPackage, ServerPackage
+from app.models.marketplace import InstalledPackage
 from app.models.node import Node, NodeCredential, NodeEnrollment
 from app.models.panel import PanelSetting
 from app.models.passwordreset import PasswordResetToken
@@ -24,7 +24,6 @@ __all__ = [
     "Egg",
     "EggVariable",
     "InstalledPackage",
-    "ServerPackage",
     "Nest",
     "Node",
     "NodeCredential",

@@ -23,7 +23,6 @@ INSTALLABLE: frozenset[str] = frozenset({"game", "bot", "app", "database", "voic
 CONTENT: frozenset[str] = frozenset({"plugin", "mod", "modpack"})
 # Content the panel can put into a server today: one file into one folder.
 SERVER_INSTALLABLE: frozenset[str] = frozenset({"plugin", "mod"})
-DEFAULT_TARGETS = {"plugin": "plugins", "mod": "mods"}
 FILE_NAME_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._+-]{0,127}")
 GAME_RE = re.compile(r"[a-z0-9][a-z0-9-]{0,31}")
 LOADER_RE = re.compile(r"[a-z0-9][a-z0-9-]{0,23}")

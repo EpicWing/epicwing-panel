@@ -2,13 +2,22 @@
 
 ## Unreleased
 
+## 0.3.0-beta (2026-11-15)
+
 - Backups in S3-compatible object storage (Admin → Infrastructure → Backup storage). Finished backups are uploaded in parts, restores download them first, downloads come straight from the bucket. The S3 keys stay in the panel, nodes only get presigned links that expire. Needs the new agent and the database migration 0027
 - Docs: ARM64 nodes (Raspberry Pi 4/5, Oracle Ampere) are listed as supported. Eggs need images for ARM, SteamCMD games are usually x86_64 only
 - Import from Pterodactyl and Pelican: `python -m app.cli import-pterodactyl` copies users, nodes, allocations, eggs, servers, server variables and subusers. Servers keep their UUID. Dry run by default, see [docs/MIGRATING.md](docs/MIGRATING.md)
 - Login accepts bcrypt password hashes from Pterodactyl and Pelican and replaces them with argon2 at the first login
-- Marketplace: install server templates from reviewed catalogs, with types (game servers, plugins, mods, modpacks, bots, apps, databases, voice), search, sorting, tags, authors, game, loader and version filters, grid and list view
+- Marketplace: install server templates (eggs) from reviewed catalogs that are pinned to a commit and checked by SHA-256. Areas for games, bots, apps, databases and voice, with search, sorting, tags, grid and list view. Installed templates show an update button when the catalog has a newer version. New templates are sent to support@epicwing.de and reviewed
 - UI: no staggered page animation, no glowing status dots, no lifting cards, neutral help links, one card radius
 - Colors `ink-500`, `ink-200` and `accent-300` are defined now. Before, texts with these classes showed in full brightness
+- Official catalog: 43 server templates from the Pterodactyl egg repositories (MIT), among them SCP:SL, Rust, Counter-Strike 2, Valheim, Terraria, Palworld, Uptime Kuma, Gitea, MariaDB, PostgreSQL, Redis and TeamSpeak 6. They keep a link to their source
+- Server settings: admins can delete a stopped server after typing its name. The container, files and databases are removed, the ports become free
+- Command palette with Ctrl+K: jump to servers, nodes and pages, run actions and open GitHub, the docs and Discord
+- Icons per type (game, bot, app, database, voice) in their own colors
+- Update the panel with `bash <(curl -fsSL https://raw.githubusercontent.com/EpicWing/epicwing-panel/main/scripts/install.sh) update panel`. It makes a database backup first and runs the new database migrations
+- Nodes: run `install.sh update node` on every node. The new agent is needed for backups in S3 storage
+- Marketplace templates need their Docker images in `allowed_images` in `/etc/epicwing-agent/policy.json` on the node. The catalog repository lists them in `images.txt`
 
 ## 0.2.4-beta (2026-11-10)
 

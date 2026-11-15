@@ -22,7 +22,6 @@ interface PackageItem {
   registry: string;
   commit: string;
   installable: boolean;
-  server_installable: boolean;
   installed: boolean;
   update_available: boolean;
 }
@@ -155,7 +154,7 @@ const KINDS: Record<string, Kind> = {
 
 const TYPES = [
   { value: "", label: "All", icon: "box", tone: "kind-box" },
-  { value: "game", label: "Game servers", icon: "game", tone: "kind-game" },
+  { value: "game", label: "Games", icon: "game", tone: "kind-game" },
   { value: "plugin", label: "Plugins", icon: "plugin", tone: "kind-plugin" },
   { value: "mod", label: "Mods", icon: "mod", tone: "kind-mod" },
   { value: "modpack", label: "Modpacks", icon: "modpack", tone: "kind-modpack" },
@@ -166,9 +165,7 @@ const TYPES = [
 ];
 
 const TYPE_GROUPS = [
-  { label: "", values: [""] },
-  { label: "Server templates", values: ["game", "bot", "app", "database", "voice"] },
-  { label: "Server content", values: ["plugin", "mod", "modpack"] },
+  { label: "", values: ["", "game", "bot", "app", "database", "voice"] },
 ].map((group) => ({ label: group.label, items: TYPES.filter((t) => group.values.includes(t.value)) }));
 
 const GAMES: Record<string, string> = {
@@ -184,6 +181,12 @@ const GAMES: Record<string, string> = {
   terraria: "Terraria",
   unturned: "Unturned",
   valheim: "Valheim",
+  enshrouded: "Enshrouded",
+  factorio: "Factorio",
+  "project-zomboid": "Project Zomboid",
+  "space-engineers": "Space Engineers",
+  tf2: "Team Fortress 2",
+  "v-rising": "V Rising",
 };
 
 const LOADERS: Record<string, string> = {
@@ -305,8 +308,6 @@ const firstLoad = ref(true);
 const loading = ref(false);
 const loadingMore = ref(false);
 const busy = ref(false);
-const myServers = ref<{ id: string; name: string }[]>([]);
-const serverTarget = ref("");
 const error = ref("");
 const notice = ref("");
 
@@ -458,8 +459,6 @@ function open(pkg: PackageItem): void {
   modalTab.value = "overview";
   error.value = "";
   notice.value = "";
-  serverTarget.value = "";
-  if (pkg.server_installable) void loadServers();
   void loadDetails(pkg);
 }
 
@@ -468,36 +467,6 @@ function close(): void {
   target.value = null;
   details.value = null;
   detailsError.value = "";
-}
-
-async function loadServers(): Promise<void> {
-  if (myServers.value.length) return;
-  try {
-    myServers.value = await api<{ id: string; name: string }[]>("/servers");
-  } catch {
-    // The select stays empty, the error shows when installing.
-  }
-}
-
-async function installToServer(): Promise<void> {
-  const pkg = target.value;
-  if (!pkg || !serverTarget.value || busy.value) return;
-  busy.value = true;
-  detailsError.value = "";
-  try {
-    const result = await api<{ path: string; size: number }>(`/marketplace/servers/${serverTarget.value}`, {
-      method: "POST",
-      body: { registry: pkg.registry, package_id: pkg.id },
-    });
-    const name = myServers.value.find((s) => s.id === serverTarget.value)?.name ?? "the server";
-    busy.value = false;
-    notice.value = `${pkg.name} was added to ${name} as ${result.path}. Restart the server to load it.`;
-    close();
-  } catch (cause) {
-    detailsError.value = message(cause);
-  } finally {
-    busy.value = false;
-  }
 }
 
 async function install(): Promise<void> {
@@ -675,58 +644,6 @@ onBeforeUnmount(() => {
               </div>
             </section>
 
-            <section v-if="gameOptions.length || game">
-              <div class="mb-2 flex items-center justify-between px-1">
-                <h3 class="text-[11px] font-medium uppercase tracking-wider text-ink-500">Game</h3>
-                <button v-if="game" class="text-xs text-accent-400 hover:text-accent-300" @click="game = ''">Reset</button>
-              </div>
-              <div class="space-y-0.5">
-                <button
-                  v-for="item in gameOptions"
-                  :key="item.value"
-                  class="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm transition"
-                  :class="game === item.value ? 'bg-ink-800 text-ink-100' : 'text-ink-400 hover:bg-ink-900 hover:text-ink-100'"
-                  @click="game = game === item.value ? '' : item.value"
-                >
-                  <span class="flex-1 truncate">{{ pretty(GAMES, item.value) }}</span>
-                  <span class="text-xs text-ink-500">{{ item.count }}</span>
-                </button>
-              </div>
-            </section>
-
-            <section v-if="loaderOptions.length || loader">
-              <div class="mb-2 flex items-center justify-between px-1">
-                <h3 class="text-[11px] font-medium uppercase tracking-wider text-ink-500">Loader</h3>
-                <button v-if="loader" class="text-xs text-accent-400 hover:text-accent-300" @click="loader = ''">Reset</button>
-              </div>
-              <div class="flex flex-wrap gap-1.5">
-                <button
-                  v-for="item in loaderOptions"
-                  :key="item.value"
-                  class="rounded-full border px-2.5 py-1 text-xs transition"
-                  :class="
-                    loader === item.value
-                      ? 'border-accent-500/60 bg-accent-500/10 text-accent-400'
-                      : 'border-ink-700 text-ink-300 hover:border-ink-600 hover:text-ink-100'
-                  "
-                  @click="loader = loader === item.value ? '' : item.value"
-                >
-                  {{ pretty(LOADERS, item.value) }}<span class="ml-1.5 text-ink-500">{{ item.count }}</span>
-                </button>
-              </div>
-            </section>
-
-            <section v-if="versionOptions.length || gameVersion">
-              <h3 class="mb-2 px-1 text-[11px] font-medium uppercase tracking-wider text-ink-500">Game version</h3>
-              <select
-                v-model="gameVersion"
-                class="w-full rounded-lg border border-ink-700 bg-ink-900 px-3 py-2 text-sm text-ink-100 outline-none focus:border-accent-500"
-              >
-                <option value="">All versions</option>
-                <option v-for="item in versionOptions" :key="item.value" :value="item.value">{{ item.value }} ({{ item.count }})</option>
-              </select>
-            </section>
-
             <section v-if="tagChoices.length">
               <div class="mb-2 flex items-center justify-between px-1">
                 <h3 class="text-[11px] font-medium uppercase tracking-wider text-ink-500">Tags</h3>
@@ -757,37 +674,10 @@ onBeforeUnmount(() => {
               </button>
             </section>
 
-            <section>
-              <div class="mb-2 flex items-center justify-between px-1">
-                <h3 class="text-[11px] font-medium uppercase tracking-wider text-ink-500">Author</h3>
-                <button v-if="author" class="text-xs text-accent-400 hover:text-accent-300" @click="author = ''">Reset</button>
-              </div>
-              <p v-if="!authorChoices.length" class="px-1 text-xs text-ink-500">No authors yet</p>
-              <div class="space-y-0.5">
-                <button
-                  v-for="item in visibleAuthors"
-                  :key="item.value"
-                  class="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm transition"
-                  :class="author === item.value ? 'bg-ink-800 text-ink-100' : 'text-ink-400 hover:bg-ink-900 hover:text-ink-100'"
-                  @click="author = author === item.value ? '' : item.value"
-                >
-                  <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-ink-700 text-[11px] font-semibold text-ink-200">{{ letter(item.value) }}</span>
-                  <span class="flex-1 truncate">{{ item.value }}</span>
-                  <span class="text-xs text-ink-500">{{ item.count }}</span>
-                </button>
-              </div>
-              <button
-                v-if="authorChoices.length > 6"
-                class="mt-2 px-1 text-xs text-ink-400 hover:text-ink-100"
-                @click="showAllAuthors = !showAllAuthors"
-              >
-                {{ showAllAuthors ? "Show less" : "Show all " + authorChoices.length }}
-              </button>
-            </section>
             <section class="rounded-xl border border-ink-700 bg-ink-900 p-4">
               <p class="text-sm font-semibold text-ink-100">Submit a template</p>
               <p class="mt-1 text-xs leading-5 text-ink-400">
-                Made a server template, plugin or mod? Send it to us. We review every submission before it appears here.
+                Made a server template? Send it to us. We review every submission before it appears here.
               </p>
               <a
                 :href="SUBMIT_URL"
@@ -918,9 +808,8 @@ onBeforeUnmount(() => {
                   <div class="min-w-0 flex-1">
                     <div class="flex items-start justify-between gap-2">
                       <h3 class="truncate text-base font-semibold text-ink-100">{{ pkg.name }}</h3>
-                      <span class="shrink-0 rounded-md bg-ink-800 px-2 py-0.5 text-[11px] font-medium text-ink-300">{{ kind(pkg.category).label }}</span>
                     </div>
-                    <p class="truncate text-sm text-ink-400">by {{ pkg.author }}</p>
+                    <p class="truncate text-sm text-ink-400">{{ kind(pkg.category).label }}</p>
                   </div>
                 </div>
 
@@ -961,7 +850,7 @@ onBeforeUnmount(() => {
                     </svg>
                     Installed
                   </span>
-                  <span v-else-if="!pkg.installable && !pkg.server_installable" class="shrink-0 rounded-lg bg-ink-800 px-3 py-1.5 text-xs text-ink-400">Coming soon</span>
+                  <span v-else-if="!pkg.installable" class="shrink-0 rounded-lg bg-ink-800 px-3 py-1.5 text-xs text-ink-400">Coming soon</span>
                   <button
                     v-else
                     class="shrink-0 rounded-lg bg-accent-500 px-4 py-1.5 text-sm font-semibold text-ink-950 transition hover:bg-accent-400 disabled:opacity-40"
@@ -996,7 +885,7 @@ onBeforeUnmount(() => {
                 <div class="min-w-0 flex-1">
                   <div class="flex items-baseline gap-2">
                     <h3 class="truncate font-semibold text-ink-100">{{ pkg.name }}</h3>
-                    <span class="shrink-0 text-xs text-ink-500">by {{ pkg.author }}</span>
+                    
                   </div>
                   <p class="truncate text-sm text-ink-400">{{ pkg.description || "No description." }}</p>
                 </div>
@@ -1011,7 +900,7 @@ onBeforeUnmount(() => {
                   <span class="w-24 truncate">{{ ago(pkg.updated_at) }}</span>
                 </div>
                 <span v-if="pkg.installed" class="w-24 shrink-0 text-right text-xs font-medium text-ok">Installed</span>
-                <span v-else-if="!pkg.installable && !pkg.server_installable" class="w-24 shrink-0 text-right text-xs text-ink-500">Coming soon</span>
+                <span v-else-if="!pkg.installable" class="w-24 shrink-0 text-right text-xs text-ink-500">Coming soon</span>
                 <div v-else class="flex w-24 shrink-0 justify-end">
                   <button
                     class="rounded-lg bg-accent-500 px-4 py-1.5 text-sm font-semibold text-ink-950 transition hover:bg-accent-400 disabled:opacity-40"
@@ -1249,25 +1138,8 @@ onBeforeUnmount(() => {
               >
                 Cancel
               </button>
-              <template v-if="target.server_installable">
-                <select
-                  v-model="serverTarget"
-                  aria-label="Server"
-                  class="min-w-0 rounded-lg border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-ink-100 outline-none focus:border-accent-500"
-                >
-                  <option value="">Choose a server…</option>
-                  <option v-for="s in myServers" :key="s.id" :value="s.id">{{ s.name }}</option>
-                </select>
-                <button
-                  class="shrink-0 rounded-lg bg-accent-500 px-5 py-2 text-sm font-semibold text-ink-950 transition hover:bg-accent-400 disabled:opacity-40"
-                  :disabled="busy || !serverTarget"
-                  @click="installToServer"
-                >
-                  <span v-if="busy" class="spinner mr-1.5" />{{ busy ? "Installing…" : "Install to server" }}
-                </button>
-              </template>
               <button
-                v-else-if="target.installed"
+                v-if="target.installed"
                 class="flex items-center gap-1.5 rounded-lg bg-ok/10 px-5 py-2 text-sm font-medium text-ok"
                 disabled
               >

@@ -78,7 +78,7 @@ Options, the manual installation, updating and troubleshooting are in
 
 ## Bundled eggs
 
-Discord bots (Python, Node.js), Unturned, Minecraft (Vanilla, Paper, Purpur, Fabric) and a static website. More templates and plugins come from the marketplace, and Pterodactyl-format egg files can be imported for everything else.
+Discord bots (Python, Node.js), Unturned, Minecraft (Vanilla, Paper, Purpur, Fabric) and a static website. More templates come from the marketplace, and Pterodactyl-format egg files can be imported for everything else.
 
 ## Components
 

@@ -294,29 +294,13 @@ def test_catalog_refuses_an_unknown_sort(client, headers, shop):
     assert response.status_code == 422
 
 
-def test_catalog_game_loader_and_version(client, headers, shop):
-    base = shop.entry
-    paper = {**base, "id": "essentials", "name": "Essentials", "category": "plugin",
-             "game": "minecraft", "loaders": ["paper", "Spigot"],
-             "game_versions": ["1.21", "1.20.6"]}
-    fabric = {**base, "id": "sodium", "name": "Sodium", "category": "mod",
-              "game": "minecraft", "loaders": ["fabric"], "game_versions": ["1.21"]}
-    oxide = {**base, "id": "kits", "name": "Kits", "category": "plugin",
-             "game": "rust", "loaders": ["oxide"]}
-    _put_index(shop, [paper, fabric, oxide])
-
-    assert _names(client, headers, game="minecraft", sort="name") == ["Essentials", "Sodium"]
-    assert _names(client, headers, loader="spigot") == ["Essentials"]
-    assert _names(client, headers, version="1.20.6") == ["Essentials"]
-    assert _names(client, headers, category="plugin", game="rust") == ["Kits"]
-
-    body = client.get("/api/marketplace", params={"category": "plugin"}, headers=headers).json()
-    assert body["game_options"] == [
-        {"value": "minecraft", "count": 1},
-        {"value": "rust", "count": 1},
-    ]
-    assert body["version_options"][0] == {"value": "1.21", "count": 1}
-    assert all(p["installable"] is False for p in body["packages"])
+def test_catalog_lists_server_templates_only(client, headers, shop):
+    plugin = {**shop.entry, "id": "essentials", "name": "Essentials", "category": "plugin",
+              "game": "minecraft"}
+    _put_index(shop, [plugin, shop.entry])
+    body = client.get("/api/marketplace", headers=headers).json()
+    assert [p["id"] for p in body["packages"]] == ["discord-bot-python"]
+    assert body["total"] == 1
 
 
 def test_old_category_names_still_work(client, headers, shop):
@@ -329,11 +313,11 @@ def test_old_category_names_still_work(client, headers, shop):
 def test_catalog_counts_every_type(client, headers, shop):
     base = shop.entry
     bot = {**base, "id": "one-bot", "name": "One Bot", "category": "bot"}
-    mod = {**base, "id": "one-mod", "name": "One Mod", "category": "mod", "game": "minecraft"}
-    _put_index(shop, [bot, mod])
+    app = {**base, "id": "one-app", "name": "One App", "category": "app"}
+    _put_index(shop, [bot, app])
     body = client.get("/api/marketplace", params={"category": "bot"}, headers=headers).json()
     assert body["total"] == 1
-    assert body["category_options"] == [{"value": "bot", "count": 1}, {"value": "mod", "count": 1}]
+    assert body["category_options"] == [{"value": "app", "count": 1}, {"value": "bot", "count": 1}]
 
 
 def test_update_brings_the_egg_to_the_new_version(client, headers, shop):
