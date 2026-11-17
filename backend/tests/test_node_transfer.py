@@ -266,3 +266,16 @@ def _clear_jobs():
     yield
     node_transfer._jobs.clear()
     node_transfer._by_token.clear()
+
+
+def test_refused_image_fails_before_anything_is_packed(client, db_session, setup):
+    s = setup
+    s.agents.errors["container.create"] = "image is not on the allowlist"
+    assert _start(client, s).status_code == 202
+    _run(s)
+
+    assert s.started[-1].step == "failed"
+    assert "allowlist" in s.started[-1].error
+    assert "backup.create" not in s.agents.actions(s.source)
+    db_session.expire_all()
+    assert str(s.server.node_id) == s.source

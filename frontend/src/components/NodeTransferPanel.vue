@@ -37,14 +37,21 @@ const busy = ref(false);
 const error = ref("");
 let timer: number | undefined;
 
-const STEPS: Record<string, string> = {
-  backup: "Packing the files on the old node",
-  upload: "Sending the archive to the panel",
-  prepare: "Creating the container on the new node",
-  download: "Downloading on the new node",
-  restore: "Unpacking on the new node",
-  finish: "Switching over",
-};
+const STEPS: [string, string][] = [
+  ["prepare", "Create the container on the new node"],
+  ["backup", "Pack the files on the old node"],
+  ["upload", "Send the archive to the panel"],
+  ["download", "Download on the new node"],
+  ["restore", "Unpack on the new node"],
+  ["finish", "Switch over"],
+];
+
+function stepState(key: string): "done" | "active" | "open" {
+  const current = STEPS.findIndex(([k]) => k === state.value?.step);
+  const index = STEPS.findIndex(([k]) => k === key);
+  if (index < current) return "done";
+  return index === current ? "active" : "open";
+}
 
 const base = computed(() => `/servers/${props.serverId}/node-transfer`);
 const node = computed(() => targets.value.find((t) => t.id === nodeId.value));
@@ -73,8 +80,9 @@ async function poll(): Promise<void> {
     const wasRunning = state.value?.running;
     state.value = await api<State>(base.value);
     if (state.value.running) {
-      timer = window.setTimeout(poll, 2000);
-    } else if (wasRunning && state.value.step === "done") {
+      timer = window.setTimeout(poll, 1500);
+    } else if (wasRunning) {
+      // Done or failed: the page loads the server again with its new node and status.
       emit("finished");
     }
   } catch (cause) {
@@ -91,7 +99,7 @@ async function start(): Promise<void> {
       body: { node_id: nodeId.value, allocation_id: allocationId.value, delete_local_backups: dropBackups.value },
     });
     emit("started");
-    timer = window.setTimeout(poll, 2000);
+    timer = window.setTimeout(poll, 1000);
   } catch (cause) {
     error.value = message(cause);
   } finally {
@@ -124,12 +132,21 @@ onBeforeUnmount(() => window.clearTimeout(timer));
     </p>
 
     <div v-if="state?.running" class="mt-5">
-      <div class="flex items-center justify-between text-sm">
-        <span class="flex items-center gap-2"><span class="spinner" />{{ STEPS[state.step ?? ""] ?? "Working" }}</span>
-        <span class="text-ink-400">{{ state.progress !== null ? `${state.progress}%` : "" }} {{ size(state.size) }}</span>
-      </div>
-      <div class="mt-3 h-2 overflow-hidden rounded-full bg-ink-800">
-        <div class="h-full rounded-full bg-accent-500 transition-all" :style="{ width: `${state.progress ?? 0}%` }" />
+      <ol class="space-y-2 text-sm">
+        <li v-for="[key, label] in STEPS" :key="key" class="flex items-center gap-3" :class="stepState(key) === 'open' ? 'text-ink-500' : 'text-ink-100'">
+          <span class="flex h-5 w-5 shrink-0 items-center justify-center">
+            <span v-if="stepState(key) === 'active'" class="spinner text-accent-500" />
+            <span v-else-if="stepState(key) === 'done'" class="text-ok">✓</span>
+            <span v-else class="h-1.5 w-1.5 rounded-full bg-ink-600" />
+          </span>
+          <span>{{ label }}</span>
+          <span v-if="stepState(key) === 'active' && state.progress !== null" class="ml-auto text-ink-400">{{ state.progress }}%</span>
+          <span v-else-if="key === 'backup' && state.size" class="ml-auto text-ink-400">{{ size(state.size) }}</span>
+        </li>
+      </ol>
+      <div class="mt-4 h-1.5 overflow-hidden rounded-full bg-ink-800">
+        <div v-if="state.progress !== null" class="h-full rounded-full bg-accent-500 transition-all duration-500" :style="{ width: `${state.progress}%` }" />
+        <div v-else class="transfer-indeterminate h-full w-1/3 rounded-full bg-accent-500" />
       </div>
       <p class="mt-3 text-xs text-ink-400">You can leave this page, the transfer keeps running.</p>
     </div>
@@ -176,3 +193,18 @@ onBeforeUnmount(() => window.clearTimeout(timer));
     <p v-if="error" class="mt-3 text-sm text-bad">{{ error }}</p>
   </div>
 </template>
+
+<style scoped>
+.transfer-indeterminate {
+  animation: transfer-slide 1.2s ease-in-out infinite;
+}
+
+@keyframes transfer-slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
+</style>

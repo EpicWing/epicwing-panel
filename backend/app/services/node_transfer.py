@@ -311,7 +311,16 @@ async def run(job: Job) -> None:
         base = _relay_base()
         params = {"name": job.name, "id": str(job.backup_id)}
 
-        # 1. Pack the server on the old node. Nothing is ignored, it is a full copy.
+        # 1. Create the container on the new node first. It also creates the data folder,
+        # and a node that refuses the image fails here in seconds, not after the upload.
+        job.step = "prepare"
+        with open_session() as db:
+            spec = _target_spec(db, job)
+        await _quietly(job.target_node_id, "container.remove", {"name": job.name})
+        await _call(job.target_node_id, "container.create", spec)
+        target_created = True
+
+        # 2. Pack the server on the old node. Nothing is ignored, it is a full copy.
         job.step = "backup"
         await _call(job.source_node_id, "backup.create", {**params, "ignored": ""})
         data = await _wait(job, job.source_node_id, "create", STEP_TIMEOUT["backup"])
@@ -329,7 +338,7 @@ async def run(job: Job) -> None:
                 f"Not enough free space on the panel for the archive ({job.size // 2**20} MiB)."
             )
 
-        # 2. Upload to the panel.
+        # 3. Upload to the panel.
         job.step = "upload"
         urls = [f"{base}/api/node-transfers/{job.token}/parts/{i}" for i in range(job.parts)]
         await _call(
@@ -340,14 +349,6 @@ async def run(job: Job) -> None:
         await _wait(job, job.source_node_id, "upload", STEP_TIMEOUT["upload"])
         if len(job.received) != job.parts:
             raise TransferError("Not all parts of the archive arrived at the panel.")
-
-        # 3. Create the container on the new node, which also creates the data folder.
-        job.step = "prepare"
-        with open_session() as db:
-            spec = _target_spec(db, job)
-        await _quietly(job.target_node_id, "container.remove", {"name": job.name})
-        await _call(job.target_node_id, "container.create", spec)
-        target_created = True
 
         # 4. The new node downloads the archive and checks the sum.
         job.step = "download"
