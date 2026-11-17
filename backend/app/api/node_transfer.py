@@ -1,5 +1,6 @@
 """Moving a server to another node (admins only) and the relay the nodes use for it."""
 
+import re
 import uuid
 from typing import Annotated, Any
 
@@ -25,6 +26,14 @@ ManageServers = Annotated[AuthContext, Depends(require(Permission.PROJECTS_MANAG
 
 TRANSFER_FROM = {"offline", "error"}
 MAX_TARGET_PORTS = 500
+# Agents before 0.3.0 cannot download a backup from a URL.
+MIN_AGENT_VERSION = (0, 3, 0)
+
+
+def _agent_too_old(version: str | None) -> bool:
+    """Unknown versions (for example "dev") are allowed, the node reports errors itself."""
+    match = re.match(r"v?(\d+)\.(\d+)\.(\d+)", version or "")
+    return bool(match) and tuple(int(part) for part in match.groups()) < MIN_AGENT_VERSION
 
 
 class TransferStart(BaseModel):
@@ -118,6 +127,12 @@ async def start_transfer(
     allocation = db.get(Allocation, body.allocation_id)
     if allocation is None or allocation.node_id != node.id or allocation.server_id is not None:
         raise _conflict("Choose a free port on the new node.")
+    for each in (db.get(Node, server.node_id), node):
+        if each is not None and _agent_too_old(each.agent_version):
+            raise _conflict(
+                f"The agent on {each.name} is version {each.agent_version}. "
+                "Update it to 0.3.0 or newer first."
+            )
     if not get_settings().epicwing_public_url.strip():
         raise _conflict("Set EPICWING_PUBLIC_URL in the .env of the panel, the nodes need it.")
     busy = db.scalar(

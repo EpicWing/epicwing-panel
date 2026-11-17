@@ -9,7 +9,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from app.agentlink.protocol import CommandResult
-from app.models import Allocation, Server
+from app.models import Allocation, Node, Server
 from app.models.server import ServerBackup
 from app.services import node_transfer
 from tests.factories import make_allocations, make_egg, make_nest
@@ -279,3 +279,15 @@ def test_refused_image_fails_before_anything_is_packed(client, db_session, setup
     assert "backup.create" not in s.agents.actions(s.source)
     db_session.expire_all()
     assert str(s.server.node_id) == s.source
+
+
+def test_old_agent_is_refused_before_anything_starts(client, db_session, setup):
+    s = setup
+    target = db_session.get(Node, uuid.UUID(s.target))
+    target.agent_version = "0.2.4"
+    db_session.commit()
+
+    response = _start(client, s)
+    assert response.status_code == 409
+    assert "0.3.0" in response.json()["detail"]
+    assert not s.started
