@@ -149,11 +149,13 @@ POLICY="$CONF_DIR/policy.json"
 if [ ! -f "$POLICY" ] || [ "$FORCE" -eq 1 ]; then
   info "Writing $POLICY (bind address $BIND_IP)"
   # Every image used by a bundled egg must be listed in allowed_images.
+  # An entry ending in /* allows every image below that path (marketplace servers).
   # Also pin images by hash in image_digests, otherwise the image runs unpinned by its tag.
   cat > "$POLICY" <<POLICYEOF
 {
   "allowed_images": [
     "nginx:1.27-alpine",
+    "ghcr.io/ptero-eggs/*",
     "ghcr.io/ptero-eggs/yolks:mono_latest",
     "ghcr.io/ptero-eggs/yolks:java_22",
     "ghcr.io/ptero-eggs/yolks:java_25",

@@ -16,14 +16,7 @@ var allowedCaps = map[string]bool{
 // names capabilities from allowedCaps.
 func validImageCaps(caps map[string][]string, images []string) bool {
 	for image, list := range caps {
-		known := false
-		for _, allowed := range images {
-			if allowed == image {
-				known = true
-				break
-			}
-		}
-		if !known {
+		if !imageAllowed(images, image) {
 			return false
 		}
 		for _, c := range list {

@@ -124,25 +124,11 @@ func (m *containerManager) validateInstall(spec InstallSpec) error {
 	if !containerNameRe.MatchString(spec.Name) {
 		return errors.New("invalid container name")
 	}
-	allowed := false
-	for _, image := range m.policy.AllowedImages {
-		if image == spec.Image {
-			allowed = true
-			break
-		}
-	}
-	if !allowed {
+	if !imageAllowed(m.policy.AllowedImages, spec.Image) {
 		// Hint for the operator: the image must be allowed in the node's policy.json
 		return fmt.Errorf("image %q is not on the allowlist; add it to allowed_images in policy.json on this node", spec.Image)
 	}
-	installerAllowed := false
-	for _, image := range m.policy.AllowedImages {
-		if image == spec.InstallerImage {
-			installerAllowed = true
-			break
-		}
-	}
-	if !installerAllowed {
+	if !imageAllowed(m.policy.AllowedImages, spec.InstallerImage) {
 		// Hint for the operator: the installer image must be allowed in policy.json as well
 		return fmt.Errorf("installer image %q is not on the allowlist; add it to allowed_images in policy.json on this node", spec.InstallerImage)
 	}
@@ -257,14 +243,7 @@ func (m *containerManager) validate(spec ContainerSpec) error {
 	if !containerNameRe.MatchString(spec.Name) {
 		return errors.New("invalid container name")
 	}
-	allowed := false
-	for _, image := range m.policy.AllowedImages {
-		if image == spec.Image {
-			allowed = true
-			break
-		}
-	}
-	if !allowed {
+	if !imageAllowed(m.policy.AllowedImages, spec.Image) {
 		// Hint for the operator: the image must be allowed in the node's policy.json
 		return fmt.Errorf("image %q is not on the allowlist; add it to allowed_images in policy.json on this node", spec.Image)
 	}

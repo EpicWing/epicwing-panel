@@ -11,14 +11,7 @@ var digestRe = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 // every digest has the form sha256:<64 hex characters>.
 func validImageDigests(digests map[string]string, images []string) bool {
 	for tag, digest := range digests {
-		known := false
-		for _, image := range images {
-			if image == tag {
-				known = true
-				break
-			}
-		}
-		if !known || !digestRe.MatchString(digest) {
+		if !imageAllowed(images, tag) || !digestRe.MatchString(digest) {
 			return false
 		}
 	}
