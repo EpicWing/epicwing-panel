@@ -47,6 +47,7 @@ ServerView = Annotated[ServerAccess, Depends(server_access(ServerPermission.VIEW
 ServerReinstall = Annotated[
     ServerAccess, Depends(server_access(ServerPermission.SETTINGS_REINSTALL))
 ]
+ServerDelete = Annotated[ServerAccess, Depends(server_access(ServerPermission.SETTINGS_DELETE))]
 FilesRead = Annotated[ServerAccess, Depends(server_access(ServerPermission.FILES_READ))]
 FilesWrite = Annotated[ServerAccess, Depends(server_access(ServerPermission.FILES_WRITE))]
 StartupView = Annotated[ServerAccess, Depends(server_access(ServerPermission.STARTUP_VIEW))]
@@ -407,9 +408,9 @@ def update_server(
 
 @router.delete("/{server_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_server(
-    server_id: uuid.UUID, request: Request, auth: ManageServers, db: DbSession
+    server_id: uuid.UUID, request: Request, access: ServerDelete, db: DbSession
 ) -> None:
-    server = _get(db, server_id)
+    server = access.server
     if server.status not in DELETABLE:
         raise _conflict("Stop the server before deleting it.")
     name = server.name
@@ -427,7 +428,7 @@ async def delete_server(
     audit.record(
         db,
         "server.delete",
-        actor_id=auth.user.id,
+        actor_id=access.user.id,
         target_type="server",
         target_id=str(server_id),
         ip=audit.client_ip(request),

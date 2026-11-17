@@ -38,6 +38,7 @@ class ServerPermission(StrEnum):
     SETTINGS_VIEW = "settings.view"
     SETTINGS_UPDATE = "settings.update"
     SETTINGS_REINSTALL = "settings.reinstall"
+    SETTINGS_DELETE = "settings.delete"
     BACKUPS_VIEW = "backups.view"
     BACKUPS_CREATE = "backups.create"
     BACKUPS_DOWNLOAD = "backups.download"
@@ -56,7 +57,13 @@ class ServerPermission(StrEnum):
 ALL_SERVER_PERMISSIONS: frozenset[str] = frozenset(p.value for p in ServerPermission)
 
 # An API key must never touch the access control of a server.
-KEY_DENIED = frozenset({ServerPermission.ACCESS_VIEW, ServerPermission.ACCESS_MANAGE})
+KEY_DENIED = frozenset(
+    {
+        ServerPermission.ACCESS_VIEW,
+        ServerPermission.ACCESS_MANAGE,
+        ServerPermission.SETTINGS_DELETE,
+    }
+)
 
 
 def is_server_admin(db: Session, user: User) -> bool:

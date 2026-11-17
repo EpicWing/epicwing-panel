@@ -429,6 +429,7 @@ export default {
         view: "See the server name and details.",
         update: "Change name and description.",
         reinstall: "Run the installation again. This can overwrite files.",
+        delete: "Delete the server with its container and databases.",
       },
       backups: {
         view: "See the list of backups.",
@@ -459,7 +460,7 @@ export default {
       power: { start: "Start", stop: "Stop", restart: "Restart" },
       files: { read: "Read files", write: "Create, edit and delete files" },
       startup: { view: "View startup", update: "Change startup" },
-      settings: { view: "View settings", update: "Change settings", reinstall: "Reinstall" },
+      settings: { view: "View settings", update: "Change settings", reinstall: "Reinstall", delete: "Delete server" },
       backups: {
         view: "View backups",
         create: "Create backups",

@@ -101,6 +101,7 @@ DENIED_FOR_VIEWERS = [
     ("PUT", "/access/00000000-0000-4000-8000-000000000002", {}),
     ("DELETE", "/access/00000000-0000-4000-8000-000000000002", None),
     ("GET", "/access/candidates", None),
+    ("DELETE", "", None),
     ("GET", "/backups", None),
     ("POST", "/backups", {}),
     ("GET", "/backups/00000000-0000-4000-8000-000000000003", None),
@@ -144,7 +145,6 @@ DENIED_FOR_VIEWERS = [
 NOT_IN_MATRIX = {
     ("GET", "/"),  # Ansicht: server.view reicht
     ("GET", "/ddos"),  # view: server.view is enough, read only
-    ("DELETE", "/"),  # admin only, see test_owner_cannot_create_or_delete_servers
     # Node transfer: admin only, see test_node_transfer.py
     ("GET", "/node-transfer"),
     ("POST", "/node-transfer"),
@@ -244,9 +244,19 @@ def test_unknown_stored_permissions_grant_nothing(client, db_session, world):
     assert client.get(world.url, headers=headers).json()["permissions"] == ["server.view"]
 
 
-def test_owner_cannot_create_or_delete_servers(client, world):
+def test_owner_cannot_create_servers(client, world):
     headers = _login(client, world.owner)
     assert client.post("/api/servers", json={}, headers=headers).status_code == 403
+
+
+def test_owner_can_delete_their_server(client, world):
+    headers = _login(client, world.owner)
+    assert client.delete(world.url, headers=headers).status_code == 204
+
+
+def test_delete_needs_the_permission(client, db_session, world):
+    _grant(db_session, world, world.member, P.SETTINGS_VIEW, P.SETTINGS_UPDATE)
+    headers = _login(client, world.member)
     assert client.delete(world.url, headers=headers).status_code == 403
 
 
