@@ -28,6 +28,16 @@ interface State {
 const props = defineProps<{ serverId: string; status: string }>();
 const emit = defineEmits<{ started: []; finished: [] }>();
 
+const STEPS = ["prepare", "backup", "upload", "download", "restore", "finish"];
+const STEP_TEXT: Record<string, string> = {
+  prepare: "Creating the container on the new node",
+  backup: "Packing the files",
+  upload: "Copying the files to the panel",
+  download: "Copying the files to the new node",
+  restore: "Unpacking the files",
+  finish: "Switching over",
+};
+
 const targets = ref<Target[]>([]);
 const state = ref<State | null>(null);
 const nodeId = ref("");
@@ -37,26 +47,11 @@ const busy = ref(false);
 const error = ref("");
 let timer: number | undefined;
 
-const STEPS: [string, string][] = [
-  ["prepare", "Create the container on the new node"],
-  ["backup", "Pack the files on the old node"],
-  ["upload", "Send the archive to the panel"],
-  ["download", "Download on the new node"],
-  ["restore", "Unpack on the new node"],
-  ["finish", "Switch over"],
-];
-
-function stepState(key: string): "done" | "active" | "open" {
-  const current = STEPS.findIndex(([k]) => k === state.value?.step);
-  const index = STEPS.findIndex(([k]) => k === key);
-  if (index < current) return "done";
-  return index === current ? "active" : "open";
-}
-
 const base = computed(() => `/servers/${props.serverId}/node-transfer`);
 const node = computed(() => targets.value.find((t) => t.id === nodeId.value));
 const stopped = computed(() => props.status === "offline" || props.status === "error");
 const localBackups = computed(() => state.value?.local_only_backups ?? 0);
+const stepNumber = computed(() => STEPS.indexOf(state.value?.step ?? "") + 1);
 const canStart = computed(
   () =>
     stopped.value &&
@@ -82,7 +77,7 @@ async function poll(): Promise<void> {
     if (state.value.running) {
       timer = window.setTimeout(poll, 1500);
     } else if (wasRunning) {
-      // Done or failed: the page loads the server again with its new node and status.
+      // Load the page again so the header shows the new node and status.
       emit("finished");
     }
   } catch (cause) {
@@ -124,87 +119,52 @@ onBeforeUnmount(() => window.clearTimeout(timer));
 </script>
 
 <template>
-  <div class="rounded-xl border border-ink-700 bg-ink-900 p-6">
-    <h3 class="text-lg font-semibold">Move to another node</h3>
-    <p class="mt-2 text-sm text-ink-400">
-      Copies all files to another node and gives the server a port there. Additional ports are not taken along. The files on
-      the old node stay as a safety copy until you delete them.
-    </p>
-
-    <div v-if="state?.running" class="mt-5">
-      <ol class="space-y-2 text-sm">
-        <li v-for="[key, label] in STEPS" :key="key" class="flex items-center gap-3" :class="stepState(key) === 'open' ? 'text-ink-500' : 'text-ink-100'">
-          <span class="flex h-5 w-5 shrink-0 items-center justify-center">
-            <span v-if="stepState(key) === 'active'" class="spinner text-accent-500" />
-            <span v-else-if="stepState(key) === 'done'" class="text-ok">✓</span>
-            <span v-else class="h-1.5 w-1.5 rounded-full bg-ink-600" />
-          </span>
-          <span>{{ label }}</span>
-          <span v-if="stepState(key) === 'active' && state.progress !== null" class="ml-auto text-ink-400">{{ state.progress }}%</span>
-          <span v-else-if="key === 'backup' && state.size" class="ml-auto text-ink-400">{{ size(state.size) }}</span>
-        </li>
-      </ol>
+  <div class="max-w-2xl rounded-xl border border-ink-700 bg-ink-900 p-6">
+    <template v-if="state?.running">
+      <p class="text-sm text-ink-400">Step {{ stepNumber }} of {{ STEPS.length }}</p>
+      <p class="mt-1 font-medium">{{ STEP_TEXT[state.step ?? ""] ?? "Working" }}…</p>
       <div class="mt-4 h-1.5 overflow-hidden rounded-full bg-ink-800">
-        <div v-if="state.progress !== null" class="h-full rounded-full bg-accent-500 transition-all duration-500" :style="{ width: `${state.progress}%` }" />
-        <div v-else class="transfer-indeterminate h-full w-1/3 rounded-full bg-accent-500" />
+        <div class="h-full rounded-full bg-accent-500 transition-all duration-500" :class="{ 'animate-pulse': state.progress === null }" :style="{ width: `${state.progress ?? (stepNumber / STEPS.length) * 100}%` }" />
       </div>
-      <p class="mt-3 text-xs text-ink-400">You can leave this page, the transfer keeps running.</p>
-    </div>
-
-    <template v-else>
-      <p v-if="state?.step === 'done'" class="mt-4 text-sm text-ok">The server now runs on the new node.</p>
-      <p v-else-if="state?.step === 'failed'" class="mt-4 text-sm text-bad">
-        The transfer failed: {{ state.error }} The server stays on its current node.
+      <p class="mt-3 text-xs text-ink-400">
+        <span v-if="state.progress !== null">{{ state.progress }}% of {{ size(state.size) }}. </span>You can leave this page, the move keeps running.
       </p>
-
-      <p v-if="!targets.length" class="mt-5 text-sm text-ink-400">There is no other node.</p>
-      <div v-else class="mt-5 grid gap-4 sm:grid-cols-2">
-        <label class="block text-sm text-ink-400">
-          Node
-          <select v-model="nodeId" class="mt-2 w-full rounded-lg border border-ink-700 bg-ink-950 px-3 py-2.5 text-sm text-ink-100" @change="pickNode()">
-            <option value="" disabled>Choose a node</option>
-            <option v-for="t in targets" :key="t.id" :value="t.id">{{ t.name }}{{ t.status !== "online" ? ` (${t.status})` : "" }}</option>
-          </select>
-        </label>
-        <label class="block text-sm text-ink-400">
-          Port on the new node
-          <select v-model="allocationId" :disabled="!node" class="mt-2 w-full rounded-lg border border-ink-700 bg-ink-950 px-3 py-2.5 text-sm text-ink-100 disabled:opacity-40">
-            <option v-if="node && !node.allocations.length" value="" disabled>No free port</option>
-            <option v-for="a in node?.allocations ?? []" :key="a.id" :value="a.id">{{ a.ip }}:{{ a.port }}</option>
-          </select>
-        </label>
-      </div>
-
-      <label v-if="localBackups" class="mt-4 flex items-start gap-3 text-sm text-ink-300">
-        <input v-model="dropBackups" type="checkbox" class="mt-1" />
-        <span>{{ localBackups }} backup{{ localBackups === 1 ? "" : "s" }} only exist on the old node and will be removed. Download them first if you need them.</span>
-      </label>
-
-      <button
-        class="mt-5 rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950 transition hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-40"
-        :disabled="!canStart"
-        @click="start()"
-      >
-        <span v-if="busy" class="spinner mr-2" />Move server
-      </button>
-      <p v-if="!stopped" class="mt-3 text-xs text-ink-400">Stop the server before moving it.</p>
     </template>
 
-    <p v-if="error" class="mt-3 text-sm text-bad">{{ error }}</p>
+    <template v-else>
+      <p v-if="state?.step === 'done'" class="mb-5 rounded-lg border border-ok/40 px-4 py-3 text-sm text-ok">The server was moved.</p>
+      <p v-else-if="state?.step === 'failed'" class="mb-5 rounded-lg border border-bad/40 px-4 py-3 text-sm text-bad">
+        Moving failed: {{ state.error }}<br /><span class="text-ink-400">Nothing was changed, the server is still on its old node.</span>
+      </p>
+
+      <p v-if="!targets.length" class="text-sm text-ink-400">There is no other node to move to.</p>
+      <template v-else>
+        <label class="block text-sm text-ink-400" for="transfer-node">Node</label>
+        <select id="transfer-node" v-model="nodeId" class="mt-2 w-full rounded-lg border border-ink-700 bg-ink-950 px-3 py-2.5 text-sm text-ink-100" @change="pickNode()">
+          <option value="" disabled>Choose a node</option>
+          <option v-for="t in targets" :key="t.id" :value="t.id">{{ t.name }}{{ t.status !== "online" ? ` (${t.status})` : "" }}</option>
+        </select>
+
+        <label class="mt-4 block text-sm text-ink-400" for="transfer-port">Port</label>
+        <select id="transfer-port" v-model="allocationId" :disabled="!node" class="mt-2 w-full rounded-lg border border-ink-700 bg-ink-950 px-3 py-2.5 text-sm text-ink-100 disabled:opacity-40">
+          <option v-if="node && !node.allocations.length" value="" disabled>No free port on this node</option>
+          <option v-for="a in node?.allocations ?? []" :key="a.id" :value="a.id">{{ a.ip }}:{{ a.port }}</option>
+        </select>
+
+        <label v-if="localBackups" class="mt-4 flex items-start gap-3 text-sm text-ink-300">
+          <input v-model="dropBackups" type="checkbox" class="mt-1" />
+          <span>Delete {{ localBackups }} backup{{ localBackups === 1 ? "" : "s" }} that only exist on the old node. Download them first if you still need them.</span>
+        </label>
+
+        <div class="mt-6 flex items-center gap-4">
+          <button class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950 transition hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-40" :disabled="!canStart" @click="start()">
+            {{ busy ? "Starting…" : "Move server" }}
+          </button>
+          <span v-if="!stopped" class="text-xs text-ink-400">Stop the server first.</span>
+        </div>
+      </template>
+    </template>
+
+    <p v-if="error" class="mt-4 text-sm text-bad">{{ error }}</p>
   </div>
 </template>
-
-<style scoped>
-.transfer-indeterminate {
-  animation: transfer-slide 1.2s ease-in-out infinite;
-}
-
-@keyframes transfer-slide {
-  from {
-    transform: translateX(-100%);
-  }
-  to {
-    transform: translateX(300%);
-  }
-}
-</style>

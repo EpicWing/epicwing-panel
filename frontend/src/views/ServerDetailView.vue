@@ -71,7 +71,7 @@ const groups = [
   { title: "Overview", items: [["home", "Home"], ["activity", "Timeline"]] },
   { title: "Manage", items: [["files", "Files"], ["startup", "Launch"], ["networking", "Ports"], ["ddos", "DDoS"], ["schedules", "Automations"]] },
   { title: "Data", items: [["databases", "Databases"], ["backups", "Backups"]] },
-  { title: "Admin", items: [["users", "Access"], ["settings", "Settings"]] },
+  { title: "Admin", items: [["users", "Access"], ["transfer", "Transfer"], ["settings", "Settings"]] },
 ] as const;
 
 // Which permission a tab needs. Tabs that are not listed are always shown.
@@ -86,19 +86,19 @@ const TAB_PERMISSION: Record<string, string> = {
   settings: "settings.view",
 };
 
-const visibleGroups = computed(() => {
+function tabVisible(key: string): boolean {
+  if (key === "transfer") return !!auth.state.user?.is_admin;
   // Without a permission list every tab stays visible. The backend checks anyway.
-  if (permissions.value.length === 0) return groups;
-  return groups
-    .map((group) => ({
-      ...group,
-      items: group.items.filter(([key]) => {
-        const needed = TAB_PERMISSION[key];
-        return !needed || permissions.value.includes(needed);
-      }),
-    }))
-    .filter((group) => group.items.length > 0);
-});
+  if (permissions.value.length === 0) return true;
+  const needed = TAB_PERMISSION[key];
+  return !needed || permissions.value.includes(needed);
+}
+
+const visibleGroups = computed(() =>
+  groups
+    .map((group) => ({ ...group, items: group.items.filter(([key]) => tabVisible(key)) }))
+    .filter((group) => group.items.length > 0),
+);
 
 // Line icons (24x24) for the sidebar, without an extra library.
 const NAV_ICONS: Record<string, string> = {
@@ -112,6 +112,7 @@ const NAV_ICONS: Record<string, string> = {
   databases: "M3 6c0-1.7 4-3 9-3s9 1.3 9 3-4 3-9 3-9-1.3-9-3z M21 12c0 1.7-4 3-9 3s-9-1.3-9-3 M3 6v12c0 1.7 4 3 9 3s9-1.3 9-3V6",
   backups: "M21 8v13H3V8 M1 3h22v5H1z M10 12h4",
   users: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M22 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75",
+  transfer: "M7 7h13 M16 3l4 4-4 4 M17 17H4 M8 13l-4 4 4 4",
   settings: "M4 21v-7 M4 10V3 M12 21v-9 M12 8V3 M20 21v-5 M20 12V3 M1 14h6 M9 8h6 M17 16h6",
 };
 
@@ -819,10 +820,14 @@ onMounted(async () => {
           <div v-else-if="active === 'networking'" class="space-y-6">
             <div><h2 class="text-2xl font-semibold">Ports</h2><p class="mt-2 text-sm text-ink-400">IP addresses and ports of this server.</p></div>
             <PortsPanel :server-id="server.id" :permissions="permissions" @changed="onAllocationsChanged" />
-            <NodeTransferPanel v-if="auth.state.user?.is_admin" :server-id="server.id" :status="server.status" @started="server.status = 'transferring'" @finished="reloadPage()" />
           </div>
 
           <AccessPanel v-else-if="active === 'users'" :server-id="server.id" :permissions="permissions" />
+
+          <div v-else-if="active === 'transfer'" class="space-y-6">
+            <div><h2 class="text-2xl font-semibold">Transfer</h2><p class="mt-2 text-sm text-ink-400">Move this server to another node. The files on the old node are kept until you delete them, extra ports have to be added again.</p></div>
+            <NodeTransferPanel :server-id="server.id" :status="server.status" @started="server.status = 'transferring'" @finished="reloadPage()" />
+          </div>
 
           <StartupPanel v-else-if="active === 'startup'" :server-id="server.id" :status="server.status" />
 
