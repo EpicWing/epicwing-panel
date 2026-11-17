@@ -113,6 +113,7 @@ const dangerClass =
 const dots: Record<string, string> = {
   new: "bg-ink-600",
   installing: "bg-warn",
+  transferring: "bg-warn",
   offline: "bg-ink-600",
   starting: "bg-warn",
   running: "bg-ok",

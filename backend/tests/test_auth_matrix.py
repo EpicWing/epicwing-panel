@@ -13,6 +13,8 @@ PUBLIC: set[tuple[str, str]] = {
     ("GET", "/api/auth/password-reset/available"),
     ("POST", "/api/auth/password-reset/request"),
     ("POST", "/api/auth/password-reset/confirm"),
+    ("PUT", "/api/node-transfers/{token}/parts/{index}"),
+    ("GET", "/api/node-transfers/{token}/archive"),
 }
 
 METHODS = {"get", "post", "put", "patch", "delete"}

@@ -71,7 +71,7 @@ const language = ref<Lang>("plain");
 const editor = ref<{ path: string; content: string; original: string } | null>(null);
 const saving = ref(false);
 
-const blocked = computed(() => props.status === "new" || props.status === "installing");
+const blocked = computed(() => ["new", "installing", "transferring"].includes(props.status));
 const dirty = computed(() => editor.value !== null && editor.value.content !== editor.value.original);
 const crumbs = computed(() => {
   const parts = path.value ? path.value.split("/") : [];

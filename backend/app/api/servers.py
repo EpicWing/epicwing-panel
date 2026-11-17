@@ -713,7 +713,7 @@ async def power_server(
 # --- Files in the data folder of the server ----------------------------------------------------
 
 # Before that there is no data folder, or the installation is writing into it right now.
-FILES_BLOCKED = {"new", "installing"}
+FILES_BLOCKED = {"new", "installing", "transferring"}
 # 512 KiB raw is about 700,000 characters in base64, under the 1 MiB frame.
 FILE_CHUNK_B64 = 700_000
 FILE_MAX_OFFSET = 1 << 30

@@ -145,6 +145,10 @@ NOT_IN_MATRIX = {
     ("GET", "/"),  # Ansicht: server.view reicht
     ("GET", "/ddos"),  # view: server.view is enough, read only
     ("DELETE", "/"),  # admin only, see test_owner_cannot_create_or_delete_servers
+    # Node transfer: admin only, see test_node_transfer.py
+    ("GET", "/node-transfer"),
+    ("POST", "/node-transfer"),
+    ("GET", "/node-transfer/targets"),
 }
 UUID_RE = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 

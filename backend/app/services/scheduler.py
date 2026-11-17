@@ -93,6 +93,9 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     tasks: list[asyncio.Task[None]] = []
     if os.environ.get("EPICWING_SCHEDULER", "1") == "1":
         await asyncio.to_thread(_seed_eggs_if_empty)
+        from app.services import node_transfer
+
+        await asyncio.to_thread(node_transfer.reset_interrupted)
         tasks.append(asyncio.create_task(scheduler_loop()))
         tasks.append(asyncio.create_task(auto_restart.loop()))
         from app.api.backups import remote_loop

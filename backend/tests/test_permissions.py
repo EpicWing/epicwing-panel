@@ -25,6 +25,9 @@ PUBLIC_ROUTES = {
     ("/api/auth/password-reset/confirm", "POST"),
     # The agent has no account yet and identifies itself with a one-time token.
     ("/api/agent/enroll", "POST"),
+    # Node transfer relay: the nodes identify themselves with the random transfer token.
+    ("/api/node-transfers/{token}/parts/{index}", "PUT"),
+    ("/api/node-transfers/{token}/archive", "GET"),
 }
 
 

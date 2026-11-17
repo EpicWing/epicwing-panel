@@ -17,6 +17,7 @@ import BackupLimitField from "../components/BackupLimitField.vue";
 import AutoRestartField from "../components/AutoRestartField.vue";
 import ResourcesField from "../components/ResourcesField.vue";
 import PortsPanel from "../components/PortsPanel.vue";
+import NodeTransferPanel from "../components/NodeTransferPanel.vue";
 import StartupPanel from "../components/StartupPanel.vue";
 import { type ConsoleFrame, useServerConsole } from "../composables/useServerConsole";
 import { auth } from "../stores/auth";
@@ -157,6 +158,10 @@ async function copyIp(): Promise<void> {
       ipCopied.value = false;
     }, 1500);
   }
+}
+
+function reloadPage(): void {
+  window.location.reload();
 }
 
 function onAllocationsChanged(rows: Allocation[]): void {
@@ -757,8 +762,8 @@ onMounted(async () => {
         <div v-if="active === 'home'" class="flex flex-wrap items-center justify-start gap-3">
           <div>
             <span class="inline-flex items-center gap-2 rounded-full border border-ink-700 bg-ink-900 px-3 py-1.5 text-sm font-medium text-ink-200 shadow-sm">
-              <span class="h-2 w-2 rounded-full" :class="server.status === 'running' ? 'bg-ok' : server.status === 'starting' || server.status === 'installing' ? 'bg-warn animate-pulse' : 'bg-bad'" />
-              {{ server.status === 'running' ? 'Running' : server.status === 'starting' ? 'Starting' : server.status === 'error' ? 'Error' : server.status === 'new' ? 'Not installed' : server.status === 'installing' ? 'Installing' : 'Offline' }}
+              <span class="h-2 w-2 rounded-full" :class="server.status === 'running' ? 'bg-ok' : server.status === 'starting' || server.status === 'installing' || server.status === 'transferring' ? 'bg-warn animate-pulse' : 'bg-bad'" />
+              {{ server.status === 'running' ? 'Running' : server.status === 'starting' ? 'Starting' : server.status === 'error' ? 'Error' : server.status === 'new' ? 'Not installed' : server.status === 'installing' ? 'Installing' : server.status === 'transferring' ? 'Moving to another node' : 'Offline' }}
             </span>
           </div>
           <span class="inline-flex items-center rounded-full border border-ink-700 bg-ink-900 px-3 py-1.5 text-sm font-medium text-ink-200 shadow-sm">Uptime: {{ uptimeText() }}</span>
@@ -814,6 +819,7 @@ onMounted(async () => {
           <div v-else-if="active === 'networking'" class="space-y-6">
             <div><h2 class="text-2xl font-semibold">Ports</h2><p class="mt-2 text-sm text-ink-400">IP addresses and ports of this server.</p></div>
             <PortsPanel :server-id="server.id" :permissions="permissions" @changed="onAllocationsChanged" />
+            <NodeTransferPanel v-if="auth.state.user?.is_admin" :server-id="server.id" :status="server.status" @started="server.status = 'transferring'" @finished="reloadPage()" />
           </div>
 
           <AccessPanel v-else-if="active === 'users'" :server-id="server.id" :permissions="permissions" />
