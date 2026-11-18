@@ -12,6 +12,8 @@ class User(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     email: Mapped[str] = mapped_column(String(320), unique=True)
+    # Shown instead of the email address. None means the email is shown.
+    display_name: Mapped[str | None] = mapped_column(String(48))
     password_hash: Mapped[str] = mapped_column(String(255))
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     disabled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

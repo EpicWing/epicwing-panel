@@ -84,10 +84,10 @@ const TAB_PERMISSION: Record<string, string> = {
   backups: "backups.view",
   users: "access.view",
   settings: "settings.view",
+  transfer: "settings.transfer",
 };
 
 function tabVisible(key: string): boolean {
-  if (key === "transfer") return !!auth.state.user?.is_admin;
   // Without a permission list every tab stays visible. The backend checks anyway.
   if (permissions.value.length === 0) return true;
   const needed = TAB_PERMISSION[key];

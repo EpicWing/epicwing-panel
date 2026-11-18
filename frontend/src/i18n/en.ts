@@ -430,6 +430,7 @@ export default {
         update: "Change name and description.",
         reinstall: "Run the installation again. This can overwrite files.",
         delete: "Delete the server with its container and databases.",
+        transfer: "Move the server to another node. Shows the names and free ports of all nodes.",
       },
       backups: {
         view: "See the list of backups.",
@@ -460,7 +461,7 @@ export default {
       power: { start: "Start", stop: "Stop", restart: "Restart" },
       files: { read: "Read files", write: "Create, edit and delete files" },
       startup: { view: "View startup", update: "Change startup" },
-      settings: { view: "View settings", update: "Change settings", reinstall: "Reinstall", delete: "Delete server" },
+      settings: { view: "View settings", update: "Change settings", reinstall: "Reinstall", delete: "Delete server", transfer: "Move to another node" },
       backups: {
         view: "View backups",
         create: "Create backups",

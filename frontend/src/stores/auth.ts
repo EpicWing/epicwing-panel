@@ -5,6 +5,7 @@ import { api, setCsrfToken } from "../api/client";
 export interface User {
   id: string;
   email: string;
+  display_name?: string | null;
   is_admin: boolean;
 }
 
@@ -62,6 +63,12 @@ export const auth = {
     apply(
       await api<AuthResponse>("/auth/login/2fa", { method: "POST", body: { challenge, code } }),
     );
+  },
+
+  async setName(displayName: string): Promise<User> {
+    const user = await api<User>("/auth/me/name", { method: "PUT", body: { display_name: displayName } });
+    state.user = user;
+    return user;
   },
 
   async logout(): Promise<void> {

@@ -9,6 +9,7 @@ interface Member {
   id: string;
   user_id: string;
   email: string;
+  display_name: string | null;
   permissions: string[];
   created_at: string;
 }
@@ -455,9 +456,10 @@ const linkButton = "rounded px-2 py-1 text-xs text-ink-300 transition hover:bg-i
           <div v-for="member in data.members" :key="member.id" class="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
             <div class="min-w-0">
               <p class="truncate text-sm font-medium">
-                {{ member.email }}
+                {{ member.display_name || member.email }}
                 <span v-if="isSelf(member)" class="ml-1.5 text-xs font-normal text-ink-400">({{ t("access.you") }})</span>
               </p>
+              <p v-if="member.display_name" class="truncate text-xs text-ink-400">{{ member.email }}</p>
               <div class="mt-1.5 flex flex-wrap gap-1.5">
                 <span v-if="member.permissions.length === 0" class="rounded bg-ink-800 px-1.5 py-0.5 text-xs text-ink-300">
                   {{ t("access.noPermissions") }}

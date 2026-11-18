@@ -102,6 +102,16 @@ DENIED_FOR_VIEWERS = [
     ("DELETE", "/access/00000000-0000-4000-8000-000000000002", None),
     ("GET", "/access/candidates", None),
     ("DELETE", "", None),
+    ("GET", "/node-transfer", None),
+    ("GET", "/node-transfer/targets", None),
+    (
+        "POST",
+        "/node-transfer",
+        {
+            "node_id": "00000000-0000-4000-8000-000000000009",
+            "allocation_id": "00000000-0000-4000-8000-000000000009",
+        },
+    ),
     ("GET", "/backups", None),
     ("POST", "/backups", {}),
     ("GET", "/backups/00000000-0000-4000-8000-000000000003", None),
@@ -145,10 +155,6 @@ DENIED_FOR_VIEWERS = [
 NOT_IN_MATRIX = {
     ("GET", "/"),  # Ansicht: server.view reicht
     ("GET", "/ddos"),  # view: server.view is enough, read only
-    # Node transfer: admin only, see test_node_transfer.py
-    ("GET", "/node-transfer"),
-    ("POST", "/node-transfer"),
-    ("GET", "/node-transfer/targets"),
 }
 UUID_RE = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 

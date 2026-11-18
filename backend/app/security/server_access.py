@@ -39,6 +39,7 @@ class ServerPermission(StrEnum):
     SETTINGS_UPDATE = "settings.update"
     SETTINGS_REINSTALL = "settings.reinstall"
     SETTINGS_DELETE = "settings.delete"
+    SETTINGS_TRANSFER = "settings.transfer"
     BACKUPS_VIEW = "backups.view"
     BACKUPS_CREATE = "backups.create"
     BACKUPS_DOWNLOAD = "backups.download"
@@ -62,6 +63,7 @@ KEY_DENIED = frozenset(
         ServerPermission.ACCESS_VIEW,
         ServerPermission.ACCESS_MANAGE,
         ServerPermission.SETTINGS_DELETE,
+        ServerPermission.SETTINGS_TRANSFER,
     }
 )
 

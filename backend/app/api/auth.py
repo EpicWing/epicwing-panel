@@ -14,6 +14,7 @@ from app.models import User, UserSession
 from app.schemas.auth import (
     AuthResponse,
     LoginRequest,
+    NameChangeRequest,
     PasswordChangeRequest,
     TwoFactorChallenge,
     TwoFactorLoginRequest,
@@ -132,6 +133,26 @@ def logout(
 @router.get("/me")
 def me(auth: CurrentAuth) -> AuthResponse:
     return AuthResponse(user=UserOut.model_validate(auth.user), csrf_token=auth.session.csrf_token)
+
+
+@router.put("/me/name")
+def change_name(
+    body: NameChangeRequest,
+    request: Request,
+    auth: CurrentAuth,
+    db: Annotated[Session, Depends(get_db)],
+) -> UserOut:
+    """An empty name removes it, then the email address is shown again."""
+    auth.user.display_name = body.display_name or None
+    db.commit()
+    audit.record(
+        db,
+        "auth.name_change",
+        actor_id=auth.user.id,
+        ip=_client_ip(request),
+        details={"display_name": auth.user.display_name},
+    )
+    return UserOut.model_validate(auth.user)
 
 
 @router.post("/password", status_code=status.HTTP_204_NO_CONTENT)

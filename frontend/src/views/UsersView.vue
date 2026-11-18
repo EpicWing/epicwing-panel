@@ -9,6 +9,7 @@ import { auth } from "../stores/auth";
 interface UserRow {
   id: string;
   email: string;
+  display_name: string | null;
   is_admin: boolean;
   disabled_at: string | null;
   created_at: string;
@@ -196,8 +197,9 @@ const linkButton =
         <tbody>
           <tr v-for="user in users" :key="user.id" class="border-b border-ink-800 last:border-0">
             <td class="px-4 py-3">
-              {{ user.email }}
+              {{ user.display_name || user.email }}
               <span v-if="user.id === meId" class="ml-1.5 text-xs text-ink-400">({{ t("users.you") }})</span>
+              <p v-if="user.display_name" class="text-xs text-ink-400">{{ user.email }}</p>
             </td>
             <td class="px-4 py-3">
               <span

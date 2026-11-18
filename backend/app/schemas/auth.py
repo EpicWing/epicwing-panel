@@ -1,6 +1,6 @@
 import uuid
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class LoginRequest(BaseModel):
@@ -14,7 +14,18 @@ class UserOut(BaseModel):
 
     id: uuid.UUID
     email: str
+    display_name: str | None = None
     is_admin: bool
+
+
+class NameChangeRequest(BaseModel):
+    display_name: str = Field(max_length=48)
+
+    @field_validator("display_name")
+    @classmethod
+    def _clean(cls, value: str) -> str:
+        # One line, no control characters, single spaces.
+        return " ".join("".join(c for c in value if c.isprintable()).split())
 
 
 class AuthResponse(BaseModel):

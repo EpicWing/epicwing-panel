@@ -47,6 +47,7 @@ def _normalize_email(raw: str) -> str:
 class UserDetail(BaseModel):
     id: uuid.UUID
     email: str
+    display_name: str | None = None
     is_admin: bool
     disabled_at: datetime | None
     created_at: datetime
@@ -80,6 +81,7 @@ def _detail(user: User, servers: int) -> UserDetail:
     return UserDetail(
         id=user.id,
         email=user.email,
+        display_name=user.display_name,
         is_admin=user.is_admin,
         disabled_at=user.disabled_at,
         created_at=user.created_at,

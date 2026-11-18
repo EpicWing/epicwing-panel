@@ -1,4 +1,4 @@
-"""Moving a server to another node (admins only) and the relay the nodes use for it."""
+"""Moving a server to another node and the relay the nodes use for it."""
 
 import re
 import uuid
@@ -15,14 +15,13 @@ from app.config import get_settings
 from app.db import get_db
 from app.models import Allocation, Node, Server
 from app.models.server import ServerBackup
-from app.security.permissions import Permission, require
-from app.security.sessions import AuthContext
+from app.security.server_access import ServerAccess, ServerPermission, server_access
 from app.services import audit, node_transfer
 
 router = APIRouter(tags=["node-transfer"])
 
 DbSession = Annotated[Session, Depends(get_db)]
-ManageServers = Annotated[AuthContext, Depends(require(Permission.PROJECTS_MANAGE))]
+Transfer = Annotated[ServerAccess, Depends(server_access(ServerPermission.SETTINGS_TRANSFER))]
 
 TRANSFER_FROM = {"offline", "error"}
 MAX_TARGET_PORTS = 500
@@ -76,16 +75,14 @@ def _local_only(db: Session, server_id: uuid.UUID) -> int:
 
 
 @router.get("/servers/{server_id}/node-transfer")
-def transfer_status(server_id: uuid.UUID, auth: ManageServers, db: DbSession) -> dict[str, Any]:
+def transfer_status(server_id: uuid.UUID, access: Transfer, db: DbSession) -> dict[str, Any]:
     server = _server(db, server_id)
     job = node_transfer.job_for(server.id)
     return {**(job.public() if job else _idle()), "local_only_backups": _local_only(db, server.id)}
 
 
 @router.get("/servers/{server_id}/node-transfer/targets")
-def transfer_targets(
-    server_id: uuid.UUID, auth: ManageServers, db: DbSession
-) -> list[dict[str, Any]]:
+def transfer_targets(server_id: uuid.UUID, access: Transfer, db: DbSession) -> list[dict[str, Any]]:
     """The other nodes with their free ports."""
     server = _server(db, server_id)
     nodes = db.scalars(select(Node).where(Node.id != server.node_id).order_by(Node.name)).all()
@@ -113,7 +110,7 @@ async def start_transfer(
     server_id: uuid.UUID,
     body: TransferStart,
     request: Request,
-    auth: ManageServers,
+    access: Transfer,
     db: DbSession,
 ) -> dict[str, Any]:
     server = _server(db, server_id)
@@ -164,14 +161,14 @@ async def start_transfer(
         source_node_id=server.node_id,
         target_node_id=node.id,
         allocation_id=allocation.id,
-        actor_id=auth.user.id,
+        actor_id=access.user.id,
         delete_local_backups=body.delete_local_backups,
     )
     node_transfer.start(job)
     audit.record(
         db,
         "server.transfer_start",
-        actor_id=auth.user.id,
+        actor_id=access.user.id,
         target_type="server",
         target_id=str(server.id),
         ip=audit.client_ip(request),

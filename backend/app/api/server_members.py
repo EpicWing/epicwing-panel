@@ -68,6 +68,7 @@ class MemberOut(BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID
     email: str
+    display_name: str | None = None
     permissions: list[str]
     created_at: datetime
 
@@ -135,6 +136,7 @@ def _out(member: ServerMember, user: User, permissions: set[str]) -> MemberOut:
         id=member.id,
         user_id=user.id,
         email=user.email,
+        display_name=user.display_name,
         permissions=sorted(permissions),
         created_at=member.created_at,
     )
