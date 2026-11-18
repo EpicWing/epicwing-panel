@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.3.1-beta (2026-11-18)
+
+- Move a server to another node: new Transfer tab on the server page. The old node packs the files, the panel passes them on, the new node checks the SHA-256 sum and unpacks them. The database only switches to the new node at the very end, so a failed move leaves the server where it was. The files on the old node stay until you delete them. Extra ports have to be added again on the new node
+- The move needs `EPICWING_PUBLIC_URL` in the panel's `.env` and agent 0.3.0 or newer on both nodes. The panel says so before it starts
+- New server permissions "Delete server" and "Move to another node". Before, only admins could do both. Server owners have them like every other permission. API keys can do neither
+- Every user can set a name under Settings → Profile. It is shown instead of the email address in the access list and the user list
+- Agent: `allowed_images` in `/etc/epicwing-agent/policy.json` accepts entries that end in `/*`. `"ghcr.io/ptero-eggs/*"` allows every image from the Pterodactyl egg repositories, so marketplace templates no longer need one entry per image. Entries like `ghcr.io/*` are too broad and ignored. New nodes get the ptero-eggs entry by default
+- Update the panel with `bash <(curl -fsSL https://raw.githubusercontent.com/EpicWing/epicwing-panel/main/scripts/install.sh) update panel`. It makes a database backup first and runs the database migration 0030
+- Nodes: run `install.sh update node` on every node, then add `"ghcr.io/ptero-eggs/*"` to `allowed_images` by hand if you want it on existing nodes
+
 ## 0.3.0-beta (2026-11-15)
 
 - Backups in S3-compatible object storage (Admin → Infrastructure → Backup storage). Finished backups are uploaded in parts, restores download them first, downloads come straight from the bucket. The S3 keys stay in the panel, nodes only get presigned links that expire. Needs the new agent and the database migration 0027
