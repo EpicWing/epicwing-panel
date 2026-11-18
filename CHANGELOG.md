@@ -9,8 +9,26 @@
 - New server permissions "Delete server" and "Move to another node". Before, only admins could do both. Server owners have them like every other permission. API keys can do neither
 - Every user can set a name under Settings → Profile. It is shown instead of the email address in the access list and the user list
 - Agent: `allowed_images` in `/etc/epicwing-agent/policy.json` accepts entries that end in `/*`. `"ghcr.io/ptero-eggs/*"` allows every image from the Pterodactyl egg repositories, so marketplace templates no longer need one entry per image. Entries like `ghcr.io/*` are too broad and ignored. New nodes get the ptero-eggs entry by default
-- Update the panel with `bash <(curl -fsSL https://raw.githubusercontent.com/EpicWing/epicwing-panel/main/scripts/install.sh) update panel`. It makes a database backup first and runs the database migration 0030
-- Nodes: run `install.sh update node` on every node, then add `"ghcr.io/ptero-eggs/*"` to `allowed_images` by hand if you want it on existing nodes
+
+### Update
+
+Panel. It makes a database backup first and runs the database migration 0030:
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/EpicWing/epicwing-panel/main/scripts/install.sh) update panel
+```
+
+Every node:
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/EpicWing/epicwing-panel/main/scripts/install.sh) update node
+```
+
+To allow all ptero-eggs images on a node that already exists, add `"ghcr.io/ptero-eggs/*"` to `allowed_images` in `/etc/epicwing-agent/policy.json` and restart the agent:
+
+```bash
+systemctl restart epicwing-agent
+```
 
 ## 0.3.0-beta (2026-11-15)
 
