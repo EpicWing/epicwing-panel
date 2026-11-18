@@ -44,20 +44,36 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: CHANGELOG.md
+          sparse-checkout-cone-mode: false
       - uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
+      - name: Release notes from CHANGELOG.md
+        run: |
+          # The section "## 0.3.1-beta (date)" up to the next "## " heading.
+          version="${GITHUB_REF_NAME#v}"
+          awk -v v="## $version " 'index($0, v) == 1 {on = 1; next} /^## / && on {exit} on' CHANGELOG.md \
+            | sed '/./,$!d' > notes.md
+          if [ ! -s notes.md ]; then
+            echo "CHANGELOG.md has no section for $version" >&2
+            exit 1
+          fi
+          cat notes.md >> "$GITHUB_STEP_SUMMARY"
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            # The release exists already (the tag was moved): replace the files.
+            # The release exists already (the tag was moved): replace the files and the notes.
             gh release upload "$GITHUB_REF_NAME" dist/* \
               --repo "$GITHUB_REPOSITORY" --clobber
+            gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --notes-file notes.md
           else
             gh release create "$GITHUB_REF_NAME" dist/* \
               --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" \
-              --prerelease --generate-notes
+              --prerelease --notes-file notes.md
           fi
