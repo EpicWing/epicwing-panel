@@ -5,8 +5,8 @@
 <h1 align="center">EpicWing</h1>
 
 <p align="center">
-  Self-hosted server management panel.<br>
-  Run game servers and other services in isolated Docker containers.
+  Self-hosted panel for anything that runs in Docker.<br>
+  Game servers, Discord bots, web apps and databases on your own machines.
 </p>
 
 <p align="center">
@@ -26,9 +26,13 @@
   <a href="CHANGELOG.md">Changelog</a>
 </p>
 
-EpicWing is a self-hosted server management panel. Game servers and other services
-each run in their own isolated Docker container on a node. The panel talks to a small Go agent on
-each node.
+EpicWing is a self-hosted panel for anything that runs in a Docker container. You add your own
+machines as nodes and start game servers, Discord bots, web apps or databases on them from one web
+interface. Each server runs in its own isolated container, and a small Go agent on each node does
+the work.
+
+Coming from Pterodactyl or Pelican? EpicWing imports users, nodes, servers and eggs
+([guide](docs/MIGRATING.md)).
 
 **Status: beta.** Fine for small setups, not ready for large or multi-tenant hosting.
 See [Limitations](#limitations).
