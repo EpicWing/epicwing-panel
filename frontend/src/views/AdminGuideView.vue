@@ -1,26 +1,35 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, nextTick, onMounted, ref } from "vue";
+import { useRoute } from "vue-router";
 
 import AppLayout from "../components/AppLayout.vue";
 import GuideIcon from "../components/GuideIcon.vue";
-import { guide } from "../lib/adminGuide";
+import { guide as adminGuide } from "../lib/adminGuide";
+import { userGuide } from "../lib/userGuide";
+
+const props = withDefaults(defineProps<{ kind?: "admin" | "user" }>(), { kind: "admin" });
+const guide = computed(() => (props.kind === "user" ? userGuide : adminGuide));
+const route = useRoute();
 
 const query = ref("");
 const copiedId = ref("");
 
-const titles = new Map<string, string>();
-for (const g of guide) {
-  for (const s of g.sections) {
-    titles.set(s.id, s.title);
+const titles = computed(() => {
+  const map = new Map<string, string>();
+  for (const g of guide.value) {
+    for (const s of g.sections) {
+      map.set(s.id, s.title);
+    }
   }
-}
+  return map;
+});
 
 const groups = computed(() => {
   const q = query.value.trim().toLowerCase();
   if (!q) {
-    return guide;
+    return guide.value;
   }
-  return guide
+  return guide.value
     .map((group) => ({
       ...group,
       sections: group.sections.filter((s) =>
@@ -36,6 +45,14 @@ const groups = computed(() => {
 function jump(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
+
+// Links like /help#sftp open the page at that section.
+onMounted(async () => {
+  if (route.hash) {
+    await nextTick();
+    jump(route.hash.slice(1));
+  }
+});
 
 async function copy(id: string, text: string) {
   try {
@@ -53,7 +70,11 @@ async function copy(id: string, text: string) {
 </script>
 
 <template>
-  <AppLayout area="admin" title="Guide" subtitle="How each part of EpicWing works.">
+  <AppLayout
+    :area="kind"
+    :title="kind === 'user' ? 'Help' : 'Guide'"
+    :subtitle="kind === 'user' ? 'How to use your servers, SFTP and API keys.' : 'How each part of EpicWing works.'"
+  >
     <div class="grid gap-10 lg:grid-cols-[15rem_minmax(0,1fr)]">
       <nav class="hidden lg:block" aria-label="Guide sections">
         <div class="sticky top-4 max-h-[calc(100vh-2rem)] space-y-7 overflow-y-auto pr-2 text-sm">

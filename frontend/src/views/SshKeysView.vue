@@ -95,7 +95,10 @@ onMounted(() => void load());
     <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
       <div>
         <h1 class="text-3xl font-bold tracking-tight">SSH Keys</h1>
-        <p class="mt-1 text-sm text-ink-400">Public keys for SFTP access to your server files.</p>
+        <p class="mt-1 text-sm text-ink-400">
+          Public keys for SFTP access to your server files.
+          <RouterLink to="/help#ssh-key" class="underline hover:text-ink-100">How to create a key</RouterLink>
+        </p>
       </div>
       <button type="button" :class="primaryClass" @click="openModal">+ Add SSH Key</button>
     </div>
