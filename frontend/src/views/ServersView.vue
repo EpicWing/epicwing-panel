@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from "vue";
+import { whenVisible } from "../lib/visible";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 
@@ -111,7 +112,7 @@ onMounted(async () => {
   void loadNodeCount();
   await loadServers();
   loaded.value = true;
-  refreshTimer = window.setInterval(loadServers, 5000);
+  refreshTimer = window.setInterval(whenVisible(loadServers), 5000);
 });
 
 onBeforeUnmount(() => {

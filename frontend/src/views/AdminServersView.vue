@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
+import { whenVisible } from "../lib/visible";
 import { useI18n } from "vue-i18n";
 
 import { useRouter } from "vue-router";
@@ -344,7 +345,7 @@ function canKill(server: ServerItem): boolean {
 
 onMounted(() => {
   void loadServers(true);
-  timer = window.setInterval(() => void loadServers(false), 5000);
+  timer = window.setInterval(whenVisible(() => loadServers(false)), 5000);
 });
 onUnmounted(() => window.clearInterval(timer));
 </script>

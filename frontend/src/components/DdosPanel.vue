@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { whenVisible } from "../lib/visible";
 import { api } from "../api/client";
 
 const props = defineProps<{
@@ -85,7 +86,7 @@ async function refresh(): Promise<void> {
 
 onMounted(() => {
   void refresh();
-  timer = window.setInterval(() => void refresh(), POLL_MS);
+  timer = window.setInterval(whenVisible(refresh), POLL_MS);
 });
 
 onBeforeUnmount(() => {

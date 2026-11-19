@@ -6,6 +6,7 @@ function cpuText(value: number): string {
 }
 import { installCommand } from "../lib/nodeInstall";
 import { computed, onMounted, onUnmounted, ref } from "vue";
+import { whenVisible } from "../lib/visible";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 
@@ -279,7 +280,7 @@ async function remove() {
 
 onMounted(() => {
   void load(true);
-  timer = window.setInterval(() => void load(false), 5000);
+  timer = window.setInterval(whenVisible(() => load(false)), 5000);
 });
 onUnmounted(() => window.clearInterval(timer));
 </script>

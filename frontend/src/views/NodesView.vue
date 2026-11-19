@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { installCommand } from "../lib/nodeInstall";
 import { onMounted, onUnmounted, ref } from "vue";
+import { whenVisible } from "../lib/visible";
 import { useI18n } from "vue-i18n";
 
 import { ApiError, api } from "../api/client";
@@ -167,7 +168,7 @@ async function refresh() {
 
 onMounted(() => {
   void load();
-  timer = window.setInterval(() => void refresh(), 5000);
+  timer = window.setInterval(whenVisible(refresh), 5000);
 });
 onUnmounted(() => window.clearInterval(timer));
 </script>

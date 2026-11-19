@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { whenVisible } from "../lib/visible";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 
@@ -646,7 +647,7 @@ async function refreshStatus(): Promise<void> {
 }
 
 onMounted(() => {
-  statusTimer = window.setInterval(() => void refreshStatus(), 3000);
+  statusTimer = window.setInterval(whenVisible(refreshStatus), 3000);
 });
 let clockTimer: number | undefined;
 onMounted(() => {

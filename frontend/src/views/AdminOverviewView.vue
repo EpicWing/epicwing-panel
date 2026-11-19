@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
+import { whenVisible } from "../lib/visible";
 import { useI18n } from "vue-i18n";
 
 import { api } from "../api/client";
@@ -144,7 +145,7 @@ function meters(n: NodeLoad) {
 
 onMounted(() => {
   void load();
-  timer = window.setInterval(() => void load(), 10000);
+  timer = window.setInterval(whenVisible(load), 10000);
 });
 onUnmounted(() => window.clearInterval(timer));
 </script>
