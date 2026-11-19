@@ -41,16 +41,6 @@ See [Limitations](#limitations).
 - **Verified installs:** the installer checks a SHA-256 checksum of the agent binary before it installs it
 - **Login everywhere:** every API route needs a login, with two-factor authentication and a password reset that does not skip it
 
-## Screenshots
-
-![Servers](docs/assets/screenshot-servers.png)
-
-![Console and live usage](docs/assets/screenshot-console.png)
-
-![Marketplace](docs/assets/screenshot-marketplace.png)
-
-![Live traffic and DDoS alerts](docs/assets/screenshot-ddos.png)
-
 ## Requirements
 
 - **Panel:** a fresh Debian 13 or Ubuntu 24.04 (x86_64) server with a domain or an IP, ports 80 and 443 open
@@ -76,6 +66,15 @@ bash <(curl -fsSL https://raw.githubusercontent.com/EpicWing/epicwing-panel/main
 
 Options, the manual installation, updating and troubleshooting are in
 [docs/INSTALL.md](docs/INSTALL.md).
+
+## Screenshots
+
+<p>
+<a href="docs/assets/screenshot-servers.png"><img src="docs/assets/screenshot-servers.png" alt="Servers" width="49%"></a>
+<a href="docs/assets/screenshot-console.png"><img src="docs/assets/screenshot-console.png" alt="Console and live usage" width="49%"></a>
+<a href="docs/assets/screenshot-marketplace.png"><img src="docs/assets/screenshot-marketplace.png" alt="Marketplace" width="49%"></a>
+<a href="docs/assets/screenshot-ddos.png"><img src="docs/assets/screenshot-ddos.png" alt="Live traffic and DDoS alerts" width="49%"></a>
+</p>
 
 ## Bundled eggs
 
