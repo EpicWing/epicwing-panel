@@ -41,14 +41,15 @@ See [Limitations](#limitations).
 - **Verified installs:** the installer checks a SHA-256 checksum of the agent binary before it installs it
 - **Login everywhere:** every API route needs a login, with two-factor authentication and a password reset that does not skip it
 
-<!--
 ## Screenshots
 
-Add images to docs/assets/ and remove this comment, for example:
+![Servers](docs/assets/screenshot-servers.png)
 
-![Server console](docs/assets/screenshot-console.png)
-![Admin overview](docs/assets/screenshot-overview.png)
--->
+![Console and live usage](docs/assets/screenshot-console.png)
+
+![Marketplace](docs/assets/screenshot-marketplace.png)
+
+![Live traffic and DDoS alerts](docs/assets/screenshot-ddos.png)
 
 ## Requirements
 
