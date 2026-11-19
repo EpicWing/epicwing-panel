@@ -4,6 +4,7 @@ import { useI18n } from "vue-i18n";
 
 import { ApiError, api } from "../api/client";
 import { auth } from "../stores/auth";
+import PageHelp from "./PageHelp.vue";
 
 interface Member {
   id: string;
@@ -432,7 +433,10 @@ const linkButton = "rounded px-2 py-1 text-xs text-ink-300 transition hover:bg-i
       <div class="flex items-start justify-between gap-4">
         <div>
           <h2 class="text-2xl font-semibold">{{ t("access.title") }}</h2>
-          <p class="mt-2 text-sm text-ink-400">{{ t("access.subtitle") }}</p>
+          <p class="mt-2 text-sm text-ink-400">
+            {{ t("access.subtitle") }}
+            <PageHelp title="Access" :topics="['access']" />
+          </p>
         </div>
         <button
           v-if="data?.can_manage"

@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 
 import { ApiError, api } from "../api/client";
+import PageHelp from "./PageHelp.vue";
 
 interface Backup {
   id: string;
@@ -257,6 +258,7 @@ onBeforeUnmount(() => {
         <p class="mt-2 text-sm text-ink-400">
           Create and manage server backups to protect your data.
           <span v-if="!loading">{{ used }} of {{ limit }} used.</span>
+          <PageHelp title="Backups" :topics="['backups']" />
         </p>
       </div>
       <button v-if="can('backups.create')" :class="primaryClass" :disabled="!canCreate" @click="showForm = !showForm">

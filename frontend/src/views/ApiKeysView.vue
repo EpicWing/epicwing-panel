@@ -5,6 +5,7 @@ import { ApiError, api } from "../api/client";
 import AppLayout from "../components/AppLayout.vue";
 import KeyEmptyState from "../components/KeyEmptyState.vue";
 import Modal from "../components/Modal.vue";
+import PageHelp from "../components/PageHelp.vue";
 
 interface KeyRow {
   id: string;
@@ -121,7 +122,7 @@ onMounted(() => void load());
         <h1 class="text-3xl font-bold tracking-tight">API Keys</h1>
         <p class="mt-1 text-sm text-ink-400">
           Keys let scripts and bots control your servers without a password.
-          <RouterLink to="/help#api-example" class="underline hover:text-ink-100">Example</RouterLink>
+          <PageHelp title="API keys" :topics="['api-key', 'api-example']" remember="api-keys" />
         </p>
       </div>
       <button type="button" :class="primaryClass" @click="openModal">+ Create API Key</button>

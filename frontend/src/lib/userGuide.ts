@@ -1,4 +1,4 @@
-// Help for everyone who uses the panel, not only admins. Same format as adminGuide.ts.
+// Help texts for the pages people use every day. PageHelp.vue shows them in a popup.
 
 import type { GuideGroup } from "./adminGuide";
 

@@ -62,7 +62,6 @@ export default {
     adminPanel: "Admin panel",
     adminBadge: "Admin",
     guide: "Guide",
-    help: "Help",
     activity: "Activity",
     backToPanel: "Back to panel",
   },

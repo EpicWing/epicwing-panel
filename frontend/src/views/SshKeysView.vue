@@ -5,6 +5,7 @@ import { ApiError, api } from "../api/client";
 import AppLayout from "../components/AppLayout.vue";
 import KeyEmptyState from "../components/KeyEmptyState.vue";
 import Modal from "../components/Modal.vue";
+import PageHelp from "../components/PageHelp.vue";
 
 interface KeyRow {
   id: string;
@@ -97,7 +98,7 @@ onMounted(() => void load());
         <h1 class="text-3xl font-bold tracking-tight">SSH Keys</h1>
         <p class="mt-1 text-sm text-ink-400">
           Public keys for SFTP access to your server files.
-          <RouterLink to="/help#ssh-key" class="underline hover:text-ink-100">How to create a key</RouterLink>
+          <PageHelp title="SFTP with an SSH key" :topics="['ssh-key', 'sftp', 'sftp-problems']" remember="ssh-keys" />
         </p>
       </div>
       <button type="button" :class="primaryClass" @click="openModal">+ Add SSH Key</button>
