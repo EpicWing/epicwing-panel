@@ -20,6 +20,20 @@ export function setCsrfToken(token: string): void {
   csrfToken = token;
 }
 
+// Called when a request comes back 401, so the app can go to the login page.
+let unauthorizedHandler: (() => void) | null = null;
+
+export function onUnauthorized(handler: () => void): void {
+  unauthorizedHandler = handler;
+}
+
+function checkSession(path: string, status: number): void {
+  // Wrong password or 2FA code is not an expired session.
+  if (status === 401 && !path.startsWith("/auth/")) {
+    unauthorizedHandler?.();
+  }
+}
+
 interface RequestOptions {
   method?: string;
   body?: unknown;
@@ -43,6 +57,7 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
   });
 
   if (!response.ok) {
+    checkSession(path, response.status);
     let detail = `Error ${response.status}`;
     let code: string | undefined;
     let technical: string | undefined;
@@ -77,6 +92,7 @@ export async function apiUpload(path: string, file: Blob): Promise<void> {
     body: file,
   });
   if (!response.ok) {
+    checkSession(path, response.status);
     let detail = `Error ${response.status}`;
     try {
       const data = await response.json();

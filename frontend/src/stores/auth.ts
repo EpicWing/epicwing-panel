@@ -19,13 +19,15 @@ interface TwoFactorChallenge {
   challenge: string;
 }
 
-const state = reactive<{ user: User | null; ready: boolean }>({
+const state = reactive<{ user: User | null; ready: boolean; expired: boolean }>({
   user: null,
   ready: false,
+  expired: false,
 });
 
 function apply(data: AuthResponse): void {
   state.user = data.user;
+  state.expired = false;
   setCsrfToken(data.csrf_token);
 }
 
@@ -69,6 +71,16 @@ export const auth = {
     const user = await api<User>("/auth/me/name", { method: "PUT", body: { display_name: displayName } });
     state.user = user;
     return user;
+  },
+
+  // The backend no longer accepts the session (timed out or signed out elsewhere).
+  expire(): void {
+    if (!state.user) {
+      return;
+    }
+    state.user = null;
+    state.expired = true;
+    setCsrfToken("");
   },
 
   async logout(): Promise<void> {

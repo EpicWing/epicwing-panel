@@ -92,6 +92,7 @@ export default {
     submit: "Sign in",
     submitting: "Signing in…",
     forgot: "Forgot password?",
+    expired: "You were signed out because your session ended. Please sign in again.",
   },
   servers: {
     title: "Your Servers",

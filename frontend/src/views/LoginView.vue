@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 
 import { api, ApiError } from "../api/client";
 import LogoMark from "../components/LogoMark.vue";
@@ -9,6 +9,13 @@ import { auth } from "../stores/auth";
 
 const { t } = useI18n();
 const router = useRouter();
+const route = useRoute();
+
+// Only paths inside the panel, never a link to another site.
+function nextPage(): string {
+  const next = route.query.next;
+  return typeof next === "string" && next.startsWith("/") && !next.startsWith("//") ? next : "/";
+}
 const email = ref("");
 const password = ref("");
 const error = ref("");
@@ -46,7 +53,7 @@ async function submit() {
         return;
       }
     }
-    await router.push({ name: "servers" });
+    await router.push(nextPage());
   } catch (e) {
     code.value = "";
     if (!challenge.value) {
@@ -125,6 +132,13 @@ async function submit() {
           />
           <p class="mt-2 text-xs text-ink-400">{{ t("login.codeHint") }}</p>
         </div>
+
+        <p
+          v-if="auth.state.expired && !error"
+          class="rounded-md border border-ink-700 bg-ink-950 px-3 py-2 text-sm text-ink-300"
+        >
+          {{ t("login.expired") }}
+        </p>
 
         <p
           v-if="error"
