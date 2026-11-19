@@ -71,9 +71,10 @@ jobs:
             # The release exists already (the tag was moved): replace the files and the notes.
             gh release upload "$GITHUB_REF_NAME" dist/* \
               --repo "$GITHUB_REPOSITORY" --clobber
-            gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --notes-file notes.md
+            gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --notes-file notes.md \
+              --prerelease=false --latest
           else
             gh release create "$GITHUB_REF_NAME" dist/* \
               --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" \
-              --prerelease --notes-file notes.md
+              --latest --notes-file notes.md
           fi

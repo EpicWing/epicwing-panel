@@ -73,6 +73,9 @@ done
 [ "$(id -u)" -eq 0 ] || die "Run this script as root."
 if [ -z "$DOMAIN" ]; then DOMAIN="$(ask "Domain or IP of the panel (e.g. panel.example.com): ")"; fi
 if [ -z "$ADMIN_EMAIL" ]; then ADMIN_EMAIL="$(ask "E-mail of the first administrator: ")"; fi
+if [[ "$DOMAIN" =~ ^[0-9.]+$ ]]; then
+  warn "With an IP address the panel gets a self-signed certificate. That is fine to try it out, but nodes can only connect to a panel with a domain name and a Let's Encrypt certificate."
+fi
 if [ -z "$LE_EMAIL" ] && [ -n "$DOMAIN" ] && ! [[ "$DOMAIN" =~ ^[0-9.]+$ ]]; then
   LE_EMAIL="$(ask "E-mail for Let's Encrypt (leave empty for a self-signed certificate): ")"
 fi

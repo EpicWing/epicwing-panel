@@ -2,6 +2,41 @@
 
 ## Unreleased
 
+## 0.3.2-beta (2026-11-19)
+
+### What's new
+
+- Help right where you need it: the pages for SSH keys, API keys, SFTP, access and backups open a short guide the first time you visit them. You can open it again any time with the help link on the page
+- When your session ends, the panel takes you to the login page with a short note, instead of showing errors. After signing in you are back on the page you were on
+- Tabs in the background no longer ask the panel for updates every few seconds. They refresh again as soon as you switch back. This takes load off the panel when many people have it open
+- Node installer: when the panel can't be reached, it now says why. With an IP address instead of the domain, it tells you to use the domain name, because the certificate only fits the domain
+- Panel installer: shows a warning when you install with an IP address only, because nodes need a domain name with a Let's Encrypt certificate
+- From now on, releases are full releases instead of pre-releases
+
+### Update
+
+Panel (makes a database backup first, no database migration in this release):
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/EpicWing/epicwing-panel/main/scripts/install.sh) update panel
+```
+
+Nodes (run on every node):
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/EpicWing/epicwing-panel/main/scripts/install.sh) update node
+```
+
+The agent has no changes in this release, so updating the nodes is optional.
+
+### New install
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/EpicWing/epicwing-panel/main/scripts/install.sh) panel
+```
+
+Use a domain name for the panel, not an IP address, and give an e-mail for Let's Encrypt when the installer asks. Nodes need this to connect.
+
 ## 0.3.1-beta (2026-11-18)
 
 - Move a server to another node: new Transfer tab on the server page. The old node packs the files, the panel passes them on, the new node checks the SHA-256 sum and unpacks them. The database only switches to the new node at the very end, so a failed move leaves the server where it was. The files on the old node stay until you delete them. Extra ports have to be added again on the new node

@@ -100,7 +100,14 @@ done
 getent group docker >/dev/null || die "The group 'docker' does not exist. Install Docker first."
 docker info >/dev/null 2>&1 || die "Docker is installed but not running."
 
-code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "$PANEL/" 2>/dev/null || true)"
+rc=0
+code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "$PANEL/" 2>/dev/null)" || rc=$?
+case "$rc" in
+  0) ;;
+  35|51|58|60|77) die "The HTTPS certificate of the panel is not valid for $PANEL. Use the panel's domain name with a Let's Encrypt certificate, not its IP address." ;;
+  6) die "The name in $PANEL can't be resolved. Check the domain and its DNS record." ;;
+  *) die "The panel at $PANEL is not reachable from this node (curl error $rc). Check the address and the firewall." ;;
+esac
 case "$code" in
   ""|000) die "The panel at $PANEL is not reachable from this node." ;;
 esac
