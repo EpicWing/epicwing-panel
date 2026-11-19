@@ -75,7 +75,6 @@ const sections = computed<NavSection[]>(() => {
         { label: t("nav.servers"), to: "/", icon: "servers" },
         { label: t("nav.apiKeys"), to: "/api-keys", icon: "key" },
         { label: t("nav.sshKeys"), to: "/ssh-keys", icon: "terminal" },
-        { label: t("nav.help"), to: "/help", icon: "book" },
         ...(auth.state.user?.is_admin
           ? [{ label: t("nav.adminPanel"), to: "/admin", badge: t("nav.adminBadge"), icon: "shield" }]
           : []),
@@ -100,6 +99,7 @@ const mobileLinks = computed(() => {
   }
   if (props.area === "user") {
     links.push({ label: t("nav.settings"), to: "/settings" });
+    links.push({ label: t("nav.help"), to: "/help" });
   }
   return links;
 });
@@ -206,6 +206,14 @@ async function logout() {
           exact-active-class="!text-accent-400"
         >
           {{ t("nav.settings") }}
+        </RouterLink>
+        <RouterLink
+          v-if="area === 'user'"
+          to="/help"
+          class="block text-sm text-ink-300 transition hover:text-accent-400"
+          exact-active-class="!text-accent-400"
+        >
+          {{ t("nav.help") }}
         </RouterLink>
         <button class="text-sm text-ink-300 transition hover:text-accent-400" @click="logout">
           {{ t("common.signOut") }}

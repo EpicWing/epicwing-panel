@@ -133,6 +133,17 @@ async function submit() {
     <div class="space-y-6">
     <TwoFactorPanel />
     <SessionsPanel />
+    <section class="rounded-xl border border-ink-700 bg-ink-900 p-6">
+      <h2 class="text-lg font-semibold">Help</h2>
+      <p class="mt-1 text-sm text-ink-400">Short guides for the things people get stuck on most.</p>
+      <ul class="mt-4 space-y-2 text-sm">
+        <li><RouterLink to="/help#sftp" class="text-ink-200 underline hover:text-ink-100">Connect with FileZilla or WinSCP</RouterLink></li>
+        <li><RouterLink to="/help#ssh-key" class="text-ink-200 underline hover:text-ink-100">Create an SSH key</RouterLink></li>
+        <li><RouterLink to="/help#api-key" class="text-ink-200 underline hover:text-ink-100">Create and use an API key</RouterLink></li>
+        <li><RouterLink to="/help#access" class="text-ink-200 underline hover:text-ink-100">Let others help on your server</RouterLink></li>
+        <li><RouterLink to="/help" class="text-ink-200 underline hover:text-ink-100">All topics</RouterLink></li>
+      </ul>
+    </section>
     </div>
     </div>
   </AppLayout>
