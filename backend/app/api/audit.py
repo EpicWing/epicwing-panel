@@ -147,11 +147,16 @@ def _base(access: ServerAccess) -> list[ColumnElement[bool]]:
     ]
 
 
-def _emails(db: Session, rows: list[AuditLog]) -> dict[uuid.UUID, str]:
+def _actor_names(db: Session, rows: list[AuditLog]) -> dict[uuid.UUID, str]:
     ids = {row.actor_id for row in rows if row.actor_id is not None}
     if not ids:
         return {}
-    return dict(db.execute(select(User.id, User.email).where(User.id.in_(ids))).all())
+    names: dict[uuid.UUID, str] = {}
+    for user_id, email, display_name in db.execute(
+        select(User.id, User.email, User.display_name).where(User.id.in_(ids))
+    ).all():
+        names[user_id] = display_name or email
+    return names
 
 
 def _show_ip(access: ServerAccess) -> bool:
@@ -178,9 +183,9 @@ def server_activity(
     )
     has_more = len(rows) > limit
     rows = rows[:limit]
-    emails = _emails(db, rows)
+    names = _actor_names(db, rows)
     show_ip = _show_ip(access)
-    items = [_item(row, emails.get(row.actor_id), show_ip) for row in rows]
+    items = [_item(row, names.get(row.actor_id), show_ip) for row in rows]
     return ActivityPage(items=items, has_more=has_more)
 
 
@@ -200,9 +205,9 @@ def export_activity(
             .limit(EXPORT_LIMIT)
         )
     )
-    emails = _emails(db, rows)
+    names = _actor_names(db, rows)
     show_ip = _show_ip(access)
-    items = [_item(row, emails.get(row.actor_id), show_ip) for row in rows]
+    items = [_item(row, names.get(row.actor_id), show_ip) for row in rows]
 
     if fmt == "json":
         body = json.dumps([i.model_dump(mode="json") for i in items], indent=2, ensure_ascii=False)
@@ -299,10 +304,10 @@ class AdminActivityPage(BaseModel):
 
 
 def _admin_items(db: Session, rows: list[AuditLog]) -> list[AdminActivityItem]:
-    emails = _emails(db, rows)
+    names = _actor_names(db, rows)
     return [
         AdminActivityItem(
-            **_item(row, emails.get(row.actor_id), True).model_dump(),
+            **_item(row, names.get(row.actor_id), True).model_dump(),
             target_type=row.target_type,
             target_id=row.target_id,
         )

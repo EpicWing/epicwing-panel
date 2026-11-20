@@ -63,7 +63,7 @@ const buttonClass =
   "rounded-lg border border-ink-700 px-3 py-1.5 text-xs text-ink-200 transition hover:border-accent-500 disabled:opacity-40";
 
 function name(item: Item): string {
-  return item.actor ? item.actor.split("@")[0] : "System";
+  return item.actor ? (item.actor.includes("@") ? item.actor.split("@")[0] : item.actor) : "System";
 }
 
 function failed(item: Item): boolean {
