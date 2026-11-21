@@ -2,6 +2,35 @@
 
 ## Unreleased
 
+## 0.3.3-beta (2026-11-21)
+
+### What's new
+
+- New server cards: a cleaner look with a status pill, icons for CPU, RAM and disk, and a small bar under each value that shows how close the server is to its CPU, RAM and disk limit. A value with no set limit shows no bar.
+- The activity log now shows a user's chosen display name instead of the name taken from their e-mail address.
+
+### Update
+
+Panel (makes a database backup first, no database migration in this release):
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/EpicWing/epicwing-panel/main/scripts/install.sh) update panel
+```
+
+The agent has no changes in this release, so updating the nodes is optional:
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/EpicWing/epicwing-panel/main/scripts/install.sh) update node
+```
+
+### New install
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/EpicWing/epicwing-panel/main/scripts/install.sh) panel
+```
+
+Use a domain name for the panel, not an IP address, and give an e-mail for Let's Encrypt when the installer asks. Nodes need this to connect.
+
 ## 0.3.2-beta (2026-11-19)
 
 ### What's new
