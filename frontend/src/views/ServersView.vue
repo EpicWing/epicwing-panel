@@ -50,6 +50,12 @@ function formatBytes(bytes: number | null | undefined): string | null {
   return `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GiB`;
 }
 
+// Live usage as a share of the configured limit, for the bars. No limit means no bar.
+function ratio(usedBytes: number | null | undefined, limitMb: number): number | undefined {
+  if (usedBytes == null || !(limitMb > 0)) return undefined;
+  return (usedBytes / (limitMb * 1024 * 1024)) * 100;
+}
+
 // Until the agent reports live usage, the cards show the configured limits.
 function toCard(s: ApiServer): ServerItem {
   const main = s.allocations.find((a) => a.is_primary) ?? s.allocations[0];
@@ -63,6 +69,10 @@ function toCard(s: ApiServer): ServerItem {
     cpu: s.live_cpu_percent == null ? `${s.cpus} cores` : formatCpu(s.live_cpu_percent),
     ram: formatBytes(s.live_memory_used_bytes) ?? formatSize(s.memory_mb),
     storage: formatBytes(s.live_disk_used_bytes) ?? (status === "offline" ? "" : formatSize(s.disk_mb)),
+    // CPU comes in Docker style (100% per core), so divide by the core limit for the bar.
+    cpuPct: s.cpus > 0 && s.live_cpu_percent != null ? s.live_cpu_percent / s.cpus : undefined,
+    ramPct: ratio(s.live_memory_used_bytes, s.memory_mb),
+    diskPct: ratio(s.live_disk_used_bytes, s.disk_mb),
   };
 }
 
