@@ -16,8 +16,8 @@ REPO="EpicWing/epicwing-panel"
 ARCHIVE_URL="https://github.com/$REPO/archive/refs/tags/$VERSION.tar.gz"
 AGENT_BASE_URL="https://github.com/$REPO/releases/download/$VERSION/epicwing-agent-linux-"
 # One checksum per CPU type: sha256sum epicwing-agent-linux-<arch>
-AGENT_SHA256_AMD64="11403ecab572ec4828d1228e43a6b4c23ae7e7712165b98022cef654b84caa72"
-AGENT_SHA256_ARM64="1ca7ac791ebe265745fba4f6b5623dd2e5156f9195ac8142b52e783e577a55e6"
+AGENT_SHA256_AMD64="f7c87c279e24c1f3c5c94156d1ba9aa4c2e4de494b777b26227c975a7ece55ae"
+AGENT_SHA256_ARM64="5a37a7c06cf72c2f98f28d5baa1ae2955d8b594bf6494b901512b8e28bd72e22"
 
 # Paths used by install-panel.sh
 APP_USER="epicwing"
