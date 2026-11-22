@@ -516,7 +516,7 @@ def _server_as(client, world, account):
 
 
 def test_member_without_startup_view_gets_no_startup_data(client, world, db_session):
-    # Mitglied darf den Server sehen, aber nicht den Startbefehl und die Variablen.
+    # A member may see the server, but not the start command or the variables.
     _grant(db_session, world, world.member, _permission("server.view"))
     body = _server_as(client, world, world.member)
     assert body["variables"] == {}

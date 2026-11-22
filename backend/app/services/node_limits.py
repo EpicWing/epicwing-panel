@@ -11,7 +11,7 @@ from app.models.server import Server
 def allocated(
     db: Session, node_id: uuid.UUID, exclude_server_id: uuid.UUID | None = None
 ) -> tuple[int, int]:
-    """Summe aus RAM und Speicher (MB), die schon an Server der Node vergeben ist."""
+    """Sum of RAM and storage (MB) already assigned to servers on the node."""
     stmt = select(
         func.coalesce(func.sum(Server.memory_mb), 0),
         func.coalesce(func.sum(Server.disk_mb), 0),
@@ -23,19 +23,19 @@ def allocated(
 
 
 def exceeds(limit: int | None, used: int, wanted: int, old: int | None) -> bool:
-    """True, wenn der gewünschte Wert das Limit der Node verletzt.
+    """True if the requested value breaks the node's limit.
 
-    old ist None bei neuen Servern, sonst der bisherige Wert des Servers.
+    old is None for new servers, otherwise the server's previous value.
     """
     if limit is None:
         return False
-    # Unveränderte Werte werden nie beanstandet
+    # Unchanged values are never rejected
     if old is not None and wanted == old:
         return False
-    # 0 heißt unbegrenzt und würde das Limit der Node aushebeln
+    # 0 means unlimited and would bypass the node's limit
     if wanted == 0:
         return True
-    # Verkleinern geht immer, auch wenn die Node schon über dem Limit liegt
+    # Shrinking is always allowed, even if the node is already over its limit
     if old is not None and wanted < old:
         return False
     return used + wanted > limit
@@ -52,7 +52,7 @@ def check_fits(
 ) -> None:
     if node.ram_limit_mb is None and node.disk_limit_mb is None:
         return
-    # Zeile sperren, damit zwei gleichzeitige Anfragen das Limit nicht beide ausnutzen
+    # Lock the row so two concurrent requests cannot both use up the limit
     db.execute(select(Node.id).where(Node.id == node.id).with_for_update())
     ram_used, disk_used = allocated(db, node.id, exclude_server_id)
 

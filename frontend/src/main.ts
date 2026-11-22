@@ -6,7 +6,7 @@ import { initTheme } from "./composables/useTheme";
 import router from "./router";
 import "./style.css";
 
-// Theme abgleichen und dem System folgen, wenn "System" gewählt ist
+// Sync the theme and follow the system when "System" is selected
 initTheme();
 
 createApp(App).use(router).use(i18n).mount("#app");

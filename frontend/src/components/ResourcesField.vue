@@ -42,7 +42,7 @@ function edit() {
   saved.value = false;
 }
 
-// Leere Eingabe zählt als ungültig, 0 heißt unbegrenzt
+// Empty input counts as invalid, 0 means unlimited
 function number(text: string): number | null {
   const value = Number(text.trim().replace(",", "."));
   return text.trim() !== "" && Number.isFinite(value) && value >= 0 ? value : null;

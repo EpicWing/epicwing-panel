@@ -48,7 +48,7 @@ def test_time_window_and_order(db_session, user):
 
 def test_tampered_or_missing_secret(db_session, user):
     assert totp.verify_code(db_session, user, "123456", now=T) is False
-    user.totp_secret = "kein-gueltiger-token"
+    user.totp_secret = "not-a-valid-token"
     db_session.commit()
     assert totp.decrypt_secret(user.totp_secret) is None
     assert totp.verify_code(db_session, user, "123456", now=T) is False

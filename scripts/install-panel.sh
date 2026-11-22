@@ -95,7 +95,7 @@ banner
 : > "$LOG"
 info "Installing packages"
 export DEBIAN_FRONTEND=noninteractive
-# Ubuntu: needrestart soll waehrend apt nicht nachfragen
+# Ubuntu: keep needrestart from asking questions during apt
 export NEEDRESTART_MODE=a
 export NEEDRESTART_SUSPEND=1
 quiet apt-get update -qq
@@ -114,7 +114,7 @@ if ! node_ok; then
   fi
 fi
 node_ok || die "Node.js 20 or newer is required."
-# Ubuntu-Images haben teils eine aktive Firewall, dann sind 80/443 zu
+# Some Ubuntu images ship with an active firewall that blocks ports 80/443
 if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q 'Status: active'; then
   warn "ufw is active. Allow ports 80 and 443 (ufw allow 80,443/tcp), or the panel will not be reachable."
 fi

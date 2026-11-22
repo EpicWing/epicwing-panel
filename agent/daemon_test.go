@@ -11,7 +11,7 @@ func TestDaemonLineFormat(t *testing.T) {
 		t.Fatalf("wrong prefix: %q", got)
 	}
 	if !strings.HasSuffix(got, "Server marked as starting...\r\n") {
-		t.Fatalf("Text oder Zeilenende falsch: %q", got)
+		t.Fatalf("wrong text or line ending: %q", got)
 	}
 }
 

@@ -36,6 +36,6 @@ def test_routes_need_login(client):
         response = client.request(method, _fill(path), json={} if method != "GET" else None)
         if response.status_code not in (401, 403) and (method, path) not in PUBLIC:
             reachable.append(f"{response.status_code} {method} {path}")
-    print(f"\n{len(routes)} Routen geprueft, ohne Login erreichbar:")
-    print("\n".join(reachable) or "keine")
+    print(f"\n{len(routes)} routes checked, reachable without login:")
+    print("\n".join(reachable) or "none")
     assert not reachable

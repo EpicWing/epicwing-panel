@@ -10,7 +10,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # NULL heißt unbegrenzt
+    # NULL means unlimited
     op.add_column("nodes", sa.Column("ram_limit_mb", sa.Integer(), nullable=True))
     op.add_column("nodes", sa.Column("disk_limit_mb", sa.Integer(), nullable=True))
 

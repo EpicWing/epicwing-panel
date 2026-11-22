@@ -3,7 +3,7 @@ import { ref } from "vue";
 export type ThemeChoice = "light" | "dark" | "system";
 
 const KEY = "epicwing-theme";
-// Dauer der Überblendung, passend zu .theme-fade in style.css
+// Duration of the fade, matches .theme-fade in style.css
 const FADE_MS = 300;
 
 function readChoice(): ThemeChoice {
@@ -13,12 +13,12 @@ function readChoice(): ThemeChoice {
   } catch {
     // Speicher gesperrt (z. B. privater Modus): Standard nehmen
   }
-  // Standard bleibt dunkel, damit sich für bestehende Nutzer nichts ändert
+  // Default stays dark so nothing changes for existing users
   return "dark";
 }
 
 const choice = ref<ThemeChoice>(readChoice());
-// In Tests (ohne matchMedia) gibt es keine Systemabfrage
+// In tests (without matchMedia) there is no system query
 const query = typeof window.matchMedia === "function" ? window.matchMedia("(prefers-color-scheme: light)") : null;
 
 function resolve(): "light" | "dark" {
@@ -30,7 +30,7 @@ function apply(animate: boolean) {
   const root = document.documentElement;
   const theme = resolve();
   if (animate) {
-    // Klasse nur kurz setzen, damit nur beim Umschalten überblendet wird
+    // Set the class only briefly so the fade happens only when switching
     root.classList.add("theme-fade");
     window.setTimeout(() => root.classList.remove("theme-fade"), FADE_MS);
   }
@@ -41,7 +41,7 @@ function apply(animate: boolean) {
   document.querySelector('meta[name="color-scheme"]')?.setAttribute("content", theme);
 }
 
-// Einmal beim Start aufrufen: gleicht das Theme ab und folgt dem System, wenn "System" gewählt ist
+// Call once on startup: syncs the theme and follows the system when "System" is selected
 export function initTheme() {
   apply(false);
   query?.addEventListener("change", () => {
@@ -55,7 +55,7 @@ export function useTheme() {
     try {
       localStorage.setItem(KEY, value);
     } catch {
-      // Speichern nicht möglich: Auswahl gilt nur bis zum Neuladen
+      // Saving is not possible: the choice only lasts until the next reload
     }
     apply(true);
   }

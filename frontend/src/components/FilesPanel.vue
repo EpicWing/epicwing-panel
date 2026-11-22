@@ -1217,7 +1217,7 @@ watch(blocked, (value) => {
   color: #f59e0b;
 }
 
-/* Heller Modus: Editor und Syntax-Farben */
+/* Light mode: editor and syntax colors */
 :root[data-theme="light"] .code-input--overlay {
   caret-color: #17171a;
 }
