@@ -31,6 +31,14 @@ var (
 	bkS3CodeRe   = regexp.MustCompile(`<Code>([A-Za-z0-9.]{1,64})</Code>`)
 )
 
+// bkClient never follows redirects. Presigned storage URLs do not need them, and
+// following one could send the request to a different, possibly internal, address.
+var bkClient = &http.Client{
+	CheckRedirect: func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	},
+}
+
 func bkValidURL(raw string) error {
 	u, err := url.Parse(raw)
 	if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" {
@@ -64,7 +72,7 @@ func bkPutPart(rawURL string, body io.Reader, size int64) (string, error) {
 		return "", errors.New("invalid storage url")
 	}
 	req.ContentLength = size
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := bkClient.Do(req)
 	if err != nil {
 		return "", bkHTTPErr(err)
 	}
@@ -134,7 +142,7 @@ func bkFetch(rawURL, dest, want string) (int64, string, error) {
 	if err != nil {
 		return 0, "", errors.New("invalid storage url")
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := bkClient.Do(req)
 	if err != nil {
 		return 0, "", bkHTTPErr(err)
 	}
