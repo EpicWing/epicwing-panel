@@ -5,6 +5,13 @@ export default {
     demo: "Demo",
     unreachable: "Could not reach the server.",
   },
+  appearance: {
+    title: "Appearance",
+    hint: "System follows the setting of your device.",
+    light: "Light",
+    dark: "Dark",
+    system: "System",
+  },
   databaseHosts: {
     title: "Database Hosts",
     subtitle: "Database hosts on which servers can create their databases.",
