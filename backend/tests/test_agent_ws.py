@@ -64,7 +64,7 @@ def _enroll_node(client, user, name="node-1"):
 
 
 def _auth_payload(node_id, private_key, challenge):
-    # The byte pattern is spelled out here on purpose instead of being imported from the server code,
+    # The byte pattern is spelled out here on purpose, not imported from the server code,
     # so a protocol change breaks this test visibly.
     nonce = base64.b64decode(challenge["nonce"])
     message = b"epicwing-agent-auth-v1\n" + node_id.encode() + b"\n" + nonce
