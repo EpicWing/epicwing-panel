@@ -197,7 +197,7 @@ onMounted(() => void load());
               placeholder="https://discord.com/api/webhooks/…"
               :class="fieldCls"
             />
-            <p :class="hintCls">{{ t("notify.discordHint2") }}</p>
+            <p :class="hintCls">{{ t("notify.discordHint") }}</p>
           </div>
           <div class="flex flex-wrap gap-3">
             <button type="button" :class="buttonCls" :disabled="testing === 'discord' || !(webhookSet || form.discord_webhook.trim())" @click="runTest('discord')">
