@@ -61,7 +61,7 @@ class ScheduleTask(Base):
     action: Mapped[str] = mapped_column(String(16))
     # For power: start, stop, restart, kill. For command: the command. For backup: empty.
     payload: Mapped[str] = mapped_column(String(1024), default="")
-    # Wartezeit in Sekunden, bevor diese Aufgabe startet.
+    # Wait time in seconds before this task starts.
     time_offset: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     continue_on_failure: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default=false()

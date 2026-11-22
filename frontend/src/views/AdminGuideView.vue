@@ -193,7 +193,7 @@ async function copy(id: string, text: string) {
   color: #fde68a;
 }
 
-/* Heller Modus: dunklere Schrift auf hellem Grund */
+/* Light mode: darker text on a light background */
 :root[data-theme="light"] .accent {
   color: #b36b00;
 }

@@ -29,7 +29,7 @@ from app.security.ratelimit import (  # noqa: E402
 
 TEST_PASSWORD = "correct-horse-battery"
 
-# Der Original-Hasher mit den Produktionsparametern, bevor die Fixture ihn ersetzt.
+# The original hasher with the production parameters, before the fixture replaces it.
 PRODUCTION_PASSWORD_HASHER = passwords._hasher
 
 

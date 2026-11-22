@@ -4,7 +4,7 @@ from sqlalchemy import select
 from app.models import RecoveryCode
 from app.security import totp
 
-T = 1_800_000_000  # liegt genau auf einer Zeitschrittgrenze
+T = 1_800_000_000  # exactly on a time step boundary
 
 
 def _code(secret: str, at: int) -> str:
@@ -79,7 +79,7 @@ def test_activate_and_disable(db_session, user):
     assert totp.is_enabled(user) and len(codes) == 10
     try:
         totp.begin_enrollment(db_session, user)
-        raise AssertionError("Neu einrichten bei aktiver 2FA muss scheitern")
+        raise AssertionError("Setting up 2FA again while it is active must fail")
     except ValueError:
         pass
 

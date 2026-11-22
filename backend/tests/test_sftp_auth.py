@@ -60,7 +60,7 @@ def test_owner_gets_read_and_write(db_session, user, world):
     assert grant is not None
     assert grant.server_id == server.id
     assert grant.write is True
-    assert key.last_used_at is None  # erst die fertige Anmeldung setzt es
+    assert key.last_used_at is None  # only a completed login sets it
 
 
 def test_unknown_fingerprint_is_rejected(db_session, world):

@@ -1,4 +1,4 @@
-# Secrets und lokale Konfiguration
+# Secrets and local configuration
 .env
 *.pem
 *.key
@@ -29,11 +29,11 @@ agent/agent
 build/
 dist/
 
-# Lokale Dev-Prozesse (Logs)
+# Local dev processes (logs)
 .dev/
 bin/
 
-# Datenbanken und lokale Daten
+# Databases and local data
 *.db
 *.sqlite
 .env.*

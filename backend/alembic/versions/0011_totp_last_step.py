@@ -1,4 +1,4 @@
-"""2FA: zuletzt genutzter Zeitschritt (Schutz gegen Wiederverwendung)"""
+"""2FA: last used time step (prevents reuse of a code)"""
 import sqlalchemy as sa
 from alembic import op
 

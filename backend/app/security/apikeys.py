@@ -1,4 +1,4 @@
-"""Anmeldung per API Key (Authorization: Bearer ewk_...).
+"""Login with an API key (Authorization: Bearer ewk_...).
 
 A key only works at endpoints that use ServerAuth. Account, 2FA, keys, users and the
 admin area stay tied to the cookie session.

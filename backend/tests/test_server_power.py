@@ -93,7 +93,7 @@ def test_start_stop_and_kill(client, server, broker):
     assert _power(client, server, "stop").json()["status"] == "offline"
     assert _power(client, server, "start").json()["status"] == "starting"
     assert _power(client, server, "kill").json()["status"] == "offline"
-    # Jeder Start erzeugt den Container aus dem aktuellen Stand neu.
+    # Every start creates the container again from the current state.
     assert broker.actions() == [
         "container.create",
         "container.remove",

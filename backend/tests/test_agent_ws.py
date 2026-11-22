@@ -220,7 +220,7 @@ def test_newer_connection_replaces_the_older_one(client, db_session, user):
 
 def test_websocket_routes_are_known():
     # The auth test for HTTP routes skips WebSocket routes, because they
-    # Signatur anmelden. Jede neue WebSocket-Route muss deshalb bewusst hier stehen.
+    # log in with a signature. So every new WebSocket route has to be listed here on purpose.
     found = {r.path for r in collect_routes(app) if r.websocket}
     assert found == {"/api/agent/ws", "/api/servers/{server_id}/console"}
 

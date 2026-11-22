@@ -3,7 +3,7 @@ import uuid
 
 from app.main import app
 
-# Routen, die ohne Login erreichbar sein duerfen: nach dem ersten Durchlauf ergaenzen
+# Routes that may be reached without a login. Add new ones here after the first run.
 PUBLIC: set[tuple[str, str]] = {
     ("GET", "/api/health"),
     ("GET", "/api/panel"),

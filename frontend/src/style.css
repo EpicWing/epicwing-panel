@@ -165,7 +165,7 @@ body:has(.server-detail-shell) {
   }
 }
 
-/* Animationen: kurz halten, 120 bis 250 ms */
+/* Animations: keep them short, 120 to 250 ms */
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -224,7 +224,7 @@ body:has(.server-detail-shell) {
   transform-origin: top right;
 }
 
-/* In der base-Schicht, damit Tailwind-Klassen wie "transition" Vorrang behalten. */
+/* In the base layer, so that Tailwind classes such as "transition" still take precedence. */
 @layer base {
   button,
   a,
@@ -249,7 +249,7 @@ body:has(.server-detail-shell) {
   }
 }
 
-/* Ladebalken beim Seitenwechsel */
+/* Loading bar when the page changes */
 .route-bar {
   position: fixed;
   inset: 0 0 auto 0;
@@ -276,7 +276,7 @@ body:has(.server-detail-shell) {
   to { transform: translateX(250%); }
 }
 
-/* Platzhalter, solange Daten laden */
+/* Placeholder while data is loading */
 .skeleton {
   position: relative;
   overflow: hidden;
@@ -299,7 +299,7 @@ body:has(.server-detail-shell) {
   .skeleton::after { animation: none; }
 }
 
-/* Inhalt eines Reiters blendet beim Wechsel ein */
+/* Tab content fades in when the tab changes */
 @keyframes tab-in {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: none; }
@@ -326,7 +326,7 @@ body:has(.server-detail-shell) {
   animation: spinner-turn 0.7s linear infinite;
 }
 
-/* Diagramme gleiten bei jedem neuen Messpunkt um einen Schritt nach links */
+/* Charts slide one step to the left with every new data point */
 @keyframes chart-glide {
   from { transform: translateX(var(--glide, 0px)); }
 }
@@ -334,7 +334,7 @@ body:has(.server-detail-shell) {
   animation: chart-glide 0.7s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Dateizeilen blenden beim Ordnerwechsel ein */
+/* File rows fade in when the folder changes */
 @keyframes row-in {
   from { opacity: 0; transform: translateY(4px); }
 }
@@ -342,8 +342,8 @@ body:has(.server-detail-shell) {
   animation: row-in 0.2s ease-out backwards;
 }
 
-/* ===== Heller Modus =====
-   Die ink-Töne werden neu belegt, alle Klassen in den Views bleiben unverändert. */
+/* ===== Light mode =====
+   The ink shades are remapped, all classes in the views stay unchanged. */
 :root[data-theme="light"] {
   color-scheme: light;
 
@@ -362,17 +362,17 @@ body:has(.server-detail-shell) {
   --color-bad: #cf222e;
 }
 
-/* Dunkle Schrift auf den gelben Buttons (ink-950 ist im hellen Modus sonst hell) */
+/* Dark text on the yellow buttons (ink-950 is light in light mode otherwise) */
 :root[data-theme="light"] .text-ink-950 {
   color: #17171a;
 }
 
-/* Skeleton-Schimmer: weiß wäre auf hellem Grund unsichtbar */
+/* Skeleton shimmer: white would be invisible on a light background */
 :root[data-theme="light"] .skeleton::after {
   background: linear-gradient(90deg, transparent, rgb(0 0 0 / 0.05), transparent);
 }
 
-/* Konsole: ANSI-Farben für hellen Grund */
+/* Console: ANSI colors for a light background */
 :root[data-theme="light"] .ansi-fg-1 { color: #cf222e; }
 :root[data-theme="light"] .ansi-fg-2 { color: #1a7f37; }
 :root[data-theme="light"] .ansi-fg-3 { color: #8a6500; }
@@ -392,7 +392,7 @@ body:has(.server-detail-shell) {
 :root[data-theme="light"] .ansi-bg-7 { background-color: #d0d0d8; }
 :root[data-theme="light"] .ansi-bg-15 { background-color: #ffffff; }
 
-/* Sanfter Übergang nur beim Umschalten (Klasse wird kurz von useTheme.ts gesetzt) */
+/* Smooth transition only while switching (useTheme.ts sets the class briefly) */
 @media (prefers-reduced-motion: no-preference) {
   .theme-fade,
   .theme-fade *,
@@ -404,14 +404,14 @@ body:has(.server-detail-shell) {
   }
 }
 
-/* Heller Modus: Akzent nur als Text abdunkeln, Flächen (bg-accent-*) bleiben gelb */
+/* Light mode: darken the accent only for text, surfaces (bg-accent-*) stay yellow */
 :root[data-theme="light"] .text-accent-400,
 :root[data-theme="light"] .text-accent-500,
 :root[data-theme="light"] .hover\:text-accent-400:hover {
   color: #b36b00;
 }
 
-/* Heller Modus: Karten und Konsole heben sich vom Hintergrund ab */
+/* Light mode: cards and console stand out from the background */
 :root[data-theme="light"] .console-surface {
   background: #f8f8fa;
 }
@@ -419,7 +419,7 @@ body:has(.server-detail-shell) {
   box-shadow: 0 1px 2px rgb(20 20 30 / 0.07);
 }
 
-/* Heller Modus: kräftigere Schrift und deutlichere Karten */
+/* Light mode: stronger text and clearer cards */
 :root[data-theme="light"] body {
   font-weight: 500;
 }
@@ -428,7 +428,7 @@ body:has(.server-detail-shell) {
   box-shadow: 0 1px 3px rgb(20 20 30 / 0.18);
 }
 
-/* Heller Modus: Schatten dämpfen (Start/Restart/Stop-Gruppe und Dialoge) */
+/* Light mode: softer shadows (Start/Restart/Stop group and dialogs) */
 :root[data-theme="light"] .shadow-lg {
   box-shadow: 0 1px 3px rgb(20 20 30 / 0.14);
 }
@@ -436,15 +436,15 @@ body:has(.server-detail-shell) {
   box-shadow: 0 10px 30px rgb(20 20 30 / 0.2);
 }
 
-/* Heller Modus: aktiver Menüpunkt (Klasse mit "!") bleibt sonst zu hell.
-   Muss in der utilities-Schicht stehen, damit es gegen das important von Tailwind gewinnt. */
+/* Light mode: the active menu item (class with "!") is too light otherwise.
+   It has to be in the utilities layer to win against the important from Tailwind. */
 @layer utilities {
   :root[data-theme="light"] [class~="!text-accent-400"] {
     color: #b36b00 !important;
   }
 }
 
-/* Heller Modus: Knöpfe Documentation und GitHub passen sich dem Grau der Oberfläche an */
+/* Light mode: the Documentation and GitHub buttons follow the gray of the interface */
 :root[data-theme="light"] .bg-blue-600 {
   background-color: var(--color-ink-100);
 }
@@ -452,7 +452,7 @@ body:has(.server-detail-shell) {
   background-color: var(--color-ink-300);
 }
 
-/* Heller Modus: Node-Load-Kacheln heller als die Seite, aber abgesetzt von der Karte */
+/* Light mode: node load tiles lighter than the page, but set apart from the card */
 :root[data-theme="light"] .load-tile {
   background-color: #eeeef2;
 }

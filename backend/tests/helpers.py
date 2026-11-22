@@ -53,7 +53,7 @@ def collect_routes(app: FastAPI) -> list[RouteInfo]:
             found.append(info)
 
     if not found:
-        raise AssertionError("Routen-Sammler findet nichts")
+        raise AssertionError("Route collector finds nothing")
     bad = [r.path for r in found if not r.path.startswith("/api")]
     if bad:
         raise AssertionError(f"Paths without /api prefix, collector reads wrong: {bad}")
