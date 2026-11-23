@@ -208,9 +208,18 @@ install_node() {
         pkg_install nodejs npm
       fi ;;
     dnf)
+      # Rocky/AlmaLinux 9 default to Node.js 16; newer versions come as module
+      # streams. Fedora and EL10 have no modules and ship a current version.
+      if dnf -q module list nodejs >/dev/null 2>&1; then
+        info "Enabling the Node.js 22 module stream"
+        quiet dnf -y module reset nodejs || true
+        quiet dnf -y module enable nodejs:22 || quiet dnf -y module enable nodejs:20 || true
+        if command -v node >/dev/null 2>&1; then quiet dnf -y distro-sync nodejs npm || true; fi
+      fi
       pkg_install nodejs npm || true
       if ! node_ok; then
         info "Installing Node.js 22 from NodeSource"
+        quiet dnf -y remove nodejs npm || true
         curl -fsSL https://rpm.nodesource.com/setup_22.x | bash - >/dev/null
         quiet dnf install -y -q nodejs
       fi ;;
