@@ -136,6 +136,9 @@ pg_allow_local_password() {
   [ -f "$hba" ] || return 0
   sed -ri 's|^(host[[:space:]]+all[[:space:]]+all[[:space:]]+127\.0\.0\.1/32[[:space:]]+)[A-Za-z0-9-]+|\1scram-sha-256|' "$hba"
   sed -ri 's|^(host[[:space:]]+all[[:space:]]+all[[:space:]]+::1/128[[:space:]]+)[A-Za-z0-9-]+|\1scram-sha-256|' "$hba"
+  # PostgreSQL 13 (Rocky/AlmaLinux 9) still stores new passwords as md5, which a
+  # scram-sha-256 login rejects. Store them as scram, like newer versions do.
+  runuser -u postgres -- psql -qc "ALTER SYSTEM SET password_encryption = 'scram-sha-256'" >/dev/null
   systemctl reload postgresql 2>/dev/null || systemctl restart postgresql 2>/dev/null || true
 }
 
