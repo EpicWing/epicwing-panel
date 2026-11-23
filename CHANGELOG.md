@@ -2,6 +2,38 @@
 
 ## Unreleased
 
+## 0.3.4-beta (2026-11-23)
+
+### What's new
+
+- New file editor: search and replace (Ctrl+F, Ctrl+H), code folding, matching brackets, several cursors with Alt+click and a highlighted current line. Ctrl+S still saves. The editor only loads when you open a file, so the server page does not get slower
+- Password generator: when you create a user or reset a password, "Generate" fills in a strong 20-character password and shows it, so you can copy it right away
+- Panel installer: now also runs on Rocky Linux, AlmaLinux and Fedora, Arch Linux and openSUSE, next to Debian and Ubuntu. Where the system ships an older Python or Node.js, the installer adds a current one, and it sets up PostgreSQL, nginx and SELinux the way each system needs
+- Node installer: installs Docker by itself when it is missing. Pass `--skip-docker` if you prefer to manage Docker yourself
+- Remote backups: the agent no longer follows redirects from the backup storage, so a backup only ever goes to the address you set
+
+### Update
+
+Panel (makes a database backup first, no database migration in this release):
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/EpicWing/epicwing-panel/main/scripts/install.sh) update panel
+```
+
+This release changes the agent, so please update your nodes as well:
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/EpicWing/epicwing-panel/main/scripts/install.sh) update node
+```
+
+### New install
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/EpicWing/epicwing-panel/main/scripts/install.sh) panel
+```
+
+Use a domain name for the panel, not an IP address, and give an e-mail for Let's Encrypt when the installer asks. Nodes need this to connect.
+
 ## 0.3.3-beta (2026-11-21)
 
 ### What's new
