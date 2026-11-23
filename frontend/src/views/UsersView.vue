@@ -5,6 +5,7 @@ import { useI18n } from "vue-i18n";
 import { api, ApiError } from "../api/client";
 import AppLayout from "../components/AppLayout.vue";
 import { auth } from "../stores/auth";
+import { generatePassword } from "../utils/password";
 
 interface UserRow {
   id: string;
@@ -34,6 +35,12 @@ const dialog = ref<Dialog | null>(null);
 const busy = ref(false);
 const formError = ref("");
 const form = reactive({ email: "", password: "", isAdmin: false });
+const showPassword = ref(false);
+
+function fillPassword(): void {
+  form.password = generatePassword();
+  showPassword.value = true;
+}
 
 const meId = computed(() => auth.state.user?.id);
 const target = computed<UserRow | null>(() =>
@@ -87,6 +94,7 @@ function openDialog(next: Dialog): void {
   formError.value = "";
   form.email = next.kind === "edit" ? next.user.email : "";
   form.password = "";
+  showPassword.value = false;
   form.isAdmin = next.kind === "edit" ? next.user.is_admin : false;
   dialog.value = next;
 }
@@ -94,6 +102,7 @@ function openDialog(next: Dialog): void {
 function closeDialog(): void {
   dialog.value = null;
   form.password = "";
+  showPassword.value = false;
 }
 
 async function submit(): Promise<void> {
@@ -295,15 +304,27 @@ const linkButton =
             />
           </div>
           <div v-if="dialog.kind === 'create'">
-            <label for="user-password" class="mb-1.5 block text-sm text-ink-300">{{ t("users.password") }}</label>
-            <input
-              id="user-password"
-              v-model="form.password"
-              type="password"
-              autocomplete="new-password"
-              required
-              :class="inputClass"
-            />
+            <div class="mb-1.5 flex items-center justify-between">
+              <label for="user-password" class="text-sm text-ink-300">{{ t("users.password") }}</label>
+              <button type="button" :class="linkButton" @click="fillPassword">{{ t("users.generate") }}</button>
+            </div>
+            <div class="relative">
+              <input
+                id="user-password"
+                v-model="form.password"
+                :type="showPassword ? 'text' : 'password'"
+                autocomplete="new-password"
+                required
+                :class="[inputClass, 'pr-16 font-mono']"
+              />
+              <button
+                type="button"
+                class="absolute inset-y-0 right-0 px-3 text-xs text-ink-400 transition hover:text-ink-100"
+                @click="showPassword = !showPassword"
+              >
+                {{ showPassword ? t("users.hide") : t("users.show") }}
+              </button>
+            </div>
             <p class="mt-1.5 text-xs text-ink-400">{{ t("users.passwordHint") }}</p>
           </div>
           <label
@@ -321,16 +342,28 @@ const linkButton =
         <template v-else-if="dialog.kind === 'password'">
           <p class="text-sm text-ink-300">{{ t("users.resetBody") }}</p>
           <div>
-            <label for="user-new-password" class="mb-1.5 block text-sm text-ink-300">{{ t("users.newPassword") }}</label>
-            <input
-              id="user-new-password"
-              v-model="form.password"
-              type="password"
-              autocomplete="new-password"
-              required
-              autofocus
-              :class="inputClass"
-            />
+            <div class="mb-1.5 flex items-center justify-between">
+              <label for="user-new-password" class="text-sm text-ink-300">{{ t("users.newPassword") }}</label>
+              <button type="button" :class="linkButton" @click="fillPassword">{{ t("users.generate") }}</button>
+            </div>
+            <div class="relative">
+              <input
+                id="user-new-password"
+                v-model="form.password"
+                :type="showPassword ? 'text' : 'password'"
+                autocomplete="new-password"
+                required
+                autofocus
+                :class="[inputClass, 'pr-16 font-mono']"
+              />
+              <button
+                type="button"
+                class="absolute inset-y-0 right-0 px-3 text-xs text-ink-400 transition hover:text-ink-100"
+                @click="showPassword = !showPassword"
+              >
+                {{ showPassword ? t("users.hide") : t("users.show") }}
+              </button>
+            </div>
             <p class="mt-1.5 text-xs text-ink-400">{{ t("users.passwordHint") }}</p>
           </div>
         </template>
