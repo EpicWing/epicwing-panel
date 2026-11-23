@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
-# EpicWing panel installer for Debian 13 and Ubuntu 24.04 or newer.
+# EpicWing panel installer.
 # Installs PostgreSQL, nginx, Python and Node.js, builds the panel, runs it as a
 # systemd service behind nginx with TLS and creates the first administrator.
 # Run once as root on a fresh machine. The node agent is installed separately
 # with scripts/install-node.sh.
+#
+# Supported families: Debian/Ubuntu (apt), RHEL-like such as Rocky, AlmaLinux and
+# Fedora (dnf), Arch (pacman) and openSUSE (zypper).
 set -euo pipefail
 
 APP_USER="epicwing"
@@ -11,7 +14,6 @@ APP_DIR="/opt/epicwing"
 WEB_DIR="/var/www/epicwing-panel"
 DB_NAME="epicwing"
 DB_USER="epicwing"
-CONF="/etc/nginx/sites-available/epicwing-panel"
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VENV="$APP_DIR/backend/.venv"
 
@@ -46,7 +48,9 @@ ask() {
 
 usage() {
   cat <<'USAGE'
-EpicWing panel installer (Debian 13 or Ubuntu 24.04+, run once as root)
+EpicWing panel installer (run once as root)
+
+Supported: Debian/Ubuntu, Rocky/AlmaLinux/Fedora, Arch, openSUSE.
 
 Usage:
   install-panel.sh --domain <name> --admin-email <mail> [--email <mail>]
@@ -70,6 +74,204 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
+# --------------------------------------------------------------------------
+# Distribution / package manager abstraction
+#
+# PKG is one of: apt, dnf, pacman, zypper. Every distro-specific detail (package
+# names, PostgreSQL data directory, nginx config layout, firewall) hangs off it.
+# --------------------------------------------------------------------------
+PKG=""
+PG_DATA=""      # PostgreSQL data directory for this distro
+detect_pkg() {
+  if command -v apt-get >/dev/null 2>&1; then PKG=apt
+  elif command -v dnf >/dev/null 2>&1; then PKG=dnf
+  elif command -v zypper >/dev/null 2>&1; then PKG=zypper
+  elif command -v pacman >/dev/null 2>&1; then PKG=pacman
+  else die "No supported package manager found (need apt, dnf, zypper or pacman)."
+  fi
+  case "$PKG" in
+    apt)          PG_DATA="" ;;                       # managed by pg_ctlcluster
+    dnf|zypper)   PG_DATA="/var/lib/pgsql/data" ;;
+    pacman)       PG_DATA="/var/lib/postgres/data" ;;
+  esac
+}
+
+# Refresh the package index (so a fresh image can install at all).
+pkg_refresh() {
+  case "$PKG" in
+    apt)    quiet apt-get update -qq ;;
+    dnf)    quiet dnf -q -y makecache ;;
+    zypper) quiet zypper --non-interactive --gpg-auto-import-keys refresh ;;
+    pacman) quiet pacman -Sy --noconfirm ;;
+  esac
+}
+
+# Install packages whose names are already mapped for this distro.
+pkg_install() {
+  case "$PKG" in
+    apt)    quiet apt-get install -y -qq "$@" ;;
+    dnf)    quiet dnf install -y -q "$@" ;;
+    zypper) quiet zypper --non-interactive install -y "$@" ;;
+    pacman) quiet pacman -S --needed --noconfirm "$@" ;;
+  esac
+}
+
+# The base packages, with the right names per distro.
+base_packages() {
+  case "$PKG" in
+    apt)    echo postgresql nginx python3 python3-venv python3-dev build-essential libpq-dev openssl curl rsync ca-certificates ;;
+    dnf)    echo postgresql-server postgresql nginx python3 python3-devel gcc gcc-c++ make libpq-devel openssl curl rsync ca-certificates ;;
+    zypper) echo postgresql-server postgresql nginx python3 python3-devel gcc gcc-c++ make libpq5 postgresql-devel openssl curl rsync ca-certificates ;;
+    pacman) echo postgresql nginx python base-devel postgresql-libs openssl curl rsync ca-certificates ;;
+  esac
+}
+
+# Debian/Ubuntu let the panel log in to PostgreSQL over localhost with a
+# password out of the box. RHEL-likes, Arch and openSUSE ship "ident" for
+# loopback TCP, which would reject the panel's password login. Switch the two
+# loopback lines to scram-sha-256 so the password in DATABASE_URL works.
+pg_allow_local_password() {
+  [ "$PKG" = apt ] && return 0
+  local hba="$PG_DATA/pg_hba.conf"
+  [ -f "$hba" ] || return 0
+  sed -ri 's|^(host[[:space:]]+all[[:space:]]+all[[:space:]]+127\.0\.0\.1/32[[:space:]]+)[A-Za-z0-9-]+|\1scram-sha-256|' "$hba"
+  sed -ri 's|^(host[[:space:]]+all[[:space:]]+all[[:space:]]+::1/128[[:space:]]+)[A-Za-z0-9-]+|\1scram-sha-256|' "$hba"
+  systemctl reload postgresql 2>/dev/null || systemctl restart postgresql 2>/dev/null || true
+}
+
+# Make sure PostgreSQL has an initialised cluster and is running.
+# Only Debian/Ubuntu create and start it from the package automatically.
+pg_ensure_running() {
+  case "$PKG" in
+    apt) : ;;
+    dnf)
+      if [ ! -s "$PG_DATA/PG_VERSION" ]; then
+        info "Initialising the PostgreSQL database"
+        quiet /usr/bin/postgresql-setup --initdb
+      fi ;;
+    zypper)
+      # openSUSE initialises on first service start; do it by hand if missing.
+      if [ ! -s "$PG_DATA/PG_VERSION" ]; then
+        info "Initialising the PostgreSQL database"
+        install -d -o postgres -g postgres -m 700 "$PG_DATA"
+        quiet runuser -u postgres -- initdb --locale=C.UTF-8 -E UTF8 -D "$PG_DATA"
+      fi ;;
+    pacman)
+      if [ ! -s "$PG_DATA/PG_VERSION" ]; then
+        info "Initialising the PostgreSQL database"
+        install -d -o postgres -g postgres -m 700 "$PG_DATA"
+        quiet runuser -u postgres -- initdb --locale=C.UTF-8 -E UTF8 -D "$PG_DATA"
+      fi ;;
+  esac
+  systemctl enable --now postgresql >/dev/null 2>&1 || die "Could not start PostgreSQL. Check: systemctl status postgresql"
+  pg_allow_local_password
+}
+
+# Picks a Python 3.11+ interpreter. Rocky/AlmaLinux 9 and openSUSE Leap ship an
+# older python3, so a newer one is installed next to it there.
+PYTHON=""
+find_python() {
+  local candidate
+  for candidate in python3 python3.13 python3.12 python3.11; do
+    if command -v "$candidate" >/dev/null 2>&1 &&
+       "$candidate" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)' 2>/dev/null; then
+      PYTHON="$(command -v "$candidate")"
+      return 0
+    fi
+  done
+  return 1
+}
+
+ensure_python() {
+  find_python && return 0
+  case "$PKG" in
+    dnf)    pkg_install python3.12 python3.12-devel || pkg_install python3.11 python3.11-devel || true ;;
+    zypper) pkg_install python312 python312-devel || pkg_install python311 python311-devel || true ;;
+  esac
+  find_python || die "Python 3.11 or newer is required but could not be installed automatically."
+  info "Using $PYTHON"
+}
+
+# node_ok succeeds when a recent enough Node.js is already on PATH.
+node_ok() { command -v node >/dev/null 2>&1 && node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 20 ? 0 : 1)'; }
+
+# Install Node.js 20+ for this distro.
+install_node() {
+  node_ok && return 0
+  case "$PKG" in
+    apt)
+      if [ "${ID:-}" = "ubuntu" ]; then
+        info "Installing Node.js 22 from NodeSource (Ubuntu ships an older version)"
+        curl -fsSL https://deb.nodesource.com/setup_22.x | bash - >/dev/null
+        quiet apt-get install -y -qq nodejs
+      else
+        pkg_install nodejs npm
+      fi ;;
+    dnf)
+      pkg_install nodejs npm || true
+      if ! node_ok; then
+        info "Installing Node.js 22 from NodeSource"
+        curl -fsSL https://rpm.nodesource.com/setup_22.x | bash - >/dev/null
+        quiet dnf install -y -q nodejs
+      fi ;;
+    pacman)
+      pkg_install nodejs npm ;;
+    zypper)
+      pkg_install nodejs22 npm22 || pkg_install nodejs20 npm20 || pkg_install nodejs npm || true ;;
+  esac
+  node_ok || die "Node.js 20 or newer is required but could not be installed automatically. Install it and run the installer again."
+}
+
+# Install certbot (and, on RHEL-likes other than Fedora, the EPEL repository it lives in).
+install_certbot() {
+  case "$PKG" in
+    apt)    pkg_install certbot python3-certbot-nginx ;;
+    dnf)    [ "${ID:-}" = "fedora" ] || pkg_install epel-release
+            pkg_install certbot python3-certbot-nginx ;;
+    pacman) pkg_install certbot certbot-nginx ;;
+    zypper) pkg_install certbot python3-certbot-nginx ;;
+  esac
+}
+
+# A firewall warning that names the tool the distro actually uses.
+warn_firewall() {
+  if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q 'Status: active'; then
+    warn "ufw is active. Allow ports 80 and 443 (ufw allow 80,443/tcp), or the panel will not be reachable."
+  elif command -v firewall-cmd >/dev/null 2>&1 && systemctl is-active --quiet firewalld 2>/dev/null; then
+    warn "firewalld is active. Open the ports: firewall-cmd --permanent --add-service=http --add-service=https && firewall-cmd --reload"
+  fi
+}
+
+# Where this distro keeps nginx server blocks.
+#   Debian/Ubuntu: sites-available + a symlink into sites-enabled
+#   everything else: a single file in conf.d (already included by nginx.conf)
+nginx_conf_target() {
+  if [ -d /etc/nginx/sites-available ] && [ -d /etc/nginx/sites-enabled ]; then
+    echo /etc/nginx/sites-available/epicwing-panel
+  else
+    echo /etc/nginx/conf.d/epicwing-panel.conf
+  fi
+}
+
+# Arch has no conf.d and does not include it, so add both when needed.
+ensure_nginx_include() {
+  [ -d /etc/nginx/sites-enabled ] && return 0
+  install -d -m 755 /etc/nginx/conf.d
+  if ! grep -qE 'include[[:space:]]+(/etc/nginx/)?conf\.d/\*\.conf' /etc/nginx/nginx.conf; then
+    sed -i '0,/^[[:space:]]*http[[:space:]]*{/s//&\n    include \/etc\/nginx\/conf.d\/*.conf;/' /etc/nginx/nginx.conf
+  fi
+}
+
+# SELinux (Rocky, AlmaLinux, Fedora) blocks nginx from reaching the panel on
+# 127.0.0.1:8010 and from reading freshly copied files unless this is set.
+allow_selinux() {
+  command -v getenforce >/dev/null 2>&1 || return 0
+  [ "$(getenforce 2>/dev/null)" = "Disabled" ] && return 0
+  setsebool -P httpd_can_network_connect 1 >/dev/null 2>&1 \
+    || warn "Could not allow nginx network access under SELinux. Run: setsebool -P httpd_can_network_connect 1"
+  if command -v restorecon >/dev/null 2>&1; then restorecon -R "$WEB_DIR" >/dev/null 2>&1 || true; fi
+}
+
 [ "$(id -u)" -eq 0 ] || die "Run this script as root."
 if [ -z "$DOMAIN" ]; then DOMAIN="$(ask "Domain or IP of the panel (e.g. panel.example.com): ")"; fi
 if [ -z "$ADMIN_EMAIL" ]; then ADMIN_EMAIL="$(ask "E-mail of the first administrator: ")"; fi
@@ -86,42 +288,29 @@ if [ -n "$LE_EMAIL" ]; then [[ "$LE_EMAIL" =~ $mail_re ]] || die "The Let's Encr
 [[ "$DOMAIN" =~ ^[A-Za-z0-9.-]+$ ]] || die "The domain may only contain letters, digits, dots and dashes."
 [ -f "$SRC/backend/pyproject.toml" ] || die "Run this script from an EpicWing checkout or release archive."
 [ ! -e "$APP_DIR/backend/.env" ] || die "$APP_DIR/backend/.env exists. EpicWing seems to be installed already, see Updating in the README."
-[ ! -e "$CONF" ] || die "$CONF exists. EpicWing seems to be installed already."
+
 if [ -r /etc/os-release ]; then . /etc/os-release; fi
-case "${ID:-}:${VERSION_ID:-}" in
-  debian:13|ubuntu:24.04|ubuntu:25.*|ubuntu:26.*) ;;
-  *) warn "Made for Debian 13 and Ubuntu 24.04 or newer (found ${PRETTY_NAME:-unknown system})." ;;
-esac
+detect_pkg
+NGINX_CONF="$(nginx_conf_target)"
+[ ! -e "$NGINX_CONF" ] || die "$NGINX_CONF exists. EpicWing seems to be installed already."
 cd /tmp
 
 banner
 : > "$LOG"
-info "Installing packages"
-export DEBIAN_FRONTEND=noninteractive
-# Ubuntu: needrestart soll waehrend apt nicht nachfragen
-export NEEDRESTART_MODE=a
-export NEEDRESTART_SUSPEND=1
-quiet apt-get update -qq
-PKGS=(postgresql nginx python3 python3-venv python3-dev build-essential libpq-dev openssl curl rsync ca-certificates)
-if [ -n "$LE_EMAIL" ]; then PKGS+=(certbot python3-certbot-nginx); fi
-quiet apt-get install -y -qq "${PKGS[@]}"
-python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)' || die "Python 3.11 or newer is required."
-node_ok() { command -v node >/dev/null 2>&1 && node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 20 ? 0 : 1)'; }
-if ! node_ok; then
-  if [ "${ID:-}" = "ubuntu" ]; then
-    info "Installing Node.js 22 from NodeSource (Ubuntu ships an older version)"
-    curl -fsSL https://deb.nodesource.com/setup_22.x | bash - >/dev/null
-    apt-get install -y -qq nodejs
-  else
-    apt-get install -y -qq nodejs npm
-  fi
+info "Installing packages (package manager: $PKG)"
+if [ "$PKG" = apt ]; then
+  export DEBIAN_FRONTEND=noninteractive
+  # Ubuntu: needrestart should not prompt during apt
+  export NEEDRESTART_MODE=a
+  export NEEDRESTART_SUSPEND=1
 fi
-node_ok || die "Node.js 20 or newer is required."
-# Ubuntu-Images haben teils eine aktive Firewall, dann sind 80/443 zu
-if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q 'Status: active'; then
-  warn "ufw is active. Allow ports 80 and 443 (ufw allow 80,443/tcp), or the panel will not be reachable."
-fi
-systemctl enable --now postgresql >/dev/null 2>&1 || true
+pkg_refresh
+# shellcheck disable=SC2046
+pkg_install $(base_packages)
+ensure_python
+install_node
+warn_firewall
+pg_ensure_running
 
 info "Creating the service user and copying the code"
 id "$APP_USER" >/dev/null 2>&1 || useradd --system --home-dir "$APP_DIR" --shell /usr/sbin/nologin "$APP_USER"
@@ -129,7 +318,7 @@ install -d -m 0755 "$APP_DIR"
 rsync -a --exclude '.venv' --exclude '.env' --exclude '__pycache__' --exclude '.pytest_cache' "$SRC/backend/" "$APP_DIR/backend/"
 
 info "Installing the backend"
-python3 -m venv "$VENV"
+"$PYTHON" -m venv "$VENV"
 "$VENV/bin/pip" install -q --upgrade pip
 (cd "$APP_DIR/backend" && "$VENV/bin/pip" install -q .)
 
@@ -197,6 +386,9 @@ UNIT
 systemctl daemon-reload
 systemctl enable --now epicwing-panel
 
+# Make sure nginx is enabled (on non-Debian it is not started by the package).
+systemctl enable --now nginx >/dev/null 2>&1 || true
+
 info "Creating a self-signed certificate (replaced if Let's Encrypt works)"
 install -d -m 0755 /etc/ssl/epicwing
 if [[ "$DOMAIN" =~ ^[0-9.]+$ ]]; then SAN="IP:$DOMAIN"; else SAN="DNS:$DOMAIN"; fi
@@ -205,8 +397,9 @@ openssl req -x509 -nodes -newkey rsa:2048 -days 825 \
   -subj "/CN=$DOMAIN" -addext "subjectAltName=$SAN" 2>/dev/null
 chmod 600 /etc/ssl/epicwing/key.pem
 
-info "Configuring nginx"
-cat > "$CONF" <<'NGINX'
+info "Configuring nginx ($NGINX_CONF)"
+ensure_nginx_include
+cat > "$NGINX_CONF" <<'NGINX'
 map $http_upgrade $epicwing_upgrade {
     default upgrade;
     ''      close;
@@ -254,16 +447,29 @@ server {
     }
 }
 NGINX
-sed -i "s/@DOMAIN@/$DOMAIN/g" "$CONF"
-ln -sf "$CONF" /etc/nginx/sites-enabled/epicwing-panel
+sed -i "s/@DOMAIN@/$DOMAIN/g" "$NGINX_CONF"
+# Debian/Ubuntu: enable the site through the sites-enabled symlink.
+if [ -d /etc/nginx/sites-enabled ]; then
+  ln -sf "$NGINX_CONF" /etc/nginx/sites-enabled/epicwing-panel
+fi
+# Some distros ship a default server on port 80 that would shadow ours.
+if [ -e /etc/nginx/sites-enabled/default ]; then rm -f /etc/nginx/sites-enabled/default; fi
+if [ -e /etc/nginx/conf.d/default.conf ]; then mv -f /etc/nginx/conf.d/default.conf /etc/nginx/conf.d/default.conf.disabled; fi
+# On some distros the main nginx.conf ships its own server{} block on :80.
+# We only touch it if it clearly still holds the stock block, to avoid surprises.
+if ! nginx -t >/dev/null 2>&1; then
+  warn "nginx -t failed with the stock configuration. Check /etc/nginx/nginx.conf for a conflicting default server block on port 80 or 443."
+fi
+allow_selinux
 nginx -t
 systemctl reload nginx
 
 if [ -n "$LE_EMAIL" ]; then
   info "Requesting a Let's Encrypt certificate"
+  install_certbot
   if certbot certonly --nginx -d "$DOMAIN" -m "$LE_EMAIL" --agree-tos --no-eff-email -n \
       --deploy-hook "systemctl reload nginx"; then
-    sed -i "s|/etc/ssl/epicwing/cert.pem|/etc/letsencrypt/live/$DOMAIN/fullchain.pem|; s|/etc/ssl/epicwing/key.pem|/etc/letsencrypt/live/$DOMAIN/privkey.pem|" "$CONF"
+    sed -i "s|/etc/ssl/epicwing/cert.pem|/etc/letsencrypt/live/$DOMAIN/fullchain.pem|; s|/etc/ssl/epicwing/key.pem|/etc/letsencrypt/live/$DOMAIN/privkey.pem|" "$NGINX_CONF"
     nginx -t
     systemctl reload nginx
   else

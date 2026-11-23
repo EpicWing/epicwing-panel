@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# EpicWing one-line installer for Debian 13 and Ubuntu 24.04 or newer.
+# EpicWing one-line installer.
+# Panel: Debian/Ubuntu, Rocky/AlmaLinux/Fedora, Arch or openSUSE.
+# Node:  any 64-bit Linux with Docker and systemd.
 #
 #   bash <(curl -fsSL https://raw.githubusercontent.com/EpicWing/epicwing-panel/main/scripts/install.sh)
 #   bash <(curl -fsSL https://raw.githubusercontent.com/EpicWing/epicwing-panel/main/scripts/install.sh) node
@@ -36,7 +38,8 @@ info() { printf '%s▸%s %s\n' "$Y" "$N" "$*"; }
 
 usage() {
   cat <<'USAGE'
-EpicWing installer (Debian 13 or Ubuntu 24.04+, run as root)
+EpicWing installer (run as root)
+Panel: Debian/Ubuntu, Rocky/AlmaLinux/Fedora, Arch, openSUSE
 
 Usage:
   install.sh [panel|node] [options]
@@ -57,18 +60,35 @@ USAGE
 }
 
 # Sets ARCH, AGENT_URL and AGENT_SHA256 for the CPU type of this machine.
-# dpkg reports the architecture of the installed system, so a Raspberry Pi with
-# a 64-bit kernel but a 32-bit system (armhf) is recognised correctly.
+# On Debian/Ubuntu we trust dpkg first: it reports the architecture of the
+# installed system, so a Raspberry Pi with a 64-bit kernel but a 32-bit system
+# (armhf) is recognised correctly. On other distros there is no dpkg, so we
+# fall back to uname -m.
 detect_arch() {
-  local dpkg_arch
-  dpkg_arch="$(dpkg --print-architecture 2>/dev/null || true)"
+  local dpkg_arch=""
+  if command -v dpkg >/dev/null 2>&1; then
+    dpkg_arch="$(dpkg --print-architecture 2>/dev/null || true)"
+  fi
   case "$dpkg_arch" in
-    amd64) ARCH="amd64"; AGENT_SHA256="$AGENT_SHA256_AMD64" ;;
-    arm64) ARCH="arm64"; AGENT_SHA256="$AGENT_SHA256_ARM64" ;;
+    amd64) ARCH="amd64" ;;
+    arm64) ARCH="arm64" ;;
     armhf|armel)
       die "This is a 32-bit ARM system ($dpkg_arch). The agent needs a 64-bit system, for example Raspberry Pi OS 64-bit." ;;
+    "")
+      case "$(uname -m)" in
+        x86_64|amd64)   ARCH="amd64" ;;
+        aarch64|arm64)  ARCH="arm64" ;;
+        armv7l|armv6l|armhf)
+          die "This is a 32-bit ARM system ($(uname -m)). The agent needs a 64-bit system." ;;
+        *)
+          die "Unsupported CPU type: $(uname -m). The agent is built for amd64 and arm64." ;;
+      esac ;;
     *)
-      die "Unsupported CPU type: ${dpkg_arch:-unknown}. The agent is built for amd64 and arm64." ;;
+      die "Unsupported CPU type: ${dpkg_arch}. The agent is built for amd64 and arm64." ;;
+  esac
+  case "$ARCH" in
+    amd64) AGENT_SHA256="$AGENT_SHA256_AMD64" ;;
+    arm64) AGENT_SHA256="$AGENT_SHA256_ARM64" ;;
   esac
   [ -n "$AGENT_SHA256" ] || die "This release has no checksum for $ARCH."
   AGENT_URL="$AGENT_BASE_URL$ARCH"
@@ -214,7 +234,26 @@ update_panel() {
 }
 
 [ "$(id -u)" -eq 0 ] || die "Run this as root."
-command -v apt-get >/dev/null 2>&1 || die "Only Debian and Ubuntu are supported."
+
+# Find a package manager, so the panel installer can install its dependencies
+# and so we can fetch curl/tar below if they are missing. The node installer
+# does not need one (it only needs Docker and systemd, which it checks itself).
+PKG=""
+for p in apt-get dnf zypper pacman; do
+  if command -v "$p" >/dev/null 2>&1; then PKG="$p"; break; fi
+done
+
+# Install a missing bootstrap tool (curl or tar) with whatever package manager
+# this distro has.
+bootstrap_install() {
+  case "$PKG" in
+    apt-get) apt-get update -qq && apt-get install -y -qq "$@" >/dev/null ;;
+    dnf)     dnf install -y -q "$@" >/dev/null ;;
+    zypper)  zypper --non-interactive install -y "$@" >/dev/null ;;
+    pacman)  pacman -Sy --noconfirm "$@" >/dev/null ;;
+    *)       return 1 ;;
+  esac
+}
 
 MODE=""
 UPDATE=0
@@ -244,7 +283,8 @@ fi
 
 if ! command -v curl >/dev/null 2>&1 || ! command -v tar >/dev/null 2>&1; then
   info "Installing curl and tar"
-  apt-get update -qq && apt-get install -y -qq curl tar ca-certificates >/dev/null
+  bootstrap_install curl tar ca-certificates \
+    || die "curl and tar are needed but could not be installed automatically. Install them and run this again."
 fi
 
 TMP="$(mktemp -d)"

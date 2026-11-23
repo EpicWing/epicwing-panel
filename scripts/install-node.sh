@@ -18,6 +18,7 @@ URL=""
 SHA256=""
 BIND_IP=""
 FORCE=0
+SKIP_DOCKER=0
 
 die() { echo "Error: $*" >&2; exit 1; }
 info() { echo "==> $*"; }
@@ -40,6 +41,7 @@ Options:
   --bind-ip <ip>    IPv4 address game servers bind to (default: primary address)
   --force           Enroll again and replace the policy
   --insecure        Allow http:// for local tests only
+  --skip-docker     Do not install Docker when it is missing
   -h, --help        Show this help
 
 The agent's enroll command takes the token as a command line argument, so it is
@@ -58,6 +60,7 @@ while [ "$#" -gt 0 ]; do
     --bind-ip) need_value "$@"; BIND_IP="$2"; shift 2 ;;
     --force) FORCE=1; shift ;;
     --insecure) INSECURE=1; shift ;;
+    --skip-docker) SKIP_DOCKER=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) usage >&2; die "Unknown option: $1" ;;
   esac
@@ -83,22 +86,65 @@ if [ -n "$URL" ]; then
   esac
 fi
 
-# os-release in einer Subshell lesen, damit keine Variablen des Skripts ueberschrieben werden
+# Read os-release in a subshell so it cannot overwrite this script's variables.
 OS_ID="$(. /etc/os-release 2>/dev/null; echo "${ID:-}")"
 OS_NAME="$(. /etc/os-release 2>/dev/null; echo "${PRETTY_NAME:-unknown system}")"
+# The agent only needs Docker and systemd, so it runs on any modern distro.
+# We only warn on systems we have not seen at all.
 case "$OS_ID" in
-  debian|ubuntu) ;;
-  *) echo "Warning: made for Debian and Ubuntu (found $OS_NAME)." >&2 ;;
+  debian|ubuntu|rocky|almalinux|rhel|centos|fedora|arch|manjaro|opensuse*|sles|sled) ;;
+  *) echo "Note: untested on this system ($OS_NAME). The agent needs only Docker and systemd." >&2 ;;
 esac
 # Docker aus Snap kommt mit dem Datenverzeichnis nicht klar (Snap-Sandbox)
 if command -v snap >/dev/null 2>&1 && snap list docker >/dev/null 2>&1; then
   die "Docker from snap is not supported. Install docker.io or Docker CE from the official repository."
 fi
-for cmd in systemctl docker curl runuser useradd usermod install sha256sum; do
+# Installs Docker from Docker's own repository (or the distro on Arch and openSUSE).
+install_docker() {
+  info "Docker is missing, installing it"
+  local family="centos"
+  case "$OS_ID" in
+    debian|ubuntu)
+      local script
+      script="$(mktemp)"
+      curl -fsSL https://get.docker.com -o "$script" || die "Could not download the Docker install script."
+      sh "$script" || die "The Docker installation failed."
+      rm -f "$script"
+      ;;
+    fedora|rhel|rocky|almalinux|centos)
+      [ "$OS_ID" = "fedora" ] && family="fedora"
+      [ "$OS_ID" = "rhel" ] && family="rhel"
+      curl -fsSL "https://download.docker.com/linux/$family/docker-ce.repo" \
+        -o /etc/yum.repos.d/docker-ce.repo || die "Could not add the Docker repository."
+      dnf -y install docker-ce docker-ce-cli containerd.io || die "The Docker installation failed."
+      ;;
+    arch|manjaro)
+      pacman -Sy --noconfirm --needed docker || die "The Docker installation failed."
+      ;;
+    opensuse*|sles|sled)
+      zypper --non-interactive install docker || die "The Docker installation failed."
+      ;;
+    *)
+      die "Docker is not installed and this installer can't install it on $OS_NAME. Install Docker, then run this again."
+      ;;
+  esac
+  systemctl enable --now docker || die "Docker was installed but does not start."
+}
+
+command -v curl >/dev/null 2>&1 || die "Required command not found: curl"
+if ! command -v docker >/dev/null 2>&1; then
+  [ "$SKIP_DOCKER" = "1" ] && die "Docker is not installed (--skip-docker was given)."
+  install_docker
+fi
+for cmd in systemctl docker runuser useradd usermod install sha256sum; do
   command -v "$cmd" >/dev/null 2>&1 || die "Required command not found: $cmd"
 done
-getent group docker >/dev/null || die "The group 'docker' does not exist. Install Docker first."
-docker info >/dev/null 2>&1 || die "Docker is installed but not running."
+getent group docker >/dev/null || die "The group 'docker' does not exist. Check the Docker installation."
+if ! docker info >/dev/null 2>&1; then
+  info "Starting Docker"
+  systemctl enable --now docker >/dev/null 2>&1 || true
+  docker info >/dev/null 2>&1 || die "Docker is installed but does not run. Check: systemctl status docker"
+fi
 
 rc=0
 code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "$PANEL/" 2>/dev/null)" || rc=$?
