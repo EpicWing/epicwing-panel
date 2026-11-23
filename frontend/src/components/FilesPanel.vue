@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 import { ApiError, api } from "../api/client";
 import { buildZip, type ZipItem } from "../lib/zip";
-import { LANGUAGES, detectLanguage, highlight, type Lang } from "../lib/highlight";
+import { LANGUAGES, detectLanguage, type Lang } from "../lib/highlight";
+
+// The editor is only loaded when a file is opened.
+const CodeEditor = defineAsyncComponent(() => import("./CodeEditor.vue"));
 
 interface Entry {
   name: string;
@@ -61,11 +64,9 @@ const progress = ref("");
 const selected = ref<string[]>([]);
 const menu = ref<string | null>(null);
 const menuPos = ref<{ x: number; y: number } | null>(null);
-const gutter = ref<HTMLElement | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
 const folderInput = ref<HTMLInputElement | null>(null);
 const root = ref<HTMLElement | null>(null);
-const backdrop = ref<HTMLElement | null>(null);
 const language = ref<Lang>("plain");
 
 const editor = ref<{ path: string; content: string; original: string } | null>(null);
@@ -84,10 +85,6 @@ const editorCrumbs = computed(() => {
     path: parts.slice(0, index + 1).join("/"),
     last: index === parts.length - 1,
   }));
-});
-const lineNumbers = computed(() => {
-  const count = editor.value ? editor.value.content.split("\n").length : 0;
-  return Array.from({ length: count }, (_, index) => index + 1).join("\n");
 });
 const visible = computed(() => {
   const needle = query.value.trim().toLowerCase();
@@ -109,17 +106,6 @@ const downloadLabel = computed(() => {
   const [only] = selectedEntries.value;
   return selectedEntries.value.length === 1 && only && !only.dir ? "Download" : "Download ZIP";
 });
-
-const HIGHLIGHT_LIMIT = 256 * 1024;
-const overlay = computed(
-  () =>
-    editor.value !== null &&
-    language.value !== "plain" &&
-    editor.value.content.length <= HIGHLIGHT_LIMIT,
-);
-const highlighted = computed(() =>
-  editor.value && overlay.value ? highlight(editor.value.content, language.value) : "",
-);
 
 function base(): string {
   return `/servers/${props.serverId}/files`;
@@ -418,28 +404,6 @@ function closeEditor(): void {
   if (dirty.value && !window.confirm("Discard unsaved changes?")) return;
   editor.value = null;
   void load(path.value);
-}
-
-function syncScroll(event: Event): void {
-  const area = event.target as HTMLTextAreaElement;
-  if (gutter.value) gutter.value.scrollTop = area.scrollTop;
-  if (backdrop.value) {
-    backdrop.value.scrollTop = area.scrollTop;
-    backdrop.value.scrollLeft = area.scrollLeft;
-  }
-}
-
-function indent(event: KeyboardEvent): void {
-  const area = event.target as HTMLTextAreaElement;
-  if (!editor.value) return;
-  const start = area.selectionStart;
-  const end = area.selectionEnd;
-  const value = editor.value.content;
-  editor.value.content = `${value.slice(0, start)}  ${value.slice(end)}`;
-  void nextTick(() => {
-    area.selectionStart = start + 2;
-    area.selectionEnd = start + 2;
-  });
 }
 
 function activate(entry: Entry): void {
@@ -1032,25 +996,8 @@ watch(blocked, (value) => {
           <button class="rounded-lg bg-accent-500 px-4 py-2 text-sm font-semibold text-ink-950 disabled:opacity-50" :disabled="saving || !dirty" @click="save">{{ saving ? "Saving…" : "Save" }}</button>
         </div>
       </div>
-      <div class="code-surface flex overflow-hidden rounded-xl border border-ink-700 focus-within:border-accent-500" style="height: calc(100vh - 8.5rem); min-height: 24rem">
-        <div ref="gutter" aria-hidden="true" class="code code-gutter shrink-0 select-none overflow-hidden border-r border-ink-800 py-3 pl-4 pr-3 text-right">
-          <pre class="code m-0 pb-8">{{ lineNumbers }}</pre>
-        </div>
-        <div class="relative min-w-0 flex-1">
-          <div v-if="overlay" ref="backdrop" aria-hidden="true" class="pointer-events-none absolute inset-0 overflow-hidden px-4 py-3">
-            <pre class="code code-layer m-0 pb-8 pr-8" v-html="highlighted"></pre>
-          </div>
-          <textarea
-            v-model="editor.content"
-            wrap="off"
-            spellcheck="false"
-            class="code code-input absolute inset-0 h-full w-full resize-none overflow-auto whitespace-pre bg-transparent px-4 py-3 focus:outline-none"
-            :class="overlay ? 'code-input--overlay' : 'text-ink-100'"
-            @scroll="syncScroll"
-            @keydown.ctrl.s.prevent="save"
-            @keydown.tab.prevent="indent"
-          ></textarea>
-        </div>
+      <div class="overflow-hidden rounded-xl border border-ink-700 focus-within:border-accent-500" style="height: calc(100vh - 8.5rem); min-height: 24rem">
+        <CodeEditor v-model="editor.content" :language="language" @save="save" />
       </div>
     </div>
 
@@ -1168,86 +1115,3 @@ watch(blocked, (value) => {
   </div>
 </template>
 
-<style scoped>
-.code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-size: 13px;
-  line-height: 18px;
-  tab-size: 2;
-}
-.code-layer {
-  display: block;
-  width: max-content;
-  min-width: 100%;
-}
-.code-input--overlay {
-  color: transparent;
-  caret-color: #e5e7eb;
-}
-.code-input--overlay::selection {
-  background: rgba(245, 158, 11, 0.28);
-}
-.code-surface {
-  background: #1e1e20;
-}
-.code-gutter {
-  background: #1a1a1c;
-  color: #6e7681;
-}
-.code-layer {
-  color: #aab2bd;
-}
-.code-layer :deep(.hl-comment),
-.code-layer :deep(.hl-punct) {
-  color: #6e7681;
-}
-.code-layer :deep(.hl-key) {
-  color: #e6edf3;
-}
-.code-layer :deep(.hl-value) {
-  color: #aab2bd;
-}
-.code-layer :deep(.hl-string) {
-  color: #c9d1d9;
-}
-.code-layer :deep(.hl-number) {
-  color: #f0b35a;
-}
-.code-layer :deep(.hl-section) {
-  color: #f59e0b;
-}
-
-/* Heller Modus: Editor und Syntax-Farben */
-:root[data-theme="light"] .code-input--overlay {
-  caret-color: #17171a;
-}
-:root[data-theme="light"] .code-surface {
-  background: #f8f8fa;
-}
-:root[data-theme="light"] .code-gutter {
-  background: #ececf0;
-  color: #8a8a95;
-}
-:root[data-theme="light"] .code-layer {
-  color: #4f4f59;
-}
-:root[data-theme="light"] .code-layer :deep(.hl-comment),
-:root[data-theme="light"] .code-layer :deep(.hl-punct) {
-  color: #8a8a95;
-}
-:root[data-theme="light"] .code-layer :deep(.hl-key) {
-  color: #17171a;
-}
-:root[data-theme="light"] .code-layer :deep(.hl-value) {
-  color: #4f4f59;
-}
-:root[data-theme="light"] .code-layer :deep(.hl-string) {
-  color: #3b3d44;
-}
-:root[data-theme="light"] .code-layer :deep(.hl-number) {
-  color: #9a5b00;
-}
-:root[data-theme="light"] .code-layer :deep(.hl-section) {
-  color: #b36b00;
-}
-</style>
