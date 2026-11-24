@@ -95,7 +95,7 @@ case "$OS_ID" in
   debian|ubuntu|rocky|almalinux|rhel|centos|fedora|arch|manjaro|opensuse*|sles|sled) ;;
   *) echo "Note: untested on this system ($OS_NAME). The agent needs only Docker and systemd." >&2 ;;
 esac
-# Docker aus Snap kommt mit dem Datenverzeichnis nicht klar (Snap-Sandbox)
+# Docker from Snap cannot use the data directory (Snap sandbox)
 if command -v snap >/dev/null 2>&1 && snap list docker >/dev/null 2>&1; then
   die "Docker from snap is not supported. Install docker.io or Docker CE from the official repository."
 fi

@@ -271,7 +271,7 @@ def remove_member(
     db.commit()
 
 
-CANDIDATE_MIN_QUERY = 3  # nur exakte E-Mail-Suche, nie eine Liste aller Nutzer
+CANDIDATE_MIN_QUERY = 3  # exact e-mail search only, never a list of all users
 CANDIDATE_LIMIT = 50
 
 
@@ -300,7 +300,7 @@ def list_candidates(
         orm.User.id.not_in(members),
         orm.User.id != owner_id,
     )
-    # Nur exakter Treffer, damit keine E-Mail-Adressen durchsucht oder aufgelistet werden
+    # Exact match only, so e-mail addresses cannot be searched or listed
     if see_all:
         if term:
             query = query.where(orm.User.email.icontains(term, autoescape=True))

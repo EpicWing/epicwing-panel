@@ -39,7 +39,7 @@ class FailureLimiter:
             self._failures.pop(key, None)
 
     def reset_suffix(self, suffix: str) -> None:
-        """Löscht alle Schlüssel, die auf suffix enden (z. B. alle IPs einer E-Mail)."""
+        """Delete all keys ending in suffix (e.g. all IPs of one e-mail)."""
         with self._lock:
             for key in [k for k in self._failures if k.endswith(suffix)]:
                 del self._failures[key]

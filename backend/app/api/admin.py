@@ -178,5 +178,5 @@ def locations(_auth: AdminAuth, db: DbSession) -> list[LocationOut]:
         if node_service.display_status(node) == "online":
             group.online += 1
         group.servers += per_node.get(node.id, (0, 0, 0))[0]
-    # Nodes ohne Standort stehen am Ende.
+    # Nodes without a location come last.
     return sorted(groups.values(), key=lambda g: (g.name == "", g.name.lower()))

@@ -22,7 +22,7 @@ pytestmark = pytest.mark.skipif(not URL, reason="needs RACE_DATABASE_URL (real P
 
 @pytest.fixture
 def pg():
-    # Tabellen werden geloescht: nur gegen eine Datenbank namens "race"
+    # Tables get dropped: only run against a database named "race"
     assert URL and URL.rstrip("/").endswith("/race"), "refusing to wipe a database not named race"
     engine = create_engine(URL, pool_size=20, max_overflow=20)
     Base.metadata.drop_all(engine)

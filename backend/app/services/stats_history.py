@@ -1,4 +1,4 @@
-"""Letzte Messwerte pro Server im Speicher, damit neue Browser-Tabs volle Graphen sehen."""
+"""Latest samples per server, kept in memory so new browser tabs show full graphs."""
 
 import time
 from collections import deque

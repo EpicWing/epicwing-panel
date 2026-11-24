@@ -157,7 +157,7 @@ def _outs(
             allocations.get(server.id, []), key=lambda a: (not a.is_primary, a.port)
         )
         can_startup = is_admin_viewer or "startup.view" in permissions.get(server.id, ())
-        # Variablen und Startbefehl nur für Admins und Mitglieder mit startup.view
+        # Variables and start command only for admins and members with startup.view
         out.variables = {
             key: value
             for key, value in values.get(server.id, {}).items()

@@ -190,12 +190,12 @@ async function copy(key: string, text: string) {
   }
 }
 
-// Limits werden in GB eingegeben und als MB gespeichert, leer heißt unbegrenzt
+// Limits are entered in GB and stored as MB, empty means unlimited
 function mbToGb(mb: number | null | undefined): string {
   return mb == null ? "" : String(Math.round((mb / 1024) * 100) / 100);
 }
 
-// null = unbegrenzt, undefined = ungültige Eingabe
+// null = unlimited, undefined = invalid input
 function parseGb(text: string): number | null | undefined {
   const value = text.trim().replace(",", ".");
   if (value === "") return null;

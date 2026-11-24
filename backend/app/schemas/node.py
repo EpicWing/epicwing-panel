@@ -125,7 +125,7 @@ class NodeUpdate(BaseModel):
     fqdn: str | None = None
     port_range_start: int | None = Field(default=None, ge=1024, le=65535)
     port_range_end: int | None = Field(default=None, ge=1024, le=65535)
-    # None setzt das Limit zurück auf unbegrenzt
+    # None resets the limit to unlimited
     ram_limit_mb: int | None = Field(default=None, ge=1, le=100_000_000)
     disk_limit_mb: int | None = Field(default=None, ge=1, le=100_000_000)
 

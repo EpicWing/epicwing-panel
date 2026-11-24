@@ -13,9 +13,9 @@ def test_lockout_only_blocks_the_attacking_ip(client, credentials, monkeypatch):
     _set_ip(monkeypatch, "203.0.113.1")
     for _ in range(5):
         assert _login(client, credentials["email"], WRONG).status_code == 401
-    # Der Angreifer ist gesperrt, auch mit richtigem Passwort.
+    # The attacker is locked out, even with the right password.
     assert _login(client, credentials["email"], credentials["password"]).status_code == 429
-    # Der echte Nutzer kommt von einer anderen IP weiterhin rein.
+    # The real user still gets in from another IP.
     _set_ip(monkeypatch, "203.0.113.2")
     assert _login(client, credentials["email"], credentials["password"]).status_code == 200
 
@@ -25,6 +25,6 @@ def test_successful_login_resets_failure_count(client, credentials, monkeypatch)
     for _ in range(4):
         assert _login(client, credentials["email"], WRONG).status_code == 401
     assert _login(client, credentials["email"], credentials["password"]).status_code == 200
-    # Ohne Reset wäre hier beim sechsten Fehlversuch insgesamt Schluss.
+    # Without a reset, the sixth failed attempt overall would trigger the lockout here.
     for _ in range(4):
         assert _login(client, credentials["email"], WRONG).status_code == 401

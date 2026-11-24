@@ -39,7 +39,7 @@ def test_server_auth_is_only_used_together_with_server_access():
             if not via_access and (route.path, method) not in allowed_alone:
                 bad.append(f"{method} {route.path}")
     assert not bad, bad
-    # Schutz gegen Leerlauf: Der Test muss die Server-Routen wirklich sehen.
+    # Guard against an empty run: the test must really see the server routes.
     assert through_access >= 10, through_access
 
 

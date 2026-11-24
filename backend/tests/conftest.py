@@ -29,14 +29,14 @@ from app.security.ratelimit import (  # noqa: E402
 
 TEST_PASSWORD = "correct-horse-battery"
 
-# Der Original-Hasher mit den Produktionsparametern, bevor die Fixture ihn ersetzt.
+# The original hasher with the production parameters, before the fixture replaces it.
 PRODUCTION_PASSWORD_HASHER = passwords._hasher
 
 
 @pytest.fixture(autouse=True)
 def fast_password_hashing(monkeypatch: pytest.MonkeyPatch) -> None:
-    # Argon2 ist absichtlich teuer; in Tests reichen Minimalparameter. monkeypatch
-    # stellt den Produktions-Hasher nach jedem Test automatisch wieder her.
+    # Argon2 is deliberately expensive; minimal parameters are enough in tests. monkeypatch
+    # restores the production hasher automatically after each test.
     monkeypatch.setattr(
         passwords,
         "_hasher",

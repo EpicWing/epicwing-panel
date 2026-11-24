@@ -59,8 +59,8 @@ def _depends_on(dependant, target):
 
 def test_every_route_requires_auth():
     routes = [r for r in collect_routes(app) if not r.websocket]
-    # Schutz gegen Leerlauf: Der Test muss die Routen wirklich sehen.
-    assert len(routes) >= 11, f"Nur {len(routes)} HTTP-Routen gefunden"
+    # Guard against an empty run: the test must really see the routes.
+    assert len(routes) >= 11, f"Only {len(routes)} HTTP routes found"
     found = {(r.path, m) for r in routes for m in r.methods}
     assert PUBLIC_ROUTES <= found, f"Public routes not found: {PUBLIC_ROUTES - found}"
 

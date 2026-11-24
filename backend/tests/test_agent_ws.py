@@ -64,8 +64,8 @@ def _enroll_node(client, user, name="node-1"):
 
 
 def _auth_payload(node_id, private_key, challenge):
-    # Das Byte-Muster steht absichtlich hier und nicht im Servercode importiert,
-    # so a protocol change breaks this test visibly.
+    # The byte pattern is spelled out here on purpose instead of being imported
+    # from the server code, so a protocol change breaks this test visibly.
     nonce = base64.b64decode(challenge["nonce"])
     message = b"epicwing-agent-auth-v1\n" + node_id.encode() + b"\n" + nonce
     signature = base64.b64encode(private_key.sign(message)).decode()
@@ -220,7 +220,8 @@ def test_newer_connection_replaces_the_older_one(client, db_session, user):
 
 def test_websocket_routes_are_known():
     # The auth test for HTTP routes skips WebSocket routes, because they
-    # Signatur anmelden. Jede neue WebSocket-Route muss deshalb bewusst hier stehen.
+    # sign in with a signature. Every new WebSocket route must therefore be
+    # listed here on purpose.
     found = {r.path for r in collect_routes(app) if r.websocket}
     assert found == {"/api/agent/ws", "/api/servers/{server_id}/console"}
 

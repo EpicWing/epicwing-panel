@@ -4,29 +4,21 @@ import { useI18n } from "vue-i18n";
 
 import { type ThemeChoice, useTheme } from "../composables/useTheme";
 
-const { locale } = useI18n();
+const { t } = useI18n();
 const { choice, setTheme } = useTheme();
 
-// Texte lokal gehalten, damit keine Sprachdateien angefasst werden müssen
-const de = computed(() => String(locale.value).startsWith("de"));
-const title = computed(() => (de.value ? "Darstellung" : "Appearance"));
-const hint = computed(() =>
-  de.value
-    ? "System folgt der Einstellung deines Geräts."
-    : "System follows the setting of your device.",
-);
 const options = computed<{ value: ThemeChoice; label: string }[]>(() => [
-  { value: "light", label: de.value ? "Hell" : "Light" },
-  { value: "dark", label: de.value ? "Dunkel" : "Dark" },
-  { value: "system", label: "System" },
+  { value: "light", label: t("appearance.light") },
+  { value: "dark", label: t("appearance.dark") },
+  { value: "system", label: t("appearance.system") },
 ]);
 </script>
 
 <template>
   <section class="rounded-xl border border-ink-700 bg-ink-900 p-6">
-    <h2 class="text-base font-semibold">{{ title }}</h2>
-    <p class="mt-1 text-sm text-ink-400">{{ hint }}</p>
-    <div class="mt-4 grid grid-cols-3 gap-2" role="radiogroup" :aria-label="title">
+    <h2 class="text-base font-semibold">{{ t("appearance.title") }}</h2>
+    <p class="mt-1 text-sm text-ink-400">{{ t("appearance.hint") }}</p>
+    <div class="mt-4 grid grid-cols-3 gap-2" role="radiogroup" :aria-label="t('appearance.title')">
       <button
         v-for="o in options"
         :key="o.value"

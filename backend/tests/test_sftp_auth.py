@@ -132,7 +132,7 @@ def _read_result(ws):
         frame = ws.receive_json()
         if frame.get("type") == "sftp_auth_result":
             return frame
-    raise AssertionError("keine sftp_auth_result-Antwort")
+    raise AssertionError("no sftp_auth_result reply")
 
 
 def test_agent_frame_roundtrip(client, db_session, user):

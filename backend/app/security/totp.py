@@ -28,7 +28,7 @@ ISSUER = "EpicWing"
 TOTP_STEP = 30
 TOTP_WINDOW = 1
 RECOVERY_CODE_COUNT = 10
-# Ohne leicht verwechselbare Zeichen (I, O, 0, 1): genau 32 Zeichen, also 5 Bit pro Zeichen.
+# Without easily confused characters (I, O, 0, 1): exactly 32 characters, so 5 bits per character.
 _ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 _CODE = re.compile(r"[0-9]{6}")
 

@@ -18,7 +18,7 @@ const emit = defineEmits<{
 const memory = ref(String(props.memoryMb));
 const cpus = ref(String(props.cpus));
 const disk = ref(String(props.diskMb));
-// Solange nichts getippt wurde, folgen die Felder den Werten vom Server
+// Until something is typed, the fields follow the values from the server
 const touched = ref(false);
 const busy = ref(false);
 const saved = ref(false);
@@ -42,7 +42,7 @@ function edit() {
   saved.value = false;
 }
 
-// Leere Eingabe zählt als ungültig, 0 heißt unbegrenzt
+// Empty input counts as invalid, 0 means unlimited
 function number(text: string): number | null {
   const value = Number(text.trim().replace(",", "."));
   return text.trim() !== "" && Number.isFinite(value) && value >= 0 ? value : null;

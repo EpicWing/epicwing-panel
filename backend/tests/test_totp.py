@@ -4,7 +4,7 @@ from sqlalchemy import select
 from app.models import RecoveryCode
 from app.security import totp
 
-T = 1_800_000_000  # liegt genau auf einer Zeitschrittgrenze
+T = 1_800_000_000  # lies exactly on a time step boundary
 
 
 def _code(secret: str, at: int) -> str:
@@ -48,7 +48,7 @@ def test_time_window_and_order(db_session, user):
 
 def test_tampered_or_missing_secret(db_session, user):
     assert totp.verify_code(db_session, user, "123456", now=T) is False
-    user.totp_secret = "kein-gueltiger-token"
+    user.totp_secret = "not-a-valid-token"
     db_session.commit()
     assert totp.decrypt_secret(user.totp_secret) is None
     assert totp.verify_code(db_session, user, "123456", now=T) is False

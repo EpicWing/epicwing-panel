@@ -13,8 +13,8 @@ def test_collector_sees_every_documented_route():
         if not route.websocket
         for method in route.methods
     }
-    assert documented, "OpenAPI liefert keine Pfade"
+    assert documented, "OpenAPI returns no paths"
     assert collected == documented, (
         f"Missed by the collector: {sorted(documented - collected)}; "
-        f"nicht in OpenAPI: {sorted(collected - documented)}"
+        f"not in OpenAPI: {sorted(collected - documented)}"
     )

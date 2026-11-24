@@ -21,7 +21,7 @@ class Node(Base):
     cpu_total: Mapped[int | None] = mapped_column(Integer)
     ram_total_mb: Mapped[int | None] = mapped_column(Integer)
     disk_total_mb: Mapped[int | None] = mapped_column(Integer)
-    # Obergrenze für die Summe aller Server der Node, leer heißt unbegrenzt
+    # Upper limit for the sum across all servers on the node, empty means unlimited
     ram_limit_mb: Mapped[int | None] = mapped_column(Integer)
     disk_limit_mb: Mapped[int | None] = mapped_column(Integer)
     agent_version: Mapped[str | None] = mapped_column(String(32))
