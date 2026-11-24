@@ -2,6 +2,40 @@
 
 ## Unreleased
 
+## 0.3.5-beta (2026-11-24)
+
+### What's new
+
+- Panel update: the update now waits until the panel answers on `/api/health` before it counts as done. Before, any answer counted, even an error page, so a broken update could stay in place
+- Panel update: files that a release removed are now deleted from `/opt/epicwing/backend`, so no old code or old migrations stay behind. `.env` and the Python environment are kept
+- Panel update: if the new panel does not start, the old code is now restored cleanly, without files from the new release left in between
+- Panel update: rsync is now installed with the package manager of your system when it is missing. Before, this only worked on Debian and Ubuntu
+- Appearance settings: the texts now come from the language file like all other texts
+- Code comments and test messages are now all in English
+- `scripts/update-frontend.sh` (for developers): only deploys a clean checkout of `origin/main`. Use `--force` to deploy something else on purpose
+
+### Update
+
+Panel (makes a database backup first, no database migration in this release):
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/EpicWing/epicwing-panel/main/scripts/install.sh) update panel
+```
+
+Updating the nodes is optional: the agent is the same as in 0.3.4-beta, only its version number changes. Nodes on 0.3.4-beta keep working with this panel. If you want the same version everywhere:
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/EpicWing/epicwing-panel/main/scripts/install.sh) update node
+```
+
+### New install
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/EpicWing/epicwing-panel/main/scripts/install.sh) panel
+```
+
+Use a domain name for the panel, not an IP address, and give an e-mail for Let's Encrypt when the installer asks. Nodes need this to connect.
+
 ## 0.3.4-beta (2026-11-23)
 
 ### What's new
