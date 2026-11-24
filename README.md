@@ -153,6 +153,10 @@ Bugs and feature requests belong in the [issue tracker](https://github.com/EpicW
 
 See [SECURITY.md](SECURITY.md) to report a vulnerability.
 
+## How EpicWing is built
+
+EpicWing is built by me and contributors. AI coding tools, mainly Claude, are used for parts of the work, especially more complex changes. Every change is reviewed and tested before it ships.
+
 ## License
 
 [MIT](LICENSE). EpicWing imports Pterodactyl-format egg files for compatibility.
