@@ -144,13 +144,23 @@ update_node() {
   info "Agent updated: $old -> $new"
 }
 
+# Deletes everything in the backend directory except the Python environment
+# and the .env files.
+clear_backend() {
+  find "$APP_DIR/backend" -mindepth 1 -maxdepth 1 \
+    ! -name '.venv' ! -name '.env' ! -name '.env.*' -exec rm -rf {} +
+}
+
 update_panel() {
   local venv="$APP_DIR/backend/.venv" old stamp dump codebak ok
   cd /tmp
   [ -f "$APP_DIR/backend/.env" ] || die "No panel found in $APP_DIR. Install it first: install.sh panel"
   [ -x "$venv/bin/alembic" ] || die "The Python environment in $venv is missing or broken."
   command -v npm >/dev/null 2>&1 || die "npm is missing, the frontend cannot be built."
-  command -v rsync >/dev/null 2>&1 || apt-get install -y -qq rsync >/dev/null
+  if ! command -v rsync >/dev/null 2>&1; then
+    info "Installing rsync"
+    bootstrap_install rsync || die "rsync is needed but could not be installed automatically. Install it and run this again."
+  fi
 
   old="$(cat "$APP_DIR/VERSION" 2>/dev/null || echo unknown)"
   fetch_source
@@ -181,6 +191,8 @@ update_panel() {
   rollback() {
     printf '%sRestoring the old code.%s\n' "$RE" "$N" >&2
     systemctl stop epicwing-panel || true
+    # Remove the new code first, so no file of the new release stays behind.
+    clear_backend
     tar xzf "$codebak" -C "$APP_DIR"
     chown -R "$APP_USER:$APP_USER" "$APP_DIR/backend"
     (cd "$APP_DIR/backend" && "$venv/bin/pip" install -q .) || true
@@ -191,7 +203,10 @@ update_panel() {
   systemctl stop epicwing-panel
 
   info "Copying the new code"
-  rsync -a --exclude '.venv' --exclude '.env' --exclude '__pycache__' --exclude '.pytest_cache' \
+  # --delete removes files the new release no longer has (for example old
+  # migrations). Excluded paths are never deleted.
+  rsync -a --delete --exclude '.venv' --exclude '.env' --exclude '.env.*' \
+    --exclude '__pycache__' --exclude '.pytest_cache' \
     "$TMP/src/backend/" "$APP_DIR/backend/"
   chown -R "$APP_USER:$APP_USER" "$APP_DIR/backend"
 
@@ -208,8 +223,9 @@ update_panel() {
   ok=0
   for _ in 1 2 3 4 5 6 7 8 9 10; do
     sleep 2
+    # The health endpoint answers 200 only when the app runs and reaches the database.
     if systemctl is-active --quiet epicwing-panel \
-       && [ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8010/ || true)" != "000" ]; then
+       && [ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8010/api/health || true)" = "200" ]; then
       ok=1; break
     fi
   done
@@ -247,7 +263,7 @@ done
 # this distro has.
 bootstrap_install() {
   case "$PKG" in
-    apt-get) apt-get update -qq && apt-get install -y -qq "$@" >/dev/null ;;
+    apt-get) apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "$@" >/dev/null ;;
     dnf)     dnf install -y -q "$@" >/dev/null ;;
     zypper)  zypper --non-interactive install -y "$@" >/dev/null ;;
     pacman)  pacman -Sy --noconfirm "$@" >/dev/null ;;
